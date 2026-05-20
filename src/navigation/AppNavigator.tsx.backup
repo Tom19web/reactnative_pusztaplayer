@@ -1,0 +1,223 @@
+﻿import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { View, StyleSheet, useWindowDimensions, Animated } from 'react-native';
+import Sidebar from '../components/Sidebar';
+import Topbar from '../components/Topbar';
+import DotBackground from '../components/DotBackground';
+import LoginScreen from '../screens/LoginScreen';
+import HomeScreen from '../screens/HomeScreen';
+import LiveScreen from '../screens/LiveScreen';
+import MoviesScreen from '../screens/MoviesScreen';
+import SeriesScreen from '../screens/SeriesScreen';
+import FavoritesScreen from '../screens/FavoritesScreen';
+import PlayerScreen from '../screens/PlayerScreen';
+import UserInfoScreen from '../screens/UserInfoScreen';
+import ProfileSelectScreen from '../screens/ProfileSelectScreen';
+import WatchLaterScreen from '../screens/WatchLaterScreen';
+import { useCore, useAppDispatch, useSetSearch, useSetProfiles, useProfiles, useActiveProfile, useSetActiveProfile } from '../store/AppContext';
+import { clearImportedPlaylist } from '../services/playlistService';
+import { flush as syncFlush, fetchProfiles } from '../services/wordpressSync';
+import { clearXtreamCredentials } from '../services/storage';
+import { COLORS, SIZES, USER_STATUS_LOGGED_IN, DEFAULT_PLAYER_CONTENT_ID } from '../constants';
+import { useChannelNavigation } from '../hooks/useChannelNavigation';
+import type { RouteName } from '../types';
+
+export default function AppNavigator() {
+  const [currentRoute, setCurrentRoute] = useState<RouteName>('Home');
+  const [playerContentId, setPlayerContentId] = useState<string>(DEFAULT_PLAYER_CONTENT_ID);
+  const [prevRoute, setPrevRoute] = useState<RouteName>('Home');
+  const [playerVisible, setPlayerVisible] = useState(false);
+  const [showProfileSelect, setShowProfileSelect] = useState(true);
+  const { state: { user, searchTerm, playlist } } = useCore();
+  const dispatch = useAppDispatch();
+  const setSearch = useSetSearch();
+  const profiles = useProfiles();
+  const activeProfile = useActiveProfile();
+  const setActive = useSetActiveProfile();
+  const setProfiles = useSetProfiles();
+  const hasUser = user.status === USER_STATUS_LOGGED_IN;
+  const { width: screenW, height: screenH } = useWindowDimensions();
+  const contentSlide = useRef(new Animated.Value(0)).current;
+  const playerSlide = useRef(new Animated.Value(screenH)).current;
+  const playerCloseRef = useRef<(() => void) | null>(null);
+
+  // Fetch profiles on every startup
+  useEffect(() => {
+    if (!hasUser || !user.apiKey) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { profiles: fetched } = await fetchProfiles(user.apiKey);
+        if (!cancelled && fetched.length > 0) {
+          setProfiles(fetched.map(p => ({
+            ...p,
+            avatar: p.avatar || '\uD83E\uDDD1',
+            preferences: p.preferences || { live: [], movies: [], series: [] },
+          })));
+        }
+      } catch { /* WP unavailable => cached profiles remain */ }
+    })();
+    return () => { cancelled = true; };
+  }, [hasUser, user.apiKey]);
+
+  const needsProfileSelect = useMemo(() => {
+    if (currentRoute === 'Login' || currentRoute === 'Player') return false;
+    if (!user.status.includes('bejelentkezve')) return false;
+    return !activeProfile && showProfileSelect;
+  }, [activeProfile, showProfileSelect, user.status, currentRoute]);
+
+  // Content slide (sidebar nav)
+  const prevRouteRef = useRef<RouteName>(currentRoute);
+  useEffect(() => {
+    const prev = prevRouteRef.current;
+    prevRouteRef.current = currentRoute;
+    if (prev === currentRoute) return;
+    if (prev === 'Player' || currentRoute === 'Player') return; // Player handled separately
+    contentSlide.setValue(80);
+    Animated.timing(contentSlide, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+  }, [currentRoute, contentSlide]);
+
+  const navigate = useCallback((route: string, params?: { id?: string }) => {
+    if (route === 'player') {
+      setPlayerContentId(params?.id || DEFAULT_PLAYER_CONTENT_ID);
+      setPrevRoute(currentRoute);
+      openPlayer();
+    } else {
+      setCurrentRoute(route as RouteName);
+    }
+  }, [currentRoute]);
+
+  const openPlayer = useCallback(() => {
+    setPlayerVisible(true);
+    playerSlide.setValue(screenH);
+    Animated.timing(playerSlide, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+  }, [screenH, playerSlide]);
+
+  const closePlayer = useCallback(() => {
+    Animated.timing(playerSlide, { toValue: screenH, duration: 150, useNativeDriver: true }).start(() => {
+      setPlayerVisible(false);
+      setCurrentRoute(prevRoute);
+    });
+  }, [screenH, playerSlide, prevRoute]);
+
+  const playContent = useCallback((key: string) => {
+    setPlayerContentId(key);
+    setPrevRoute(currentRoute);
+    openPlayer();
+  }, [currentRoute, openPlayer]);
+
+  const handleBack = useCallback(() => setCurrentRoute(prevRoute), [prevRoute]);
+
+  const handleLoginSuccess = useCallback(() => setCurrentRoute('Home'), []);
+
+  const handleLogout = useCallback(async () => {
+    await syncFlush();
+    await clearImportedPlaylist();
+    await clearXtreamCredentials();
+    dispatch({ type: 'CLEAR_PLAYLIST' });
+    dispatch({ type: 'SET_USER', payload: { name: 'PusztaPlayer fiók', status: 'nincs aktív session' } });
+    setShowProfileSelect(true);
+    setCurrentRoute('Home');
+  }, [dispatch]);
+
+  const handleSwitchProfile = useCallback(() => {
+    setActive('');
+    setShowProfileSelect(true);
+  }, [setActive]);
+
+  const contentWidth = screenW - SIZES.sidebarWidth - 32;
+  const { prev, next } = useChannelNavigation(playlist?.liveChannels || [], playerContentId, playContent);
+
+  const renderScreen = () => {
+    switch (currentRoute) {
+      case 'Login':
+        return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+      case 'Live':
+        return <LiveScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
+      case 'Movies':
+        return <MoviesScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
+      case 'Series':
+        return <SeriesScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
+      case 'Favorites':
+        return <FavoritesScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
+      case 'WatchLater':
+        return <WatchLaterScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
+      case 'UserInfo':
+        return <UserInfoScreen onBack={() => setCurrentRoute('Home')} onLogout={handleLogout} />;
+      default:
+        return <HomeScreen onNavigate={navigate} onPlayContent={playContent} />;
+    }
+  };
+
+  if (needsProfileSelect) {
+    return (
+      <View style={styles.fullScreen}>
+        <ProfileSelectScreen onProfileSelected={() => setShowProfileSelect(false)} />
+      </View>
+    );
+  }
+
+  const isFullScreenRoute = currentRoute === 'Login' || !hasUser;
+
+  return (
+    <View style={styles.fullScreen}>
+      {isFullScreenRoute ? (
+        <Animated.View key={currentRoute} style={{ flex: 1 }}>
+          {renderScreen()}
+        </Animated.View>
+      ) : (
+        <View style={styles.layout}>
+          <DotBackground />
+          <Sidebar
+            activeRoute={currentRoute}
+            onNavigate={navigate}
+            onLogin={() => setCurrentRoute('Login')}
+            onLogout={handleLogout}
+            onSwitchProfile={handleSwitchProfile}
+            onUserInfo={() => setCurrentRoute('UserInfo')}
+          />
+          <View style={{ flex: 1 }}>
+            <Topbar
+              searchTerm={searchTerm}
+              onSearchChange={setSearch}
+              contentWidth={contentWidth}
+              onPlayContent={playContent}
+              onUserInfo={() => setCurrentRoute('UserInfo')}
+            />
+            <Animated.View
+              key={currentRoute}
+              style={{ flex: 1, transform: [{ translateX: contentSlide }] }}
+            >
+              {renderScreen()}
+            </Animated.View>
+          </View>
+        </View>
+      )}
+
+      {/* Player overlay */}
+      {playerVisible && (
+        <Animated.View
+          style={[styles.playerOverlay, { transform: [{ translateY: playerSlide }] }]}
+        >
+          <PlayerScreen
+            contentId={playerContentId}
+            onBack={closePlayer}
+            onPrevChannel={prev.key ? () => playContent(prev.key!) : undefined}
+            onNextChannel={next.key ? () => playContent(next.key!) : undefined}
+            onPlayContent={playContent}
+            prevChanName={prev.name}
+            nextChanName={next.name}
+          />
+        </Animated.View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  fullScreen: { flex: 1, backgroundColor: COLORS.bg },
+  layout: { flex: 1, flexDirection: 'row', backgroundColor: COLORS.bg },
+  playerOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100,
+    backgroundColor: COLORS.bg,
+  },
+});

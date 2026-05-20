@@ -1,0 +1,16 @@
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt
+index bb945fe..c62406a 100644
+--- a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt
+@@ -214,8 +214,9 @@ class ExoPlayerView @JvmOverloads constructor(context: Context, attrs: Attribute
+         val isLive = player.isCurrentMediaItemLive
+         val seekable = player.isCurrentMediaItemSeekable
+ 
+-        // Show/hide badge
+-        liveBadge.visibility = if (isLive) View.VISIBLE else View.GONE
++        // Show/hide badge — DISABLED: app has its own LIVE indicator
++        // liveBadge.visibility = if (isLive) View.VISIBLE else View.GONE
++        liveBadge.visibility = View.GONE
+ 
+         // Disable/enable scrubbing based on seekable
+         val timeBar = playerView.findViewById<DefaultTimeBar?>(androidx.media3.ui.R.id.exo_progress)
