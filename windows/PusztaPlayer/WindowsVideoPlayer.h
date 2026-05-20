@@ -1,6 +1,6 @@
 // WindowsVideoPlayer.h
-// Video player using WinRT MediaPlayer via XAML Islands.
-// Own STA thread with message pump for thread safety.
+// Media Foundation IMFMediaEngine — direct HWND video rendering.
+// STA thread + message pump, WS_POPUP window above Fabric Composition.
 
 #pragma once
 #include "pch.h"
@@ -26,39 +26,32 @@ class WindowsVideoPlayer {
 
   void SetReactContext(winrt::Microsoft::ReactNative::IReactContext const &context);
 
+  // Exposed for MediaEngineCallback
+  winrt::Microsoft::ReactNative::IReactContext const &GetContext() const { return m_context; }
+  IMFMediaEngineEx *GetEngine() const { return m_engine; }
+
  private:
   void StartStaThread();
   void StopStaThread();
   void StaThreadProc();
-  void CreatePlayerWindow();
-  void DestroyPlayerWindow();
-
-  void OnMediaOpened(winrt::Windows::Foundation::IInspectable const &, winrt::Windows::Foundation::IInspectable const &);
-  void OnMediaFailed(winrt::Windows::Foundation::IInspectable const &, winrt::Windows::Media::Playback::MediaPlayerFailedEventArgs const &);
-  void OnMediaEnded(winrt::Windows::Foundation::IInspectable const &, winrt::Windows::Foundation::IInspectable const &);
-
+  void CreateVideoWindow();
+  void DestroyVideoWindow();
   void Dispatch(std::function<void()> fn);
 
-  HWND m_playerHwnd{nullptr};
+  HWND m_videoHwnd{nullptr};
   HWND m_parentHwnd{nullptr};
-  winrt::Windows::UI::Xaml::Hosting::DesktopWindowXamlSource m_xamlSource{nullptr};
-  winrt::Windows::UI::Xaml::Controls::MediaPlayerElement m_playerElement{nullptr};
-  winrt::Windows::Media::Playback::MediaPlayer m_player{nullptr};
-  winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager m_xamlManager{nullptr};
+  IMFMediaEngineEx *m_engine{nullptr};
+  IMFMediaEngineClassFactory *m_factory{nullptr};
   winrt::Microsoft::ReactNative::IReactContext m_context{nullptr};
   RECT m_layout{0, 0, 0, 0};
-  std::atomic<bool> m_active{false};
+  bool m_active{false};
 
-  winrt::event_token m_mediaOpenedToken;
-  winrt::event_token m_mediaFailedToken;
-  winrt::event_token m_mediaEndedToken;
-
-  // STA thread
   std::thread m_staThread;
   std::mutex m_mutex;
   std::queue<std::function<void()>> m_queue;
   HANDLE m_wakeEvent{nullptr};
   bool m_staRunning{false};
+  bool m_mfStarted{false};
 };
 
 } // namespace PusztaPlay

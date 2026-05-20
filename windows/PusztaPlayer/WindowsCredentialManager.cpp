@@ -38,7 +38,7 @@ void WindowsCredentialManager::setItem(
     vault.Add(cred);
     result.Resolve();
   } catch (winrt::hresult_error const &e) {
-    result.Reject(winrt::to_string(e.message()));
+    result.Reject(winrt::to_string(e.message()).c_str());
   }
 }
 
@@ -56,7 +56,7 @@ void WindowsCredentialManager::getItem(
       result.Resolve(""); // empty string = not found
     }
   } catch (winrt::hresult_error const &e) {
-    result.Reject(winrt::to_string(e.message()));
+    result.Reject(winrt::to_string(e.message()).c_str());
   } catch (...) {
     result.Resolve(""); // not found or error → empty
   }
@@ -73,7 +73,7 @@ void WindowsCredentialManager::removeItem(
     }
     result.Resolve();
   } catch (winrt::hresult_error const &e) {
-    result.Reject(winrt::to_string(e.message()));
+    result.Reject(winrt::to_string(e.message()).c_str());
   } catch (...) {
     result.Resolve(); // already gone
   }

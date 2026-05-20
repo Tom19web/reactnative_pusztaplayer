@@ -8,9 +8,11 @@
 
 #include "NativeModules.h"
 #include "WindowsKeyboardManager.h"
+#include "WindowsCredentialManager.h"
 #include "WindowsVideoPlayer.h"
 #include "WinHttpModule.h"
 #include <winhttp.h>
+#include <ModuleRegistration.h>
 #pragma comment(lib, "winhttp.lib")
 
 // A PackageProvider containing any turbo modules you define within this app project
@@ -19,7 +21,9 @@ struct CompReactPackageProvider
  public: // IReactPackageProvider
   void CreatePackage(winrt::Microsoft::ReactNative::IReactPackageBuilder const &packageBuilder) noexcept {
     using namespace winrt::Microsoft::ReactNative;
-    // WinHttpModule uses AddModule (not AddTurboModule) to avoid the RNW 0.84 dispatch crash
+    // Auto-discover REACT_MODULE structs (WindowsCredentialManager) via AddModule
+    AddAttributedModules(packageBuilder, false);
+    // WinHttpModule: manual registration via AddModule (avoids hover crash)
     PusztaPlay::RegisterWinHttpModule(packageBuilder);
 
     // WindowsVideoPlayer: register via AddModule (same pattern, avoids crash)

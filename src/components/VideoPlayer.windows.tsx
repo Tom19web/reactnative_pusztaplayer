@@ -1,5 +1,5 @@
 ﻿import { useRef, useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TurboModuleRegistry, NativeModules, Pressable } from 'react-native';
+import { View, StyleSheet, TurboModuleRegistry, NativeModules, Pressable, DeviceEventEmitter } from 'react-native';
 import PlayerControls from './PlayerControls';
 
 let WindowsVideo: any = null;
@@ -98,9 +98,36 @@ export default function VideoPlayer({ url, title, isLive, resumePosition, onErro
     };
   }, [url]);
 
+  // Listen for native video events
+  useEffect(() => {
+    const onLoad = DeviceEventEmitter.addListener('onVideoLoad', (data: any) => {
+      if (data?.duration > 0) {
+        progressRef.current = { ...progressRef.current, duration: data.duration };
+        setProgress(p => ({ ...p, duration: data.duration }));
+        onDimensions?.(data?.width || 0, data?.height || 0);
+      }
+    });
+    const onEnd = DeviceEventEmitter.addListener('onVideoEnd', () => {
+      setPaused(true);
+      pausedRef.current = true;
+    });
+    const onError = DeviceEventEmitter.addListener('onVideoError', (data: any) => {
+      onError?.(data?.error || 'Lejátszási hiba');
+    });
+
+    return () => {
+      onLoad.remove();
+      onEnd.remove();
+      onError.remove();
+    };
+  }, [onError, onDimensions]);
+
   // Layout update on mount and resize
   useEffect(() => {
     updateLayout();
+    const sub = require('react-native').Dimensions.addEventListener('change', updateLayout);
+    return () => sub?.remove();
+  }, []);
     const sub = require('react-native').Dimensions.addEventListener('change', updateLayout);
     return () => sub?.remove();
   }, []);

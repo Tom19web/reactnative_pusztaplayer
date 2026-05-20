@@ -85,7 +85,7 @@
       </AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>shell32.lib;user32.lib;windowsapp.lib;gdi32.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>shell32.lib;user32.lib;windowsapp.lib;gdi32.lib;winhttp.lib;mf.lib;mfplat.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\ucrt\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -108,6 +108,7 @@
     <ClInclude Include="NativeModules.h" />
     <ClInclude Include="ReactPackageProvider.h" />
     <ClInclude Include="WindowsKeyboardManager.h" />
+    <ClInclude Include="WindowsCredentialManager.h" />
     <ClInclude Include="WindowsVideoPlayer.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="AutolinkedNativeModules.g.h" />
@@ -118,6 +119,7 @@
     <ClCompile Include="PusztaPlayer.cpp" />
     <ClCompile Include="WinHttpModule.cpp" />
     <ClCompile Include="WindowsKeyboardManager.cpp" />
+    <ClCompile Include="WindowsCredentialManager.cpp" />
     <ClCompile Include="WindowsVideoPlayer.cpp" />
     <ClCompile Include="AutolinkedNativeModules.g.cpp" />
     <ClCompile Include="pch.cpp">
