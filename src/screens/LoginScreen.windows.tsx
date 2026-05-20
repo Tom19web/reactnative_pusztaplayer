@@ -8,7 +8,7 @@ import { COLORS, FONT, USER_STATUS_LOGGED_IN, XTREAM_SERVER, FONT_FAMILY_BANGERS
 import { useDevLogin } from '../hooks/useDevLogin';
 import { useSetUser, useSetPlaylist } from '../store/AppContext';
 import { xtreamLogin, xtreamFullLogin } from '../services/playlistService';
-import { saveXtreamCredentials } from '../services/storage';
+import { saveXtreamCredentials, loadXtreamCredentials } from '../services/storage';
 import { requestQRCode, pollQRCode, stopPolling } from '../services/qrAuth';
 
 const QR_EXPIRY_MS = 300000;
@@ -83,9 +83,19 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       const { savePlaylistToCache, initPlaylistFromCache } = await import('../services/playlistService');
       await savePlaylistToCache(playlist);
       await initPlaylistFromCache();
-      setUser(directUser, USER_STATUS_LOGGED_IN);
+
+      // Preserve existing apiKey from previous QR login
+      let extra: { email?: string; nickname?: string; phone?: string; apiKey?: string } = {};
+      try {
+        const existing = await loadXtreamCredentials();
+        if (existing && existing.apiKey) {
+          extra = { email: existing.email, nickname: existing.nickname, phone: existing.phone, apiKey: existing.apiKey };
+        }
+      } catch {}
+
+      setUser(directUser, USER_STATUS_LOGGED_IN, extra.email || '', extra.nickname || '', extra.phone || '', extra.apiKey || '');
       setPlaylist(playlist);
-      saveXtreamCredentials(directUser, directPass);
+      saveXtreamCredentials(directUser, directPass, extra);
       onLoginSuccess();
     } catch (e: unknown) {
       setStep('error');

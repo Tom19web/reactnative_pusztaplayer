@@ -189,8 +189,8 @@ const styles = StyleSheet.create({
   sidebarBrand: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: 9,
-    marginBottom: 5,
+    gap: 12,
+    marginBottom: 8,
     paddingHorizontal: 8, paddingVertical: 4,
     backgroundColor: COLORS.panel,
     borderRadius: RADIUS,
@@ -198,8 +198,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.cyan,
   },
   sidebarLogo: {
-    width: 54,
-    height: 54,
+    width: 108,
+    height: 108,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -219,16 +219,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sidebarBrandName: {
-    fontSize: 24,
+    fontSize: 44,
     color: COLORS.brandPink,
     fontFamily: FONT_FAMILY_BANGERS,
     letterSpacing: 1,
-    lineHeight: 24,
+    lineHeight: 46,
     textAlign: 'center',
-    marginTop: 12,
   },
   sidebarVersion: {
-    fontSize: 9,
+    fontSize: 16,
     color: COLORS.muted,
     fontFamily: FONT_FAMILY_POPPINS,
     textAlign: 'center',
@@ -249,12 +248,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sidebarStatsNum: {
-    fontSize: 10,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
   },
   sidebarStatsLabel: {
-    fontSize: 7,
+    fontSize: 13,
     color: COLORS.muted,
     marginTop: 3,
   },
@@ -273,12 +272,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.yellow,
   },
   sidebarStatusName: {
-    fontSize: 9,
+    fontSize: 16,
     color: COLORS.text,
     fontFamily: FONT_FAMILY_POPPINS,
   },
   sidebarStatusDot: {
-    fontSize: 9,
+    fontSize: 16,
     color: COLORS.red,
   },
   sidebarStatusDotOnline: {
@@ -294,7 +293,7 @@ const styles = StyleSheet.create({
     color: COLORS.black,
     textAlign: 'center',
     fontFamily: FONT_FAMILY_BANGERS,
-    fontSize: 12,
+    fontSize: 22,
   },
   sidebarNavContainer: {
     marginBottom: 9,
@@ -319,9 +318,9 @@ const styles = StyleSheet.create({
   },
   sidebarNavLabel: {
     color: COLORS.muted,
-    fontSize: 12,
+    fontSize: 22,
     fontFamily: FONT_FAMILY_POPPINS,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   sidebarNavLabelActive: {
     color: COLORS.yellow,

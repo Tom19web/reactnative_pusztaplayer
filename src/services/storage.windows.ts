@@ -31,7 +31,11 @@ try {
 }
 
 function warn(op: string, e: unknown) {
-  console.warn(`[storage] ${op} failed:`, e instanceof Error ? e.message : String(e));
+  const msg = e instanceof Error ? e.message
+    : typeof e === 'string' ? e
+    : typeof e === 'object' ? JSON.stringify(e)
+    : String(e);
+  console.warn(`[storage] ${op} failed:`, msg);
 }
 
 let credsCache: { username: string; password: string; email?: string; nickname?: string; phone?: string; apiKey?: string } | null = null;
@@ -41,11 +45,11 @@ let windowsSecureModule: {
   setItem(key: string, value: string): Promise<void>;
   getItem(key: string): Promise<string | null>;
   removeItem(key: string): Promise<void>;
-} | null = null;
+} | null | undefined = undefined;
 
 function getWindowsSecureStore() {
   if (windowsSecureModule !== undefined) return windowsSecureModule;
-  if (Platform.OS !== 'windows') return null;
+  if (Platform.OS !== 'windows') { windowsSecureModule = null; return null; }
 
   try {
     windowsSecureModule = require('react-native').NativeModules

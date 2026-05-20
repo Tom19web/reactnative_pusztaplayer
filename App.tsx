@@ -5,6 +5,7 @@ import { StatusBar, View, Text, Image, ImageBackground, StyleSheet, Animated, Lo
 // REMOVED - let native HTTP module work
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider, useAppDispatch } from './src/store/AppContext';
+import { fetchProfiles, setProfilesVersion } from './src/services/wordpressSync';
 import AppNavigator from './src/navigation/AppNavigator';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import * as Sentry from '@sentry/react-native';
@@ -139,6 +140,31 @@ Animated.timing(fadeEdition, { toValue: 1, duration: 300, useNativeDriver: false
             } catch { /* silent — use cached data */ }
           }
           setApiProgress(3);
+
+          // Fetch WordPress profiles during startup (needed for auto-login path)
+          if (creds.apiKey) {
+            try {
+              const { profiles: fetched, version } = await fetchProfiles(creds.apiKey);
+              setProfilesVersion(version);
+              if (fetched.length > 0) {
+                dispatch({
+                  type: 'SET_PROFILES',
+                  payload: fetched.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    color: p.color,
+                    avatar: p.avatar || '\uD83E\uDDD1',
+                    preferences: p.preferences || { live: [], movies: [], series: [] },
+                    favorites: p.favorites || [],
+                    watch_later: p.watch_later || [],
+                    watch_progress: p.watch_progress || [],
+                    deleted: p.deleted,
+                    deletedAt: p.deletedAt,
+                  })),
+                });
+              }
+            } catch { /* silent — retries in AppNavigator */ }
+          }
 
           dispatch({ type: 'SET_PLAYLIST', payload: playlist });
           dispatch({ type: 'SET_USER', payload: { name: creds.username, status: 'Xtream bejelentkezve', email, nickname, phone, apiKey: creds.apiKey } });

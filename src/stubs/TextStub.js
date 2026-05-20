@@ -8,7 +8,7 @@ try {
   register('RCTText', () =>
     createViewConfig({
       uiViewClassName: 'RCTText',
-      validAttributes: { isHighlighted: true, isPressable: true, numberOfLines: true, ellipsizeMode: true, allowFontScaling: true, selectable: true, onTextLayout: true },
+      validAttributes: { isHighlighted: true, isPressable: true, numberOfLines: true, ellipsizeMode: true, allowFontScaling: true, selectable: true, onTextLayout: true, color: true, fontSize: true, fontWeight: true, fontStyle: true, fontFamily: true, textAlign: true, lineHeight: true, letterSpacing: true, textTransform: true },
       directEventTypes: { topTextLayout: { registrationName: 'onTextLayout' } },
     })
   );

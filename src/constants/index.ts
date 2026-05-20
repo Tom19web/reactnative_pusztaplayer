@@ -114,7 +114,7 @@ export const SPACING = {
 
 // ─── Méretek (skálázva) ──────────────────────────────
 export const SIZES = {
-  sidebarWidth: 240,
+  sidebarWidth: 400,
   cardWidth: s(260),
   cardHeight: s(180),
   posterWidth: s(220),
