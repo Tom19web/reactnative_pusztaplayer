@@ -128,9 +128,6 @@ export default function VideoPlayer({ url, title, isLive, resumePosition, onErro
     const sub = require('react-native').Dimensions.addEventListener('change', updateLayout);
     return () => sub?.remove();
   }, []);
-    const sub = require('react-native').Dimensions.addEventListener('change', updateLayout);
-    return () => sub?.remove();
-  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
