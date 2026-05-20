@@ -20,6 +20,11 @@
 // WinRT Header Files
 #include <winrt/base.h>
 
+#include <winrt/Windows.UI.Xaml.Hosting.h>
+#include <winrt/Windows.UI.Xaml.Controls.h>
+#include <winrt/Windows.Media.Playback.h>
+#include <winrt/Windows.Media.Core.h>
+
 #include <CppWinRTIncludes.h>
 #include <winrt/Microsoft.ReactNative.Composition.h>
 #include <winrt/Microsoft.ReactNative.h>
@@ -34,5 +39,6 @@
 #include <memory.h>
 #include <stdlib.h>
 #include <tchar.h>
+#include <functional>
 
 // Reference additional headers your project requires here

@@ -1,29 +1,13 @@
 // WindowsVideoPlayer.h
-// Video player using libVLC C API. Renders video to a child HWND overlay window.
-//
-// Managed as a TurboModule, controlled from JS via:
-//   play(source: string) -> void
-//   pause() -> void
-//   seek(timeMs: number) -> void
-//   setVolume(vol: number) -> void
-//   setLayout(x, y, w, h) -> void
-//   destroy() -> void
-//
-// Events (emitted to JS via DeviceEventEmitter):
-//   onProgress: { currentTime, duration }
-//   onLoad: { duration, width, height }
-//   onError: { message }
-//   onEnd: {}
-//   onBuffer: { isBuffering }
+// Video player using WinRT MediaPlayer via XAML Islands.
+// Own STA thread with message pump for thread safety.
 
 #pragma once
 #include "pch.h"
-
-struct libvlc_instance_t;
-struct libvlc_media_player_t;
-struct libvlc_media_t;
-struct libvlc_event_t;
-struct libvlc_event_manager_t;
+#include <functional>
+#include <queue>
+#include <mutex>
+#include <thread>
 
 namespace PusztaPlay {
 
@@ -36,39 +20,45 @@ class WindowsVideoPlayer {
   void play(const std::wstring &source);
   void pause();
   void seek(int64_t timeMs);
-  void setVolume(int vol); // 0-100
+  void setVolume(int vol);
   void setLayout(int x, int y, int w, int h);
   void destroy();
 
-  // Store ReactContext for emitting events
   void SetReactContext(winrt::Microsoft::ReactNative::IReactContext const &context);
 
  private:
+  void StartStaThread();
+  void StopStaThread();
+  void StaThreadProc();
   void CreatePlayerWindow();
   void DestroyPlayerWindow();
-  void EmitProgress();
-  static void OnMediaPlayerEvent(const libvlc_event_t *event, void *data);
-  static LRESULT CALLBACK PlayerWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+  void OnMediaOpened(winrt::Windows::Foundation::IInspectable const &, winrt::Windows::Foundation::IInspectable const &);
+  void OnMediaFailed(winrt::Windows::Foundation::IInspectable const &, winrt::Windows::Media::Playback::MediaPlayerFailedEventArgs const &);
+  void OnMediaEnded(winrt::Windows::Foundation::IInspectable const &, winrt::Windows::Foundation::IInspectable const &);
+
+  void Dispatch(std::function<void()> fn);
 
   HWND m_playerHwnd{nullptr};
   HWND m_parentHwnd{nullptr};
-  libvlc_instance_t *m_vlc{nullptr};
-  libvlc_media_player_t *m_mp{nullptr};
-  libvlc_media_t *m_media{nullptr};
+  winrt::Windows::UI::Xaml::Hosting::DesktopWindowXamlSource m_xamlSource{nullptr};
+  winrt::Windows::UI::Xaml::Controls::MediaPlayerElement m_playerElement{nullptr};
+  winrt::Windows::Media::Playback::MediaPlayer m_player{nullptr};
+  winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager m_xamlManager{nullptr};
   winrt::Microsoft::ReactNative::IReactContext m_context{nullptr};
   RECT m_layout{0, 0, 0, 0};
-  bool m_active{false};
+  std::atomic<bool> m_active{false};
 
-  // Event callbacks from libVLC
-  void OnOpening();
-  void OnPlaying();
-  void OnPaused();
-  void OnStopped();
-  void OnEndReached();
-  void OnTimeChanged(int64_t newTime);
-  void OnLengthChanged(int64_t newLength);
-  void OnBuffering(float cache);
-  void OnError();
+  winrt::event_token m_mediaOpenedToken;
+  winrt::event_token m_mediaFailedToken;
+  winrt::event_token m_mediaEndedToken;
+
+  // STA thread
+  std::thread m_staThread;
+  std::mutex m_mutex;
+  std::queue<std::function<void()>> m_queue;
+  HANDLE m_wakeEvent{nullptr};
+  bool m_staRunning{false};
 };
 
 } // namespace PusztaPlay

@@ -1,357 +1,300 @@
 // WindowsVideoPlayer.cpp
-// Video player using libVLC C API.
+// WinRT MediaPlayer via XAML Islands on dedicated STA thread.
 
 #include "pch.h"
 #include "WindowsVideoPlayer.h"
 
-#pragma push_macro("GetCurrentTime")
-#undef GetCurrentTime
-
-#include <vlc/vlc.h>
-#include <winrt/Microsoft.ReactNative.h>
-#include <windowsx.h>
+using namespace winrt::Microsoft::ReactNative;
 
 namespace PusztaPlay {
 
-using namespace winrt::Microsoft::ReactNative;
+struct __declspec(uuid("3CBDBEB7-6EA3-52B4-96E3-8E3E0E27BD14"))
+IDesktopWindowXamlSourceNative : ::IUnknown {
+  virtual HRESULT __stdcall get_WindowHandle(HWND *value) = 0;
+};
 
-static const wchar_t *kPlayerWindowClass = L"PusztaPlayerVideoWindow";
-static bool kClassRegistered = false;
-
-WindowsVideoPlayer::WindowsVideoPlayer() {}
+// IInitializeWithWindow - {3E68D4BD-7135-4D10-8018-9FB6D9F33FA1}
+struct __declspec(uuid("3E68D4BD-7135-4D10-8018-9FB6D9F33FA1"))
+IInitializeWithWindow : ::IUnknown {
+  virtual HRESULT __stdcall Initialize(HWND hwnd) = 0;
+};
 
 WindowsVideoPlayer &WindowsVideoPlayer::Instance() {
   static WindowsVideoPlayer instance;
   return instance;
 }
 
-WindowsVideoPlayer::~WindowsVideoPlayer() {
-  destroy();
+WindowsVideoPlayer::WindowsVideoPlayer() {
+  m_wakeEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
 }
+
+WindowsVideoPlayer::~WindowsVideoPlayer() { /* OS cleanup */ }
 
 void WindowsVideoPlayer::SetReactContext(IReactContext const &context) {
   m_context = context;
+  if (!m_parentHwnd) {
+    m_parentHwnd = GetForegroundWindow();
+    OutputDebugStringW((L"[VP] parent HWND=" + std::to_wstring(reinterpret_cast<uintptr_t>(m_parentHwnd)) + L"\n").c_str());
+  }
 }
 
-void WindowsVideoPlayer::CreatePlayerWindow() {
-  if (m_playerHwnd) return;
+// ─── STA Thread ────────────────────────────────────────
 
-  // Get parent HWND using EnumWindows
-  DWORD pid = GetCurrentProcessId();
-  struct EnumData { DWORD pid; HWND hwnd; } data{pid, nullptr};
-  EnumWindows([](HWND hwnd, LPARAM lParam) -> BOOL {
-    auto *d = reinterpret_cast<EnumData *>(lParam);
-    DWORD wPid;
-    GetWindowThreadProcessId(hwnd, &wPid);
-    if (wPid == d->pid && IsWindowVisible(hwnd) && GetParent(hwnd) == nullptr) {
-      d->hwnd = hwnd;
-      return FALSE;
+void WindowsVideoPlayer::StartStaThread() {
+  if (m_staRunning) return;
+  m_staRunning = true;
+  m_active = true;
+  m_staThread = std::thread(&WindowsVideoPlayer::StaThreadProc, this);
+}
+
+void WindowsVideoPlayer::StopStaThread() {
+  m_active = false;
+  m_staRunning = false;
+  SetEvent(m_wakeEvent);
+  if (m_staThread.joinable()) m_staThread.join();
+  if (m_wakeEvent) { CloseHandle(m_wakeEvent); m_wakeEvent = nullptr; }
+}
+
+void WindowsVideoPlayer::StaThreadProc() {
+  OutputDebugStringW(L"[VP] STA thread started\n");
+  winrt::init_apartment(winrt::apartment_type::single_threaded);
+  OutputDebugStringW(L"[VP] init_apartment done\n");
+  m_xamlManager = winrt::Windows::UI::Xaml::Hosting::WindowsXamlManager::InitializeForCurrentThread();
+  OutputDebugStringW(L"[VP] XamlManager initialized\n");
+  m_staRunning = true;
+
+  while (m_staRunning) {
+    // Pump Windows messages (required for XAML Island + MediaPlayerElement)
+    MSG msg;
+    while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+      TranslateMessage(&msg);
+      DispatchMessageW(&msg);
     }
-    return TRUE;
-  }, reinterpret_cast<LPARAM>(&data));
-  m_parentHwnd = data.hwnd;
 
-  if (!m_parentHwnd) return;
-
-  // Register window class once
-  if (!kClassRegistered) {
-    WNDCLASSEXW wc{};
-    wc.cbSize = sizeof(wc);
-    wc.lpfnWndProc = PlayerWndProc;
-    wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = kPlayerWindowClass;
-    wc.hbrBackground = reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
-    RegisterClassExW(&wc);
-    kClassRegistered = true;
+    // Drain work queue
+    std::function<void()> fn;
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      if (!m_queue.empty()) {
+        fn = std::move(m_queue.front());
+        m_queue.pop();
+      }
+    }
+    if (fn) {
+      try { fn(); } catch (...) {}
+    } else {
+      MsgWaitForMultipleObjectsEx(1, &m_wakeEvent, INFINITE, QS_ALLINPUT, 0);
+    }
   }
 
-  // Create child window (audio works, video hidden behind Fabric Composition)
-  RECT &r = m_layout;
-  m_playerHwnd = CreateWindowExW(
-      0,
-      kPlayerWindowClass, L"",
-      WS_CHILD | WS_VISIBLE,
-      r.left, r.top, r.right - r.left, r.bottom - r.top,
-      m_parentHwnd, nullptr, GetModuleHandleW(nullptr), nullptr);
-
-  // Store the player instance in the window for the wndproc
-  if (m_playerHwnd) {
-    SetWindowLongPtrW(m_playerHwnd, GWLP_USERDATA,
-                      reinterpret_cast<LONG_PTR>(this));
+  // Cleanup XAML on STA thread
+  if (m_player) {
+    m_player.MediaOpened(m_mediaOpenedToken);
+    m_player.MediaFailed(m_mediaFailedToken);
+    m_player.MediaEnded(m_mediaEndedToken);
   }
+  DestroyPlayerWindow();
+  m_player = nullptr;
+  m_playerElement = nullptr;
+  m_xamlSource = nullptr;
+  if (m_xamlManager) { m_xamlManager.Close(); m_xamlManager = nullptr; }
+  m_staRunning = false;
+  winrt::uninit_apartment();
 }
 
-void WindowsVideoPlayer::DestroyPlayerWindow() {
-  if (m_playerHwnd) {
-    DestroyWindow(m_playerHwnd);
-    m_playerHwnd = nullptr;
-  }
+// ─── Dispatch helper ───────────────────────────────────
+
+void WindowsVideoPlayer::Dispatch(std::function<void()> fn) {
+  std::lock_guard<std::mutex> lock(m_mutex);
+  m_queue.push(std::move(fn));
+  SetEvent(m_wakeEvent);
 }
 
-LRESULT CALLBACK WindowsVideoPlayer::PlayerWndProc(
-    HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-  return DefWindowProcW(hwnd, msg, wParam, lParam);
-}
-
-#define VTRACE(msg) OutputDebugStringW(L"[VLC] " L##msg L"\n")
+// ─── Public API (dispatches to STA thread) ─────────────
 
 void WindowsVideoPlayer::play(const std::wstring &source) {
-  VTRACE("play: start");
-  // Stop and clean up previous playback
-  if (m_mp) {
-    VTRACE("play: cleanup - stop player");
-    libvlc_media_player_stop(m_mp);
-    libvlc_media_player_release(m_mp);
-    m_mp = nullptr;
-  }
-  if (m_media) {
-    VTRACE("play: cleanup - release media");
-    libvlc_media_release(m_media);
-    m_media = nullptr;
-  }
-  VTRACE("play: cleanup done");
-
-  // Init VLC on first play (~0.5s freeze, then instant)
-  if (!m_vlc) {
-    VTRACE("play: libvlc_new about to call");
-    const char *vlcArgs[] = {"--no-xlib", "--no-video-title-show", "--vout=directdraw"};
-    m_vlc = libvlc_new(sizeof(vlcArgs) / sizeof(vlcArgs[0]), vlcArgs);
-    VTRACE("play: libvlc_new returned");
-  }
-  if (!m_vlc) { VTRACE("play: VLC init failed - returning"); return; }
-
-  // Create player window
-  VTRACE("play: CreatePlayerWindow about to call");
-  CreatePlayerWindow();
-  VTRACE("play: CreatePlayerWindow returned");
-
-  // Create media
-  VTRACE("play: media_new_location about to call");
-  auto url = winrt::to_string(source);
-  m_media = libvlc_media_new_location(m_vlc, url.c_str());
-  VTRACE("play: media_new_location returned");
-  if (!m_media) { VTRACE("play: media null - returning"); return; }
-
-  // Add options BEFORE creating player (must precede media_player_new)
-  VTRACE("play: add options");
-  libvlc_media_add_option(m_media, ":avcodec-hw=none");
-  libvlc_media_add_option(m_media, ":vout=direct3d9");
-  libvlc_media_add_option(m_media, ":http-user-agent=PusztaPlayer/0.7.0");
-  libvlc_media_add_option(m_media, ":network-caching=1500");
-
-  // Create player
-  VTRACE("play: media_player_new_from_media about to call");
-  m_mp = libvlc_media_player_new_from_media(m_media);
-  VTRACE("play: media_player_new_from_media returned");
-  if (!m_mp) {
-    libvlc_media_release(m_media);
-    m_media = nullptr;
-    return;
-  }
-
-  // Set render target
-  if (m_playerHwnd) {
-    VTRACE("play: set_hwnd");
-    libvlc_media_player_set_hwnd(m_mp, m_playerHwnd);
-  }
-
-  // Attach events
-  VTRACE("play: attach events");
-  auto em = libvlc_media_player_event_manager(m_mp);
-  libvlc_event_attach(em, libvlc_MediaPlayerPlaying, OnMediaPlayerEvent, this);
-  libvlc_event_attach(em, libvlc_MediaPlayerPaused, OnMediaPlayerEvent, this);
-  libvlc_event_attach(em, libvlc_MediaPlayerStopped, OnMediaPlayerEvent, this);
-  libvlc_event_attach(em, libvlc_MediaPlayerEndReached, OnMediaPlayerEvent, this);
-  libvlc_event_attach(em, libvlc_MediaPlayerTimeChanged, OnMediaPlayerEvent, this);
-  libvlc_event_attach(em, libvlc_MediaPlayerLengthChanged, OnMediaPlayerEvent, this);
-  libvlc_event_attach(em, libvlc_MediaPlayerOpening, OnMediaPlayerEvent, this);
-  libvlc_event_attach(em, libvlc_MediaPlayerBuffering, OnMediaPlayerEvent, this);
-  libvlc_event_attach(em, libvlc_MediaPlayerEncounteredError, OnMediaPlayerEvent, this);
-
-  // Start playback
-  VTRACE("play: media_player_play about to call");
-  libvlc_media_player_play(m_mp);
-  VTRACE("play: media_player_play returned");
+  OutputDebugStringW(L"[VP] play called\n");
+  if (!m_staRunning) { StartStaThread(); while (!m_staRunning) std::this_thread::sleep_for(std::chrono::milliseconds(10)); }
+  OutputDebugStringW(L"[VP] STA ready, dispatching\n");
   m_active = true;
-  VTRACE("play: done");
+  Dispatch([this, source]() {
+    if (m_player) {
+      m_player.MediaOpened(m_mediaOpenedToken);
+      m_player.MediaFailed(m_mediaFailedToken);
+      m_player.MediaEnded(m_mediaEndedToken);
+    }
+    DestroyPlayerWindow();
+    m_xamlSource = nullptr;
+    m_playerElement = nullptr;
+    m_player = nullptr;
+    CreatePlayerWindow();
+    if (!m_player) return;
+    auto uri = winrt::Windows::Foundation::Uri(source);
+    m_player.Source(winrt::Windows::Media::Core::MediaSource::CreateFromUri(uri));
+    if (m_player) m_player.Play();
+    OutputDebugStringW(L"[VP] play started\n");
+  });
 }
 
 void WindowsVideoPlayer::pause() {
-  if (m_mp) {
-    libvlc_media_player_pause(m_mp);
-  }
+  Dispatch([this]() {
+    if (!m_player) return;
+    auto state = m_player.PlaybackSession().PlaybackState();
+    if (state == winrt::Windows::Media::Playback::MediaPlaybackState::Playing)
+      m_player.Pause();
+    else
+      m_player.Play();
+  });
 }
 
 void WindowsVideoPlayer::seek(int64_t timeMs) {
-  if (m_mp) {
-    libvlc_media_player_set_time(m_mp, timeMs);
-  }
+  Dispatch([this, timeMs]() {
+    if (!m_player) return;
+    m_player.PlaybackSession().Position(std::chrono::milliseconds(timeMs));
+  });
 }
 
 void WindowsVideoPlayer::setVolume(int vol) {
-  if (m_mp) {
-    libvlc_audio_set_volume(m_mp, vol);
-  }
+  Dispatch([this, vol]() {
+    if (!m_player) return;
+    m_player.Volume(vol / 100.0);
+  });
 }
 
 void WindowsVideoPlayer::setLayout(int x, int y, int w, int h) {
   m_layout = {x, y, x + w, y + h};
-  if (m_playerHwnd) {
-    SetWindowPos(m_playerHwnd, nullptr, x, y, w, h,
-                 SWP_NOZORDER | SWP_NOACTIVATE);
-  }
+  Dispatch([this, x, y, w, h]() {
+    if (m_playerHwnd)
+      SetWindowPos(m_playerHwnd, nullptr, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+  });
 }
 
 void WindowsVideoPlayer::destroy() {
   m_active = false;
-  if (m_mp) {
-    libvlc_media_player_stop(m_mp);
-    libvlc_media_player_release(m_mp);
-    m_mp = nullptr;
-  }
-  if (m_media) {
-    libvlc_media_release(m_media);
-    m_media = nullptr;
-  }
-  if (m_vlc) {
-    libvlc_release(m_vlc);
-    m_vlc = nullptr;
-  }
-  DestroyPlayerWindow();
-}
-
-void WindowsVideoPlayer::OnMediaPlayerEvent(
-    const libvlc_event_t *event, void *data) {
-  auto *self = reinterpret_cast<WindowsVideoPlayer *>(data);
-  if (!self || !self->m_active) return;
-
-  switch (event->type) {
-    case libvlc_MediaPlayerOpening: self->OnOpening(); break;
-    case libvlc_MediaPlayerPlaying: self->OnPlaying(); break;
-    case libvlc_MediaPlayerPaused:  self->OnPaused(); break;
-    case libvlc_MediaPlayerStopped: self->OnStopped(); break;
-    case libvlc_MediaPlayerEndReached: self->OnEndReached(); break;
-    case libvlc_MediaPlayerTimeChanged:
-      self->OnTimeChanged(event->u.media_player_time_changed.new_time);
-      break;
-    case libvlc_MediaPlayerLengthChanged:
-      self->OnLengthChanged(event->u.media_player_length_changed.new_length);
-      break;
-    case libvlc_MediaPlayerBuffering:
-      self->OnBuffering(event->u.media_player_buffering.new_cache);
-      break;
-    case libvlc_MediaPlayerEncounteredError: self->OnError(); break;
-    default: break;
+  if (m_staRunning) {
+    Dispatch([this]() {
+      if (m_player) {
+        m_player.MediaOpened(m_mediaOpenedToken);
+        m_player.MediaFailed(m_mediaFailedToken);
+        m_player.MediaEnded(m_mediaEndedToken);
+      }
+      DestroyPlayerWindow();
+    });
   }
 }
 
-void WindowsVideoPlayer::OnOpening() {
-  EmitProgress();
-}
+// ─── XAML Island window ────────────────────────────────
 
-void WindowsVideoPlayer::OnPlaying() {
-  EmitProgress();
-  if (m_context) {
-    try {
-      int64_t length = libvlc_media_player_get_length(m_mp);
-      unsigned w, h;
-      libvlc_video_get_size(m_mp, 0, &w, &h);
-      m_context.EmitJSEvent(L"RCTDeviceEventEmitter", L"emit",
-        [length, w, h](IJSValueWriter const &writer) {
-          writer.WriteArrayBegin();
-          writer.WriteString(L"onVideoLoad");
-          writer.WriteObjectBegin();
-          writer.WritePropertyName(L"duration");
-          writer.WriteInt64(length);
-          writer.WritePropertyName(L"width");
-          writer.WriteInt64(w);
-          writer.WritePropertyName(L"height");
-          writer.WriteInt64(h);
-          writer.WriteObjectEnd();
-          writer.WriteArrayEnd();
-        });
-    } catch (...) {}
+void WindowsVideoPlayer::CreatePlayerWindow() {
+  if (m_xamlSource) return;
+  if (!m_parentHwnd) { OutputDebugStringW(L"[VP] no parent HWND\n"); return; }
+  OutputDebugStringW(L"[VP] CreatePlayerWindow start\n");
+
+  OutputDebugStringW(L"[VP] creating DesktopWindowXamlSource...\n");
+  try {
+    m_xamlSource = winrt::Windows::UI::Xaml::Hosting::DesktopWindowXamlSource();
+    OutputDebugStringW(L"[VP] DesktopWindowXamlSource created\n");
+  } catch (winrt::hresult_error const &e) {
+    auto msg = L"[VP] DesktopWindowXamlSource HRESULT: 0x" + std::to_wstring(static_cast<uint32_t>(e.code())) + L"\n";
+    OutputDebugStringW(msg.c_str());
+    return;
+  } catch (...) {
+    OutputDebugStringW(L"[VP] DesktopWindowXamlSource unknown exception\n");
+    return;
   }
-}
 
-void WindowsVideoPlayer::OnPaused() {}
+  m_playerElement = winrt::Windows::UI::Xaml::Controls::MediaPlayerElement();
+  m_player = winrt::Windows::Media::Playback::MediaPlayer();
+  m_playerElement.SetMediaPlayer(m_player);
+  m_playerElement.AreTransportControlsEnabled(true);
 
-void WindowsVideoPlayer::OnStopped() {}
+  int w = m_layout.right - m_layout.left;
+  int h = m_layout.bottom - m_layout.top;
+  if (w <= 0) w = 640;
+  if (h <= 0) h = 480;
+  m_playerElement.Width(w);
+  m_playerElement.Height(h);
 
-void WindowsVideoPlayer::OnEndReached() {
-  if (m_context) {
-    try {
-      m_context.EmitJSEvent(L"RCTDeviceEventEmitter", L"emit",
-        [](IJSValueWriter const &writer) {
-          writer.WriteArrayBegin();
-          writer.WriteString(L"onVideoEnd");
-          writer.WriteObjectBegin();
-          writer.WriteObjectEnd();
-          writer.WriteArrayEnd();
-        });
-    } catch (...) {}
+  // Content() creates the internal HWND — must set BEFORE querying the handle
+  m_xamlSource.Content(m_playerElement);
+  OutputDebugStringW(L"[VP] Content set\n");
+
+  // Now the internal HWND exists — get it (may throw E_NOINTERFACE)
+  try {
+    auto interop = m_xamlSource.as<IDesktopWindowXamlSourceNative>();
+    if (interop) {
+      interop->get_WindowHandle(&m_playerHwnd);
+    }
+  } catch (...) {
+    OutputDebugStringW(L"[VP] get_WindowHandle failed (no interop)\n");
   }
-}
-
-void WindowsVideoPlayer::OnTimeChanged(int64_t newTime) {
-  if (m_context) {
-    try {
-      int64_t length = libvlc_media_player_get_length(m_mp);
-      m_context.EmitJSEvent(L"RCTDeviceEventEmitter", L"emit",
-        [newTime, length](IJSValueWriter const &writer) {
-          writer.WriteArrayBegin();
-          writer.WriteString(L"onVideoProgress");
-          writer.WriteObjectBegin();
-          writer.WritePropertyName(L"currentTime");
-          writer.WriteInt64(newTime);
-          writer.WritePropertyName(L"seekableDuration");
-          writer.WriteInt64(length);
-          writer.WriteObjectEnd();
-          writer.WriteArrayEnd();
-        });
-    } catch (...) {}
+  if (m_playerHwnd) {
+    OutputDebugStringW((L"[VP] XAML HWND=" + std::to_wstring(reinterpret_cast<uintptr_t>(m_playerHwnd)) + L"\n").c_str());
+    SetParent(m_playerHwnd, m_parentHwnd);
+    SetWindowLongPtrW(m_playerHwnd, GWL_STYLE,
+                      GetWindowLongPtrW(m_playerHwnd, GWL_STYLE) | WS_CHILD | WS_VISIBLE);
+    SetWindowPos(m_playerHwnd, nullptr, m_layout.left, m_layout.top, w, h,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(m_playerHwnd, SW_SHOW);
+    OutputDebugStringW(L"[VP] XAML Island parented and shown\n");
+  } else {
+    OutputDebugStringW(L"[VP] no XAML HWND\n");
   }
+
+  m_mediaOpenedToken = m_player.MediaOpened({this, &WindowsVideoPlayer::OnMediaOpened});
+  m_mediaFailedToken = m_player.MediaFailed({this, &WindowsVideoPlayer::OnMediaFailed});
+  m_mediaEndedToken = m_player.MediaEnded({this, &WindowsVideoPlayer::OnMediaEnded});
 }
 
-void WindowsVideoPlayer::OnLengthChanged(int64_t newLength) {}
-
-void WindowsVideoPlayer::OnBuffering(float cache) {
-  bool isBuffering = cache < 100.0f;
-  if (m_context) {
-    try {
-      m_context.EmitJSEvent(L"RCTDeviceEventEmitter", L"emit",
-        [isBuffering](IJSValueWriter const &writer) {
-          writer.WriteArrayBegin();
-          writer.WriteString(L"onVideoBuffer");
-          writer.WriteObjectBegin();
-          writer.WritePropertyName(L"isBuffer");
-          writer.WriteBoolean(isBuffering);
-          writer.WriteObjectEnd();
-          writer.WriteArrayEnd();
-        });
-    } catch (...) {}
-  }
+void WindowsVideoPlayer::DestroyPlayerWindow() {
+  if (m_playerHwnd) { DestroyWindow(m_playerHwnd); m_playerHwnd = nullptr; }
+  m_xamlSource = nullptr;
+  m_playerElement = nullptr;
+  m_player = nullptr;
 }
 
-void WindowsVideoPlayer::OnError() {
-  if (m_context) {
-    try {
-      m_context.EmitJSEvent(L"RCTDeviceEventEmitter", L"emit",
-        [](IJSValueWriter const &writer) {
-          writer.WriteArrayBegin();
-          writer.WriteString(L"onVideoError");
-          writer.WriteObjectBegin();
-          writer.WritePropertyName(L"message");
-          writer.WriteString(L"Lejátszási hiba");
-          writer.WriteObjectEnd();
-          writer.WriteArrayEnd();
-        });
-    } catch (...) {}
-  }
+// ─── Events ────────────────────────────────────────────
+
+void WindowsVideoPlayer::OnMediaOpened(
+    winrt::Windows::Foundation::IInspectable const &,
+    winrt::Windows::Foundation::IInspectable const &) {
+  if (!m_context) return;
+  m_context.EmitJSEvent(L"RCTDeviceEventEmitter", L"emit", [](IJSValueWriter const &w) {
+    w.WriteArrayBegin();
+    w.WriteString(L"onVideoLoad");
+    w.WriteObjectBegin();
+    w.WriteObjectEnd();
+    w.WriteArrayEnd();
+  });
 }
 
-void WindowsVideoPlayer::EmitProgress() {
-  // Progress emitted via OnTimeChanged event
+void WindowsVideoPlayer::OnMediaFailed(
+    winrt::Windows::Foundation::IInspectable const &,
+    winrt::Windows::Media::Playback::MediaPlayerFailedEventArgs const &args) {
+  if (!m_context) return;
+  auto msg = winrt::to_string(args.ErrorMessage());
+  m_context.EmitJSEvent(L"RCTDeviceEventEmitter", L"emit", [&msg](IJSValueWriter const &w) {
+    w.WriteArrayBegin();
+    w.WriteString(L"onVideoError");
+    w.WriteObjectBegin();
+    w.WritePropertyName(L"error");
+    w.WriteString(winrt::to_hstring(msg));
+    w.WriteObjectEnd();
+    w.WriteArrayEnd();
+  });
+}
+
+void WindowsVideoPlayer::OnMediaEnded(
+    winrt::Windows::Foundation::IInspectable const &,
+    winrt::Windows::Foundation::IInspectable const &) {
+  if (!m_context) return;
+  m_context.EmitJSEvent(L"RCTDeviceEventEmitter", L"emit", [](IJSValueWriter const &w) {
+    w.WriteArrayBegin();
+    w.WriteString(L"onVideoEnd");
+    w.WriteObjectBegin();
+    w.WriteObjectEnd();
+    w.WriteArrayEnd();
+  });
 }
 
 } // namespace PusztaPlay
