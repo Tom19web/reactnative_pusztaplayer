@@ -1,0 +1,37 @@
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt
+index a1b2c3d..e4f5g6h 100644
+--- a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt
+@@ -156,6 +156,13 @@ class ExoPlayerView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, de
+         }
+     }
+ 
++    private var showLiveBadge = true
++
++    fun setShowLiveBadge(show: Boolean) {
++        showLiveBadge = show
++        updateLiveUi()
++    }
++
+     fun setUseController(useController: Boolean) {
+         playerView.useController = useController
+         if (useController) {
+@@ -215,7 +222,7 @@ class ExoPlayerView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, de
+         val seekable = player.isCurrentMediaItemSeekable
+ 
+         // Show/hide badge
+-        liveBadge.visibility = if (isLive) View.VISIBLE else View.GONE
++        liveBadge.visibility = if (isLive && showLiveBadge) View.VISIBLE else View.GONE
+ 
+         // Disable/enable scrubbing based on seekable
+         val timeBar = playerView.findViewById<DefaultTimeBar?>(androidx.media3.ui.R.id.exo_progress)
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerView.java b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerView.java
+index i1j2k3l..m4n5o6p 100644
+--- a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerView.java
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerView.java
+@@ -2725,6 +2725,7 @@
+         if (exoPlayerView != null) {
+             exoPlayerView.setUseController(controls);
++            exoPlayerView.setShowLiveBadge(controls);
+             // Additional configuration for proper touch handling
+             if (controls) {
