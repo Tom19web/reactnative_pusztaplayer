@@ -30,15 +30,15 @@ function authHeaders(apiKey: string): Record<string, string> {
   return { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
 }
 
-function apiUrl(path: string): string {
-  return `${QR_API_BASE}${path}`;
+function apiUrl(path: string, apiKey: string): string {
+  return `${QR_API_BASE}${path}?api_key=${encodeURIComponent(apiKey)}`;
 }
 
 /**
  * Fetch all profiles + watch progress from WordPress
  */
 export async function fetchProfiles(apiKey: string): Promise<{ profiles: WpProfile[]; watch_progress: HistoryItem[]; version: number }> {
-  const res = await fetchWithTimeout(apiUrl('/profiles'), { headers: authHeaders(apiKey) }, 10000);
+  const res = await fetchWithTimeout(apiUrl('/profiles', apiKey), { headers: authHeaders(apiKey) }, 10000);
   if (!res.ok) return { profiles: [], watch_progress: [], version: 1 };
   const data: { profiles?: WpProfile[]; watch_progress?: HistoryItem[]; version?: number } = await res.json();
   _profilesVersion = data.version ?? 1;
@@ -77,7 +77,7 @@ export async function flush() {
   }
   try {
     const body = { ...data, version: _profilesVersion };
-    const res = await fetchWithTimeout(apiUrl('/profiles'), {
+    const res = await fetchWithTimeout(apiUrl('/profiles', apiKey), {
       method: 'POST',
       headers: authHeaders(apiKey),
       body: JSON.stringify(body),
@@ -97,7 +97,7 @@ export async function flush() {
 // Explicit, immediate save — no debounce, no _pendingData dependency
 export async function saveProfilesNow(apiKey: string, profiles: WpProfile[]) {
   try {
-    await fetchWithTimeout(apiUrl('/profiles'), {
+    await fetchWithTimeout(apiUrl('/profiles', apiKey), {
       method: 'POST',
       headers: authHeaders(apiKey),
       body: JSON.stringify({ profiles }),
@@ -110,7 +110,7 @@ export async function saveProfilesNow(apiKey: string, profiles: WpProfile[]) {
  */
 export async function createProfile(apiKey: string, name: string, color: string): Promise<WpProfile | null> {
   try {
-    const res = await fetchWithTimeout(apiUrl('/profile'), {
+    const res = await fetchWithTimeout(apiUrl('/profile', apiKey), {
       method: 'POST',
       headers: authHeaders(apiKey),
       body: JSON.stringify({ action: 'create', name, color }),
@@ -130,7 +130,7 @@ export async function createProfile(apiKey: string, name: string, color: string)
  */
 export async function deleteProfile(apiKey: string, profileId: string): Promise<boolean> {
   try {
-    const res = await fetchWithTimeout(apiUrl('/profile'), {
+    const res = await fetchWithTimeout(apiUrl('/profile', apiKey), {
       method: 'POST',
       headers: authHeaders(apiKey),
       body: JSON.stringify({ action: 'delete', profile_id: profileId }),
@@ -148,7 +148,7 @@ export async function deleteProfile(apiKey: string, profileId: string): Promise<
  */
 export async function restoreProfile(apiKey: string, profileId: string): Promise<boolean> {
   try {
-    const res = await fetchWithTimeout(apiUrl('/profile'), {
+    const res = await fetchWithTimeout(apiUrl('/profile', apiKey), {
       method: 'POST',
       headers: authHeaders(apiKey),
       body: JSON.stringify({ action: 'restore', profile_id: profileId }),
@@ -166,7 +166,7 @@ export async function restoreProfile(apiKey: string, profileId: string): Promise
  */
 export async function saveSingleProfile(apiKey: string, profile: WpProfile): Promise<boolean> {
   try {
-    const res = await fetchWithTimeout(apiUrl('/profile'), {
+    const res = await fetchWithTimeout(apiUrl('/profile', apiKey), {
       method: 'POST',
       headers: authHeaders(apiKey),
       body: JSON.stringify({ action: 'save', ...profile }),

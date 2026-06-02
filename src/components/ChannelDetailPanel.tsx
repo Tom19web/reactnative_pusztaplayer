@@ -43,7 +43,7 @@ export default function ChannelDetailPanel({ channel, onPlay }: ChannelDetailPan
           focusedStyle={styles.playBtnFocused}
           onPress={() => onPlay(channel.key)}
         >
-          <Text style={styles.playBtnText}>â–ş LejĂˇtszĂˇs</Text>
+          <Text style={styles.playBtnText}>▶ Lejátszás</Text>
         </TFPressable>
       </View>
 

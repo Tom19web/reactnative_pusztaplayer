@@ -1,5 +1,5 @@
 import { XTREAM_SERVER, CACHE_TTL_EPG } from '../constants';
-import { EpgEntry, EpgProgram } from '../types';
+import { EpgEntry } from '../types';
 import { fetchWithTimeout } from './fetchWithTimeout';
 
 // ─── In-memory cache ───────────────────────────────
@@ -99,12 +99,22 @@ export async function fetchShortEpg(
     if (!res.ok) return [];
     const data = await res.json();
     const listings = data?.epg_listings || data?.EPG_Listings || [];
-    const rows: EpgEntry[] = listings.slice(0, limit).map((item: any) => ({
-      time: formatEpgTime(item.start || item.start_timestamp),
-      endTime: formatEpgTime(item.stop || item.end_timestamp),
-      title: safeDecodeBase64(item.title) || 'Ismeretlen műsor',
-      description: safeDecodeBase64(item.description) || '',
-    }));
+    const rows: EpgEntry[] = listings.slice(0, limit).map((item: any) => {
+      const rawStart = item.start_timestamp || item.start || '0';
+      const rawEnd = item.stop_timestamp || item.stop || '0';
+      let startTs = typeof rawStart === 'number' ? rawStart : parseInt(String(rawStart), 10) || 0;
+      let endTs = typeof rawEnd === 'number' ? rawEnd : parseInt(String(rawEnd), 10) || 0;
+      if (startTs < 1e10) startTs *= 1000;
+      if (endTs < 1e10) endTs *= 1000;
+      return {
+        time: formatEpgTime(startTs > 0 ? startTs : item.start || item.start_timestamp),
+        endTime: formatEpgTime(endTs > 0 ? endTs : item.stop || item.end_timestamp),
+        title: safeDecodeBase64(item.title) || 'Ismeretlen m\u0171sor',
+        description: safeDecodeBase64(item.description) || '',
+        startTimestamp: startTs,
+        endTimestamp: endTs,
+      };
+    });
     _cache.set(cacheKey, { ts: now, rows });
     // Evict oldest entries if over max
     if (_cache.size > EPG_CACHE_MAX) {
@@ -124,77 +134,3 @@ export function invalidateEpgCache(streamId: string | number): void {
 export function clearEpgCache(): void {
   _cache.clear();
 }
-
-// ─── Teljes EPG (TV Újság) ─────────────────────────
-
-const FULL_EPG_KEY = 'pusztaplay_epg_full';
-const FULL_EPG_TTL = 30 * 60 * 1000;
-
-export async function fetchFullEpg(
-  creds: { username: string; password: string; server?: string },
-): Promise<Map<number, EpgProgram[]>> {
-  const now = Date.now();
-  // Try in-memory
-  const memCached = _fullEpgMemCache;
-  if (memCached && now - memCached.ts < FULL_EPG_TTL) return memCached.data;
-
-  // Try AsyncStorage cache
-  try {
-    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
-    const raw = await AsyncStorage.getItem(FULL_EPG_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed.ts && now - parsed.ts < FULL_EPG_TTL) {
-        const data = new Map<number, EpgProgram[]>(parsed.data);
-        _fullEpgMemCache = { ts: parsed.ts, data };
-        return data;
-      }
-    }
-  } catch {}
-
-  const server = creds.server || XTREAM_SERVER;
-  const url = `${server}/player_api.php?username=${encodeURIComponent(creds.username)}&password=${encodeURIComponent(creds.password)}&action=get_simple_data_table`;
-
-  const res = await fetchWithTimeout(url, {}, 15000);
-  if (!res.ok) return memCached?.data || new Map();
-
-  const data = await res.json();
-  const listings = data?.epg_listings || [];
-
-  const byChannel = new Map<number, EpgProgram[]>();
-  for (const item of listings) {
-    const chId = Number(item.channel_id);
-    if (!chId) continue;
-    const startTs = Number(item.start_timestamp) || 0;
-    const endTs = Number(item.stop_timestamp) || 0;
-    const prog: EpgProgram = {
-      id: String(item.id || ''),
-      channelId: chId,
-      title: safeDecodeBase64(item.title) || 'Ismeretlen',
-      description: safeDecodeBase64(item.description) || '',
-      startTime: formatEpgTime(item.start || item.start_timestamp),
-      endTime: formatEpgTime(item.stop || item.end_timestamp),
-      startTimestamp: startTs * (startTs < 1e10 ? 1000 : 1),
-      endTimestamp: endTs * (endTs < 1e10 ? 1000 : 1),
-    };
-    if (!byChannel.has(chId)) byChannel.set(chId, []);
-    byChannel.get(chId)!.push(prog);
-  }
-
-  // Sort each channel's programs by start time
-  for (const progs of byChannel.values()) {
-    progs.sort((a, b) => a.startTimestamp - b.startTimestamp);
-  }
-
-  _fullEpgMemCache = { ts: now, data: byChannel };
-
-  // Cache to AsyncStorage
-  try {
-    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
-    await AsyncStorage.setItem(FULL_EPG_KEY, JSON.stringify({ ts: now, data: [...byChannel] }));
-  } catch {}
-
-  return byChannel;
-}
-
-let _fullEpgMemCache: { ts: number; data: Map<number, EpgProgram[]> } | null = null;

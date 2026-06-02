@@ -1,6 +1,7 @@
 node_modules/
 .gradle/
 android/app/build/
+android/app/.cxx/
 android/.gradle/
 android/build/
 android/local.properties
@@ -17,3 +18,4 @@ yarn-error.log*
 .expo/
 ios/Pods/
 ios/build/
+.bundle/

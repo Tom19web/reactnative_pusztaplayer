@@ -14,6 +14,7 @@ try {
 import { getImportedPlaylist } from './playlistService';
 import { loadXtreamCredentials } from './storage';
 import { buildEpisodeUrl } from './xtreamApi';
+import { radioStations } from '../constants/radioStations';
 import { PlayerSession } from '../types';
 
 const EP_URLS_KEY = 'pusztaplay_episode_urls';
@@ -107,6 +108,17 @@ export async function createPlaybackSession(
         streamType: 'hls', token: 'xtream-series',
         streamUrl: buildEpisodeUrl(creds.username, creds.password, epId),
         isLive: false,
+      };
+    }
+  }
+
+  // Rádió: keresés a radioStations listában
+  if (contentId.startsWith('radio_')) {
+    const station = radioStations.find(r => r.key === contentId);
+    if (station) {
+      return {
+        contentId, title: station.name, streamType: 'mp3', token: 'radio',
+        streamUrl: station.streamUrl, isLive: true,
       };
     }
   }

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { EpgEntry } from '../types';
 import { fetchShortEpg } from '../services/epgService';

@@ -1,6 +1,6 @@
 import { Dimensions } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
-import { HomeIcon, LiveIcon, MoviesIcon, SeriesIcon, FavIcon, WatchLaterIcon, EpgIcon } from '../components/icons/NavIcons';
+import { HomeIcon, LiveIcon, MoviesIcon, SeriesIcon, FavIcon, WatchLaterIcon, EpgIcon, RadioIcon } from '../components/icons/NavIcons';
 
 // ─── Képernyő méret detektálás ──────────────────────
 let SCREEN_WIDTH = 1920;
@@ -159,6 +159,7 @@ export const NAV_ITEMS = [
   { key: 'Movies', label: 'Filmek', Icon: MoviesIcon },
   { key: 'Series', label: 'Sorozatok', Icon: SeriesIcon },
   { key: 'EPG', label: 'TV Újság', Icon: EpgIcon },
+  { key: 'Radio', label: 'Rádió', Icon: RadioIcon },
   { key: 'Favorites', label: 'Kedvencek', Icon: FavIcon },
   { key: 'WatchLater', label: 'Megnézendő', Icon: WatchLaterIcon },
 ] as const;

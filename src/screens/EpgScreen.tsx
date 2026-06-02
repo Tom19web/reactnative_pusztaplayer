@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, BackHandler } from 'react-native';
 import EpgGrid from '../components/EpgGrid';
 import EpgDetailPopup from '../components/EpgDetailPopup';
+import Pagination from '../components/Pagination';
 import { COLORS, FONT, SPACING } from '../constants';
 import { useCore } from '../store/AppContext';
 import { useEpg, EpgRow } from '../hooks/useEpg';
@@ -11,10 +12,36 @@ interface Props {
   onBack: () => void;
 }
 
+const PAGE_SIZE = 8;
+
 export default function EpgScreen({ onPlayContent, onBack }: Props) {
-  const { state: { searchTerm } } = useCore();
-  const { rows, loading, error } = useEpg(searchTerm);
+  const { state: { searchTerm, playlist } } = useCore();
+  const allChannels = playlist?.liveChannels || [];
+  const channels = useMemo(() => {
+    const baseTitle = (t: string) => t.replace(/\s+(FHD|HD|SD|4K|UHD)\s*$/i, '');
+    const seen = new Set<string>();
+    return allChannels.filter(ch => {
+      const k = `${baseTitle(ch.title)}||${ch.group}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }, [allChannels]);
+  const [page, setPage] = useState(0);
+  const { rows, loading } = useEpg(searchTerm, channels, page, PAGE_SIZE);
   const [popup, setPopup] = useState<{ row: EpgRow; idx: number } | null>(null);
+
+  const totalPages = Math.ceil(channels.length / PAGE_SIZE);
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i);
+    if (page < 3) return [0, 1, 2, 3, 4];
+    if (page > totalPages - 4) return Array.from({ length: 5 }, (_, i) => totalPages - 5 + i);
+    return [page - 2, page - 1, page, page + 1, page + 2];
+  }, [page, totalPages]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [channels.length]);
 
   useEffect(() => {
     const h = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -30,42 +57,24 @@ export default function EpgScreen({ onPlayContent, onBack }: Props) {
     onPlayContent(row.channel.key);
   }, [onPlayContent]);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.loadingText}>⏳ TV műsor betöltése...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      {rows.length === 0 ? (
+      {loading && (
+        <Text style={styles.progressHint}>&#x23F3; Betöltés...</Text>
+      )}
+      {rows.length === 0 && !loading ? (
         <View style={styles.center}>
           <Text style={styles.emptyText}>Nincs program a megadott időablakban{searchTerm ? ' erre: ' + searchTerm : ''}</Text>
         </View>
       ) : (
         <EpgGrid
           rows={rows}
-          timelineStart={rows.reduce((min, r) => {
-            const t = r.programs[0]?.startTimestamp;
-            return t && t < min ? t : min;
-          }, Date.now())}
-          timelineEnd={rows.reduce((max, r) => {
-            const t = r.programs[r.programs.length - 1]?.endTimestamp;
-            return t && t > max ? t : max;
-          }, Date.now() + 3600000)}
           onSelectProgram={(row, idx) => setPopup({ row, idx })}
           onPlayChannel={(row) => handlePlay(row)}
         />
+      )}
+      {totalPages > 1 && (
+        <Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={setPage} />
       )}
       {popup && (
         <EpgDetailPopup
@@ -82,7 +91,6 @@ export default function EpgScreen({ onPlayContent, onBack }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
-  loadingText: { color: COLORS.muted, fontSize: FONT.lg },
-  errorText: { color: COLORS.red, fontSize: FONT.lg },
   emptyText: { color: COLORS.muted, fontSize: FONT.md, textAlign: 'center', paddingHorizontal: SPACING.xl },
+  progressHint: { position: 'absolute', top: 4, right: 12, zIndex: 10, color: COLORS.cyan, fontSize: 10, fontFamily: 'Poppins-Regular' },
 });

@@ -22,11 +22,14 @@ export function usePlayerHistory(
     : null;
   const effectiveKey = parentSeries?.key || contentId;
 
-  const savedItem = watchHistory.find(h => h.key === effectiveKey);
+  const savedItem = watchHistory.find(h => h.key === effectiveKey)
+    || (contentId.startsWith('ep_') ? watchHistory.find(h => h.episodeKey === contentId) : undefined);
   const resumePosition = (savedItem && savedItem.type !== 'live' && savedItem.position > 5
-    && savedItem.duration > 0 && savedItem.position < savedItem.duration - 5)
+    && savedItem.duration > 0 && savedItem.position < savedItem.duration - 5
+    && (!isSeriesEp || savedItem.episodeKey === contentId))
     ? savedItem.position : 0;
   const resumeEpisodeKey = (isSeriesEp && savedItem?.episodeKey) ? savedItem.episodeKey : null;
+  const savedSeriesId = isSeriesEp ? savedItem?.seriesId : undefined;
 
   const trackProgress = useCallback((data: { currentTime: number; duration: number }) => {
     if (!session) return;
@@ -64,5 +67,5 @@ export function usePlayerHistory(
     }
   }, [effectiveKey, contentId, meta, session, addHistory, isSeriesEp, parentSeries]);
 
-  return { trackProgress, resumePosition, resumeEpisodeKey, watchHistory };
+  return { trackProgress, resumePosition, resumeEpisodeKey, savedSeriesId, watchHistory };
 }

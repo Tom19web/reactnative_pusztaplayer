@@ -14,6 +14,7 @@ import UserInfoScreen from '../screens/UserInfoScreen';
 import ProfileSelectScreen from '../screens/ProfileSelectScreen';
 import WatchLaterScreen from '../screens/WatchLaterScreen';
 import EpgScreen from '../screens/EpgScreen';
+import RadioScreen from '../screens/RadioScreen';
 import { useCore, useAppDispatch, useSetSearch, useSetProfiles, useProfiles, useActiveProfile, useSetActiveProfile } from '../store/AppContext';
 import { clearImportedPlaylist, refreshPlaylist as refreshPl } from '../services/playlistService';
 import { flush as syncFlush, fetchProfiles, setProfilesVersion } from '../services/wordpressSync';
@@ -159,6 +160,8 @@ export default function AppNavigator() {
         return <SeriesScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
       case 'EPG':
         return <EpgScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
+      case 'Radio':
+        return <RadioScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
       case 'Favorites':
         return <FavoritesScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
       case 'WatchLater':

@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { useRef, useCallback, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, Animated } from 'react-native';
 import TFPressable from './TFPressable';
-import { COLORS, SPACING, FONT } from '../constants';
+import { COLORS, SPACING, FONT, SIZES } from '../constants';
 import { EpgRow } from '../hooks/useEpg';
 
 interface Props {
@@ -14,38 +15,95 @@ export default function EpgDetailPopup({ row, progIdx, onPlay, onClose }: Props)
   const prog = row.programs[progIdx];
   if (!prog) return null;
 
+  const playBtnRef = useRef<View>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => playBtnRef.current?.focus(), 150);
+    return () => clearTimeout(t);
+  }, []);
+
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(slideAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+  }, [slideAnim]);
+
+  const handleClose = useCallback(() => {
+    Animated.timing(slideAnim, { toValue: 0, duration: 100, useNativeDriver: true }).start(() => onClose());
+  }, [onClose, slideAnim]);
+
+  const handleTrapFocus = useCallback(() => {
+    playBtnRef.current?.focus();
+  }, []);
+
   return (
-    <View style={styles.overlay}>
-      <View style={styles.popup}>
-        <Text style={styles.title}>{prog.title}</Text>
-        <Text style={styles.meta}>{row.channel.title} | {prog.startTime} - {prog.endTime}</Text>
-        {prog.description ? (
-          <Text style={styles.desc} numberOfLines={5}>{prog.description}</Text>
-        ) : null}
-        <View style={styles.actions}>
-          <TFPressable style={styles.btn} focusedStyle={styles.btnFocus} onPress={onPlay} hasTVPreferredFocus>
-            <Text style={styles.btnText}>▶ Nézés most</Text>
-          </TFPressable>
-          <TFPressable style={styles.btnGhost} focusedStyle={styles.btnGhostFocus} onPress={onClose}>
-            <Text style={styles.btnGhostText}>Bezár</Text>
-          </TFPressable>
-        </View>
-      </View>
-    </View>
+    <>
+      <View style={styles.focusOverlay} focusable={true} onFocus={handleTrapFocus} />
+      <View style={styles.bgOverlay} />
+      <View style={styles.focusOverlay} focusable={true} onFocus={handleTrapFocus} />
+      <Animated.View style={[styles.container, { opacity: slideAnim, transform: [{ scale: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) }] }]}>
+        <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose}>
+          <Text style={styles.closeBtnText}>{'\u2716'}</Text>
+        </TFPressable>
+        <ScrollView style={styles.scroll} nestedScrollEnabled>
+          <Text style={styles.title}>{prog.title}</Text>
+          <Text style={styles.group}>{row.channel.title} | {prog.startTime} – {prog.endTime}</Text>
+          {prog.description ? (
+            <Text style={styles.desc} numberOfLines={5}>{prog.description}</Text>
+          ) : null}
+          <View style={styles.buttons}>
+            <TFPressable ref={playBtnRef} hasTVPreferredFocus style={styles.btnPlay} focusedStyle={styles.btnPlayFocus} onPress={onPlay}>
+              <Text style={styles.btnPlayText}>{'\u25B6'} N\u00E9z\u00E9s most</Text>
+            </TFPressable>
+            <TFPressable style={styles.btnClose} focusedStyle={styles.btnCloseFocus} onPress={handleClose}>
+              <Text style={styles.btnCloseText}>Bez\u00E1r</Text>
+            </TFPressable>
+          </View>
+        </ScrollView>
+      </Animated.View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
-  popup: { width: 500, backgroundColor: COLORS.panel, borderRadius: 14, borderWidth: 2, borderColor: COLORS.cyan, padding: SPACING.lg },
-  title: { color: COLORS.yellow, fontSize: FONT.lg, fontFamily: 'Bangers-Regular', marginBottom: SPACING.xs },
-  meta: { color: COLORS.muted, fontSize: FONT.sm, marginBottom: SPACING.md },
-  desc: { color: COLORS.text, fontSize: FONT.sm, lineHeight: 20, marginBottom: SPACING.lg },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: SPACING.md },
-  btn: { backgroundColor: COLORS.yellow, borderRadius: 10, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.lg },
-  btnFocus: { backgroundColor: COLORS.cyan },
-  btnText: { color: COLORS.black, fontSize: FONT.md, fontFamily: 'Poppins-Bold' },
-  btnGhost: { backgroundColor: 'transparent', borderRadius: 10, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)', paddingVertical: SPACING.sm, paddingHorizontal: SPACING.lg },
-  btnGhostFocus: { borderColor: COLORS.yellow },
-  btnGhostText: { color: COLORS.muted, fontSize: FONT.md, fontFamily: 'Poppins-Regular' },
+  focusOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 48,
+  },
+  bgOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 49,
+  },
+  container: {
+    position: 'absolute', right: 0, top: 0, bottom: 0, zIndex: 50,
+    width: SIZES.detailPanelWidth, maxHeight: 600,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    borderRadius: 10, padding: 10,
+  },
+  scroll: { gap: 0 },
+  closeBtn: {
+    position: 'absolute', top: 10, right: 12, zIndex: 10,
+    width: 16, height: 16, borderRadius: 8,
+    backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center',
+  },
+  closeBtnFocus: { backgroundColor: COLORS.yellow, transform: [{ scale: 1.1 }] },
+  closeBtnText: { color: COLORS.white, fontSize: 12, fontWeight: '700' },
+  title: {
+    fontSize: 14, color: COLORS.yellow,
+    fontFamily: 'Bangers-Regular', letterSpacing: 1, marginBottom: 4,
+  },
+  group: { fontSize: 8, color: COLORS.muted, marginBottom: 12, fontFamily: 'Poppins-Regular' },
+  desc: { fontSize: 11, color: COLORS.text, lineHeight: 16, marginBottom: 16 },
+  buttons: { flexDirection: 'column', gap: 4 },
+  btnPlay: {
+    backgroundColor: COLORS.yellow, borderRadius: 8,
+    paddingVertical: SPACING.sm, paddingHorizontal: SPACING.lg, alignItems: 'center',
+  },
+  btnPlayFocus: { backgroundColor: COLORS.cyan },
+  btnPlayText: { color: COLORS.black, fontSize: FONT.sm, fontWeight: '700' },
+  btnClose: {
+    backgroundColor: 'transparent', borderRadius: 8,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: SPACING.sm, paddingHorizontal: SPACING.lg, alignItems: 'center',
+  },
+  btnCloseFocus: { borderColor: COLORS.yellow },
+  btnCloseText: { color: COLORS.muted, fontSize: FONT.sm },
 });

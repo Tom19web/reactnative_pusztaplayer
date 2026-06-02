@@ -1,5 +1,5 @@
 // ─── Navigációs route-ok ────────────────────────────
-export type RouteName = 'Login' | 'Home' | 'Live' | 'Movies' | 'Series' | 'EPG' | 'Favorites' | 'WatchLater' | 'Player' | 'UserInfo';
+export type RouteName = 'Login' | 'Home' | 'Live' | 'Movies' | 'Series' | 'EPG' | 'Radio' | 'Favorites' | 'WatchLater' | 'Player' | 'UserInfo';
 
 // ─── Live TV csatorna ─────────────────────────────────
 export interface Channel {
@@ -140,6 +140,8 @@ export interface EpgEntry {
   endTime: string;
   title: string;
   description: string;
+  startTimestamp: number;
+  endTimestamp: number;
 }
 
 export interface EpgProgram {

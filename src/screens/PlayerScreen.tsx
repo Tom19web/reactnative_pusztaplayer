@@ -45,7 +45,7 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
   const { vodInfo, epgEntries, seriesEps, allSeasonsFlat, currentEpIdx, seasonNum, setCurrentEpIdx } =
     usePlayerContent(session, meta, actualContentId);
 
-  const { trackProgress, resumePosition, resumeEpisodeKey } = usePlayerHistory(actualContentId, session, meta);
+  const { trackProgress, resumePosition, resumeEpisodeKey, savedSeriesId } = usePlayerHistory(actualContentId, session, meta);
 
   const isFav = favorites.some(f => f.key === contentId);
   const [audioTracks, setAudioTracks] = useState<{ index: number; title: string; language?: string }[]>([]);
@@ -53,6 +53,13 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
   const [selectedTextTrackIdx, setSelectedTextTrackIdx] = useState(-1);
   const [selectedAudioTrackIdx, setSelectedAudioTrackIdx] = useState(0);
   const [downmixToStereo, setDownmixToStereo] = useState(false);
+
+  // Fill missing seriesId from history when resuming
+  useEffect(() => {
+    if (savedSeriesId && meta && (meta.seriesId == null || meta.seriesId <= 0)) {
+      setMeta(prev => prev ? { ...prev, seriesId: savedSeriesId } : null);
+    }
+  }, [savedSeriesId, meta?.seriesId, setMeta]);
 
   // Ref-based navigateToEp to avoid circular TDZ (navigateToEp â†’ useAutoPlay â†’ switchToEpisode â†’ navigateToEp)
   const switchToEpRef = useRef<(ep: EP) => Promise<void>>(async () => {});

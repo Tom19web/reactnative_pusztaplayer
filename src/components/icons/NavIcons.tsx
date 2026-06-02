@@ -80,3 +80,15 @@ export function EpgIcon({ size = 24, color = '#1a1a1a' }: IconProps) {
     </Svg>
   );
 }
+
+export function RadioIcon({ size = 24, color = '#1a1a1a' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 48 48">
+      <Rect x="6" y="10" width="8" height="28" rx="2" fill={color} opacity={0.5} />
+      <Rect x="17" y="6" width="5" height="36" rx="2" fill={color} opacity={0.3} />
+      <Circle cx="24" cy="24" r="18" fill={bg} stroke={color} strokeWidth={3} />
+      <Circle cx="24" cy="20" r="3" fill={color} />
+      <Path d="M24 20 L14 12 M24 20 L34 12 M20 30 Q24 34 28 30" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}

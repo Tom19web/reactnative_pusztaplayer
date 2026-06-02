@@ -75,6 +75,34 @@ export default function VideoPlayer({
   const [fadeControls, setFadeControls] = useState(false);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resumedRef = useRef(false);
+  const ffInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const ffSpeedRef = useRef(0);
+
+  const stopFFRW = useCallback(() => {
+    if (ffInterval.current) { clearInterval(ffInterval.current); ffInterval.current = null; }
+  }, []);
+
+  const startScrub = useCallback((dir: 1 | -1) => {
+    if (ffInterval.current) return;
+    ffSpeedRef.current = 0;
+    const p = progressRef.current;
+    const jump = 5;
+    const t = dir > 0 ? Math.min(p.duration || 0, p.currentTime + jump) : Math.max(0, p.currentTime - jump);
+    videoRef.current?.seek(t);
+    progressRef.current = { ...p, currentTime: t };
+    setProgress({ ...p, currentTime: t });
+    resetTimer();
+    ffInterval.current = setInterval(() => {
+      ffSpeedRef.current += 0.8;
+      const p = progressRef.current;
+      const jump = Math.round(5 + ffSpeedRef.current * ffSpeedRef.current * 0.5);
+      const t = dir > 0 ? Math.min(p.duration || 0, p.currentTime + jump) : Math.max(0, p.currentTime - jump);
+      videoRef.current?.seek(t);
+      progressRef.current = { ...p, currentTime: t };
+      setProgress({ ...p, currentTime: t });
+      resetTimer();
+    }, 300);
+  }, [resetTimer]);
 
   // �攵 Reconnect �攵
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,7 +128,7 @@ export default function VideoPlayer({
     }, 8000);
   }, [cancelReconnect]);
 
-  useEffect(() => () => cancelReconnect(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { cancelReconnect(); stopFFRW(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset resume + retry when URL changes
   useEffect(() => {
@@ -157,7 +185,13 @@ export default function VideoPlayer({
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('onHWKeyEvent', (ev: any) => {
-      if (ev && ev.eventKeyAction === 0) {
+      if (ev.eventType === 'rewind') {
+        if (ev.eventKeyAction === 0) startScrub(-1);
+        else stopFFRW();
+      } else if (ev.eventType === 'fastForward') {
+        if (ev.eventKeyAction === 0) startScrub(1);
+        else stopFFRW();
+      } else if (ev && ev.eventKeyAction === 0) {
         const t = ev?.eventType;
         if (t === 'up' || t === 'down' || t === 'left' || t === 'right') {
           resetTimer();
@@ -171,7 +205,7 @@ export default function VideoPlayer({
       }
     });
     return () => sub.remove();
-  }, [resetTimer, handlePlayPause]);
+  }, [resetTimer, handlePlayPause, startScrub, stopFFRW]);
 
   const isVod = !isLive;
 

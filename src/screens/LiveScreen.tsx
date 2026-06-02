@@ -76,6 +76,7 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
   const displayChannels = useMemo(() => {
     const mergeMap = new Map<string, Channel[]>();
     for (const ch of filteredChannels) {
+      if (ch.group === 'Hungarian Radio') continue;
       const key = `${baseTitle(ch.title)}|${ch.group}`;
       const arr = mergeMap.get(key) || [];
       arr.push(ch);
