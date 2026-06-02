@@ -104,6 +104,15 @@ export async function fetchShortEpg(
       const rawEnd = item.stop_timestamp || item.stop || '0';
       let startTs = typeof rawStart === 'number' ? rawStart : parseInt(String(rawStart), 10) || 0;
       let endTs = typeof rawEnd === 'number' ? rawEnd : parseInt(String(rawEnd), 10) || 0;
+      // If parseInt didn't work (datetime string like "20250602143000 +0200"), try Date parsing
+      if (!startTs && typeof rawStart === 'string') {
+        const d = new Date(rawStart);
+        if (!isNaN(d.getTime())) startTs = Math.floor(d.getTime() / 1000);
+      }
+      if (!endTs && typeof rawEnd === 'string') {
+        const d = new Date(rawEnd);
+        if (!isNaN(d.getTime())) endTs = Math.floor(d.getTime() / 1000);
+      }
       if (startTs < 1e10) startTs *= 1000;
       if (endTs < 1e10) endTs *= 1000;
       return {

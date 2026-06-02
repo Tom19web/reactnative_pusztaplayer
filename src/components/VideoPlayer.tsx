@@ -1,9 +1,43 @@
 ﻿import { useRef, useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, DeviceEventEmitter, Platform, Pressable } from 'react-native';
+import { View, Text, Image, StyleSheet, DeviceEventEmitter, Platform, Pressable, Animated } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import Video, { VideoRef, OnProgressData, SelectedTrack } from 'react-native-video';
 import PlayerControls from './PlayerControls';
 
 const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36';
+
+const TRANSITION_QUOTES = [
+  'Ha a stream bufferel, az az univerzum azt üzeni: pihenj.',
+  'Minden epizód egy új lehetőség. Kivéve az S01E01-et, azt már láttad.',
+  'A sors útjai kifürkészhetetlenek. A provider URL-jei még inkább.',
+  'Aki keres, az talál. Aki nem keres, az véletlenül is megtalálja a kedvenc csatornáját.',
+  'A boldogság nem a célban van, hanem az útban. Főleg ha a buffering kör forog.',
+  'Szeresd felebarátodat, mint önmagadat. De a jelszavát ne add meg senkinek.',
+  'Az élet rövid. Ne pazarold rossz felbontású streamre.',
+  'A valódi szabadság az, amikor minden csatorna betölt elsőre.',
+  'Nem számít, hányszor esnek el az epizódok — számít, hogy hányszor indítod újra.',
+  'A lélek ott van, ahol a kedvenc sorozatod következő évada vár.',
+  'Minden disconnect egy üzenet az égből: frissítsd a tokent.',
+  'A bátrak nem félnek a spoilerektől. Csak a watch history törléstől.',
+  'Az igazi szerelem az, amikor valaki megosztja veled az Xtream kreditjeit.',
+  'Aki egyszer látott 4K streamen focimeccset, az már nem tud visszamenni.',
+  'A csend arany. De a Dolby Atmos platina.',
+  'Ne ítélj meg senkit, amíg egy mérföldet nem sétáltál az ő EPG-jében.',
+  'Minden véget ér. Kivéve a sorozatfinálét, amit véletlenül kihagytál.',
+  'Az univerzum legjobb titka: a következő epizód mindig elérhető.',
+  'A múltat elengedni nehéz. A watch historyt törölni még nehezebb.',
+  'Ha az ajtó bezárul, egy ablak kinyílik. Ha az ablak is bezárul, marad a stream.',
+  'A nagy utazások egyetlen csatornakereséssel kezdődnek.',
+  'Nem az számít, hány csatornád van, hanem hogy melyiket nézed valóban.',
+  'A félelem csak addig tart, amíg a loading spinner forog.',
+  'Az igazi hős az, aki 3 óra után is keres egy működő sport linket.',
+  'Minden emberi lélekben ott lapul egy következő epizód, amit megnézne.',
+  'A sors nem véletlenszerű. Csak az M3U lista sorrendje az.',
+  'Ha elveszíted a kapcsolatot, az élő közvetítés vár rád. Vissza nem.',
+  'Az álmok nem halnak meg. Csak offline módba váltanak.',
+  'Amikor minden csatorna feketén áll, a szív megmutatja, melyik a valódi kedvenc.',
+  'A végső igazság: nem a felbontás teszi a filmet — de 480p-n nem nézünk semmit.',
+];
 
 interface VideoPlayerProps {
   url: string;
@@ -51,6 +85,7 @@ interface VideoPlayerProps {
   onSelectAudioTrack?: (idx: number) => void;
   downmixToStereo?: boolean;
   onToggleDownmix?: () => void;
+  transitionTrigger?: number;
 }
 
 export default function VideoPlayer({
@@ -65,6 +100,7 @@ export default function VideoPlayer({
   selectedTextTrack, selectedAudioTrack, downmixToStereo, onTrackInfo,
   audioTracks, textTracks, selectedTextTrackIdx, selectedAudioTrackIdx,
   onSelectTextTrack, onSelectAudioTrack, onToggleDownmix,
+  transitionTrigger,
 }: VideoPlayerProps) {
   const videoRef = useRef<VideoRef>(null);
   const [paused, setPaused] = useState(false);
@@ -110,6 +146,49 @@ export default function VideoPlayer({
   const [retryKey, setRetryKey] = useState(0);
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
+
+  // Transition animation
+  const videoScale = useRef(new Animated.Value(1)).current;
+  const videoOpacity = useRef(new Animated.Value(1)).current;
+  const logoScale = useRef(new Animated.Value(0)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const [showLogoTransition, setShowLogoTransition] = useState(false);
+  const [transitionQuote, setTransitionQuote] = useState('');
+
+  const runTransition = useCallback(() => {
+    // Phase 1: Exit (200ms)
+    Animated.parallel([
+      Animated.timing(videoScale, { toValue: 0.85, duration: 200, useNativeDriver: true }),
+      Animated.timing(videoOpacity, { toValue: 0.15, duration: 200, useNativeDriver: true }),
+    ]).start(() => {
+      // Phase 2: Logo show (500ms)
+      setTransitionQuote(TRANSITION_QUOTES[Math.floor(Math.random() * TRANSITION_QUOTES.length)]);
+      setShowLogoTransition(true);
+      logoScale.setValue(0.5);
+      logoOpacity.setValue(0);
+      Animated.parallel([
+        Animated.spring(logoScale, { toValue: 1, friction: 6, useNativeDriver: true }),
+        Animated.timing(logoOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      ]).start();
+    });
+  }, [videoScale, videoOpacity, logoScale, logoOpacity]);
+
+  const finishTransition = useCallback(() => {
+    setShowLogoTransition(false);
+    logoScale.setValue(0);
+    logoOpacity.setValue(0);
+    videoScale.setValue(0.9);
+    videoOpacity.setValue(0);
+    // Phase 3: Enter (300ms)
+    Animated.parallel([
+      Animated.spring(videoScale, { toValue: 1, friction: 6, useNativeDriver: true }),
+      Animated.timing(videoOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+    ]).start();
+  }, [videoScale, videoOpacity, logoScale, logoOpacity]);
+
+  useEffect(() => {
+    if (transitionTrigger && transitionTrigger > 0) runTransition();
+  }, [transitionTrigger, runTransition]);
 
   const cancelReconnect = useCallback(() => {
     if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); reconnectTimer.current = null; }
@@ -181,7 +260,13 @@ export default function VideoPlayer({
   const handleSeek = useCallback((time: number) => { videoRef.current?.seek(time); resetTimer(); }, [resetTimer]);
   const handleRew = useCallback(() => { const p = progressRef.current; videoRef.current?.seek(Math.max(0, p.currentTime - 10)); resetTimer(); }, [resetTimer]);
   const handleFwd = useCallback(() => { const p = progressRef.current; videoRef.current?.seek(Math.min(p.duration || 0, p.currentTime + 30)); resetTimer(); }, [resetTimer]);
-  const handleRestart = useCallback(() => { videoRef.current?.seek(0); setProgress({ currentTime: 0, duration: progress.duration }); resetTimer(); }, [progress.duration, resetTimer]);
+  const handleRestart = useCallback(() => {
+    videoRef.current?.seek(0);
+    const d = progressRef.current.duration;
+    progressRef.current = { currentTime: 0, duration: d };
+    setProgress({ currentTime: 0, duration: d });
+    resetTimer();
+  }, [resetTimer]);
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('onHWKeyEvent', (ev: any) => {
@@ -211,15 +296,16 @@ export default function VideoPlayer({
 
   return (
     <View style={styles.container}>
+      <Animated.View style={[styles.videoWrapper, { opacity: videoOpacity, transform: [{ scale: videoScale }] }]}>
       <Video
-        key={`v-${url.split('').reduce((h,c)=>0|(h*31+c.charCodeAt(0)),7)}-${retryKey}`}
-        ref={videoRef}
-        source={{ uri: url, headers: { 'User-Agent': BROWSER_UA } }}
-        style={styles.video}
-        resizeMode="contain"
-        focusable={false}
-        controls={false}
-        paused={paused}
+          key={`v-${url.split('').reduce((h,c)=>0|(h*31+c.charCodeAt(0)),7)}-${retryKey}`}
+          ref={videoRef}
+          source={{ uri: url, headers: { 'User-Agent': BROWSER_UA } }}
+          style={styles.video}
+          resizeMode="contain"
+          focusable={false}
+          controls={false}
+          paused={paused}
         onProgress={handleProgress}
         progressUpdateInterval={1000}
         onError={(e: any) => {
@@ -232,6 +318,7 @@ export default function VideoPlayer({
         onLoad={(data: any) => {
           setBuffering(false);
           cancelReconnect();
+          if (showLogoTransition) finishTransition();
           onDimensions?.(data.naturalSize?.width || 0, data.naturalSize?.height || 0);
         }}
         onBuffer={(e: any) => {
@@ -299,15 +386,35 @@ export default function VideoPlayer({
           onToggleDownmix={onToggleDownmix}
         />
       </View>
+      </Animated.View>
+      {showLogoTransition && (
+        <LinearGradient
+          colors={['#1a1000', '#0a0a1a', '#001a1a']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.logoTransition}
+          pointerEvents="none"
+        >
+          <Animated.View style={[styles.logoTransitionInner, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
+            <Image source={require('../../assets/pp-logo.png')} style={styles.logoTransitionImg} resizeMode="contain" />
+            <Text style={styles.logoTransitionText}>{transitionQuote}</Text>
+          </Animated.View>
+        </LinearGradient>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
+  videoWrapper: { flex: 1 },
   video: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   controlsOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   bufferingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   bufferingText: { fontSize: 40, opacity: 0.6 },
   touchCatcher: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, backgroundColor: 'transparent' },
+  logoTransition: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', zIndex: 60 },
+  logoTransitionInner: { alignItems: 'center', gap: 16 },
+  logoTransitionImg: { width: 100, height: 100, borderRadius: 20 },
+  logoTransitionText: { color: '#ffcc00', fontSize: 13, fontFamily: 'Poppins-Regular', fontStyle: 'italic', textAlign: 'center', maxWidth: '70%', lineHeight: 18 },
 });

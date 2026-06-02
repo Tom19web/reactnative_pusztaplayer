@@ -2,7 +2,6 @@ import { View, Text, Image, StyleSheet } from 'react-native';
 import TFPressable from './TFPressable';
 import { COLORS, FONT } from '../constants';
 import { RadioStation } from '../constants/radioStations';
-import { useTVFocus } from '../hooks/useTVFocus';
 
 interface Props {
   station: RadioStation;
@@ -10,52 +9,56 @@ interface Props {
 }
 
 export default function RadioCard({ station, onPress }: Props) {
-  const { isFocused, onFocus, onBlur } = useTVFocus();
-
   return (
     <TFPressable
-      style={[styles.card, isFocused && styles.cardFocused]}
+      style={styles.card}
       focusedStyle={styles.cardFocused}
       onPress={onPress}
-      onFocus={onFocus}
-      onBlur={onBlur}
     >
       <View style={styles.logoWrap}>
         <Image source={{ uri: station.logo }} style={styles.logo} resizeMode="contain" />
       </View>
-      <Text style={[styles.name, isFocused && styles.nameFocused]} numberOfLines={2}>{station.name}</Text>
-      <Text style={styles.liveText}>{'\u25CF'} ÉLŐ</Text>
+      <Text style={styles.name} numberOfLines={1}>{station.name}</Text>
+      <View style={styles.liveRow}>
+        <View style={styles.liveDot} />
+        <Text style={styles.liveText}>ÉLŐ</Text>
+      </View>
     </TFPressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    width: 130, alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    padding: 12, gap: 6,
+    width: 150, alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    padding: 14, gap: 8,
   },
   cardFocused: {
     backgroundColor: 'rgba(255,204,0,0.12)',
     borderColor: COLORS.yellow,
-    transform: [{ scale: 1.03 }],
+    transform: [{ scale: 1.04 }],
   },
   logoWrap: {
-    width: 64, height: 64, borderRadius: 32,
+    width: 76, height: 76, borderRadius: 38,
     backgroundColor: COLORS.panel,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
     overflow: 'hidden',
   },
-  logo: { width: 48, height: 48 },
+  logo: { width: 56, height: 56 },
   name: {
     color: COLORS.text, fontSize: 11, fontFamily: 'Poppins-Bold',
     textAlign: 'center',
   },
-  nameFocused: { color: COLORS.yellow },
+  liveRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+  },
+  liveDot: {
+    width: 5, height: 5, borderRadius: 3,
+    backgroundColor: COLORS.red,
+  },
   liveText: {
-    color: COLORS.red, fontSize: 9, fontFamily: 'Poppins-Bold',
-    letterSpacing: 1,
+    color: COLORS.red, fontSize: 9, fontFamily: 'Poppins-Bold', letterSpacing: 1,
   },
 });

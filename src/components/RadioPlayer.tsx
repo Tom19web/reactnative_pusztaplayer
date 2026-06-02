@@ -17,15 +17,31 @@ export default function RadioPlayer({ station, onBack }: Props) {
   const [metadata, setMetadata] = useState('');
   const [status, setStatus] = useState('');
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const visualizerBars = useRef(Array.from({ length: 7 }, () => new Animated.Value(0.2))).current;
   const metadataTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isAac = station.streamUrl.toLowerCase().endsWith('.aac');
-  const sourceType = isAac ? 'aac' : 'other';
 
   const handleToggle = () => {
     playingRef.current = !playingRef.current;
     setVideoKey(prev => prev + 1);
   };
+
+  // Visualizer animation
+  useEffect(() => {
+    const animations = visualizerBars.map((bar, i) => {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bar, { toValue: 0.3 + Math.random() * 0.7, duration: 500 + i * 80, useNativeDriver: false }),
+          Animated.timing(bar, { toValue: 0.15 + Math.random() * 0.3, duration: 400 + i * 60, useNativeDriver: false }),
+        ]),
+      );
+      loop.start();
+      return loop;
+    });
+    return () => animations.forEach(a => a.stop());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [station.key]);
 
   // ON AIR pulse animation
   useEffect(() => {
@@ -68,7 +84,7 @@ export default function RadioPlayer({ station, onBack }: Props) {
       <Video
         key={videoKey}
         ref={videoRef}
-        source={{ uri: station.streamUrl, type: sourceType }}
+        source={{ uri: station.streamUrl, type: isAac ? 'aac' : undefined }}
         style={styles.radioVideo}
         paused={!playingRef.current}
         onLoadStart={() => setStatus('\u23F3 Bet\u00F6l\u00E9s...')}
@@ -95,6 +111,13 @@ export default function RadioPlayer({ station, onBack }: Props) {
         <View style={styles.onAirRow}>
           <Animated.View style={[styles.onAirDot, { opacity: pulseAnim }]} />
           <Text style={styles.onAirText}>ON AIR</Text>
+        </View>
+
+        {/* Visualizer */}
+        <View style={styles.visualizerRow}>
+          {visualizerBars.map((bar, i) => (
+            <Animated.View key={i} style={[styles.vizBar, { height: bar.interpolate({ inputRange: [0, 1], outputRange: [12, 48] }) }]} />
+          ))}
         </View>
 
         {/* Logo */}
@@ -147,6 +170,13 @@ const styles = StyleSheet.create({
   onAirText: {
     color: COLORS.red, fontSize: 18, fontFamily: 'Bangers-Regular',
     letterSpacing: 4,
+  },
+  visualizerRow: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 48,
+    marginBottom: SPACING.sm,
+  },
+  vizBar: {
+    width: 6, backgroundColor: COLORS.yellow, borderRadius: 3, opacity: 0.6,
   },
   logoWrap: {
     width: 140, height: 140, borderRadius: 70,

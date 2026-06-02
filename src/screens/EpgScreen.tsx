@@ -33,7 +33,7 @@ export default function EpgScreen({ onPlayContent, onBack }: Props) {
 
   const totalPages = Math.ceil(channels.length / PAGE_SIZE);
   const pageNumbers = useMemo(() => {
-    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i);
+    <Text style={styles.loadingText}>⏳ TV műsor betöltése...</Text>
     if (page < 3) return [0, 1, 2, 3, 4];
     if (page > totalPages - 4) return Array.from({ length: 5 }, (_, i) => totalPages - 5 + i);
     return [page - 2, page - 1, page, page + 1, page + 2];
@@ -60,7 +60,7 @@ export default function EpgScreen({ onPlayContent, onBack }: Props) {
   return (
     <View style={styles.container}>
       {loading && (
-        <Text style={styles.progressHint}>&#x23F3; Betöltés...</Text>
+        <Text style={styles.progressHint}>{loadedCount} / {channels.length} csatorna betöltve...</Text>
       )}
       {rows.length === 0 && !loading ? (
         <View style={styles.center}>

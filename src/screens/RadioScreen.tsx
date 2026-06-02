@@ -13,11 +13,14 @@ interface Props {
 }
 
 const PAGE_SIZE = 30;
+const MAX_RECENTS = 5;
+const recents: RadioStation[] = [];
 
 export default function RadioScreen({ onPlayContent, onBack }: Props) {
   const { state: { searchTerm } } = useCore();
   const [page, setPage] = useState(0);
   const [playing, setPlaying] = useState<RadioStation | null>(null);
+  const [recentStations, setRecentStations] = useState<RadioStation[]>(recents);
 
   const filtered = useMemo(() => {
     if (!searchTerm) return radioStations;
@@ -41,6 +44,11 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
   useEffect(() => { setPage(0); }, [searchTerm]);
 
   const handlePress = useCallback((station: RadioStation) => {
+    const idx = recents.findIndex(r => r.key === station.key);
+    if (idx >= 0) recents.splice(idx, 1);
+    recents.unshift(station);
+    if (recents.length > MAX_RECENTS) recents.pop();
+    setRecentStations([...recents]);
     setPlaying(station);
   }, []);
 
@@ -56,6 +64,19 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.grid}>
         <Text style={styles.header}>{'\uD83D\uDCFB'} Rádió</Text>
+
+        {/* Recent stations */}
+        {!searchTerm && recentStations.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Legutóbb hallgatott</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentRow}>
+              {recentStations.map(s => (
+                <RadioCard key={s.key} station={s} onPress={() => setPlaying(s)} />
+              ))}
+            </ScrollView>
+          </>
+        )}
+
         {pageItems.length === 0 ? (
           <Text style={styles.empty}>Nincs találat</Text>
         ) : (
@@ -78,7 +99,14 @@ const styles = StyleSheet.create({
   grid: { paddingVertical: SPACING.md, paddingHorizontal: 20 },
   header: {
     color: COLORS.yellow, fontSize: FONT.xl, fontFamily: 'Bangers-Regular',
-    marginBottom: SPACING.md, letterSpacing: 1,
+    marginBottom: SPACING.sm, letterSpacing: 1,
+  },
+  sectionTitle: {
+    color: COLORS.cyan, fontSize: FONT.sm, fontFamily: 'Poppins-Bold',
+    marginBottom: SPACING.sm, letterSpacing: 1,
+  },
+  recentRow: {
+    marginBottom: SPACING.md,
   },
   gridWrap: {
     flexDirection: 'row', flexWrap: 'wrap',

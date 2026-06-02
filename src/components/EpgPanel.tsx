@@ -39,7 +39,7 @@ export default function EpgPanel({ streamId, limit = 2 }: EpgPanelProps) {
       {/* Next */}
       {entries[1] && (
         <View style={styles.nextRow}>
-          <Text style={styles.nextLabel}>KĂ¶vetkezĹ‘</Text>
+          <Text style={styles.nextLabel}>Következő</Text>
           <Text style={styles.nextTitle} numberOfLines={1}>{entries[1].title}</Text>
           <Text style={styles.nextTime}>{entries[1].time}</Text>
         </View>

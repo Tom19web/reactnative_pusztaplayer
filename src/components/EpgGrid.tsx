@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Image } from 'react-native';
 import TFPressable from './TFPressable';
 import { COLORS, FONT } from '../constants';

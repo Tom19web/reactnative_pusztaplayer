@@ -52,10 +52,10 @@ export default function EpgDetailPopup({ row, progIdx, onPlay, onClose }: Props)
           ) : null}
           <View style={styles.buttons}>
             <TFPressable ref={playBtnRef} hasTVPreferredFocus style={styles.btnPlay} focusedStyle={styles.btnPlayFocus} onPress={onPlay}>
-              <Text style={styles.btnPlayText}>{'\u25B6'} N\u00E9z\u00E9s most</Text>
+              <Text style={styles.btnText}>▶ Nézés most</Text>
             </TFPressable>
             <TFPressable style={styles.btnClose} focusedStyle={styles.btnCloseFocus} onPress={handleClose}>
-              <Text style={styles.btnCloseText}>Bez\u00E1r</Text>
+              <Text style={styles.btnText}>Bezár</Text>
             </TFPressable>
           </View>
         </ScrollView>

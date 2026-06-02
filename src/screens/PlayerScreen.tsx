@@ -31,6 +31,7 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
   const dispatch = useAppDispatch();
   const [showLogo, setShowLogo] = useState(false);
   const [videoResolution, setVideoResolution] = useState('');
+  const [transitionTrigger, setTransitionTrigger] = useState(0);
 
   const watchHistory = useHistory();
   const seriesEpisodeKey = watchHistory.find(h => h.key === contentId)?.episodeKey;
@@ -100,14 +101,20 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
     if (allSeasonsFlat.length > 0) {
       const idx = allSeasonsFlat.findIndex(e => e.key === actualContentId);
       if (idx > 0) await switchToEpisode(allSeasonsFlat[idx - 1]);
-    } else { onPrevChannel?.(); }
+    } else {
+      setTransitionTrigger(prev => prev + 1);
+      setTimeout(() => onPrevChannel?.(), 200);
+    }
   }, [allSeasonsFlat, actualContentId, onPrevChannel, switchToEpisode]);
 
   const handleNext = useCallback(async () => {
     if (allSeasonsFlat.length > 0) {
       const idx = allSeasonsFlat.findIndex(e => e.key === actualContentId);
       if (idx >= 0 && idx < allSeasonsFlat.length - 1) await switchToEpisode(allSeasonsFlat[idx + 1]);
-    } else { onNextChannel?.(); }
+    } else {
+      setTransitionTrigger(prev => prev + 1);
+      setTimeout(() => onNextChannel?.(), 200);
+    }
   }, [allSeasonsFlat, actualContentId, onNextChannel, switchToEpisode]);
 
   const handleToggleFav = useCallback(() => {
@@ -223,6 +230,7 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
           onSelectTextTrack={setSelectedTextTrackIdx}
           onSelectAudioTrack={setSelectedAudioTrackIdx}
           onToggleDownmix={() => setDownmixToStereo(d => !d)}
+          transitionTrigger={transitionTrigger}
           nowTitle={epgEntries?.[0]?.title}
           nowTime={epgEntries?.[0]?.time}
           nowEndTime={epgEntries?.[0]?.endTime}
@@ -241,11 +249,11 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
       {/* Auto-play countdown */}
       {countdown > 0 && (
         <View style={styles.countdownOverlay}>
-          <Text style={styles.countdownText}>KĂ¶vetkezĹ‘ epizĂłd indĂ­tĂˇsa </Text>
+          <Text style={styles.countdownText}>Következő epizód indítása </Text>
           <Text style={styles.countdownNum}>{countdown} </Text>
-          <Text style={styles.countdownHint}>OK gombbal megszakĂ­thatod</Text>
+          <Text style={styles.countdownHint}>OK gombbal megszakíthatod</Text>
           <TFPressable style={styles.countdownCancelBtn} focusedStyle={styles.countdownCancelFocus} onPress={cancelCountdown}>
-            <Text style={styles.countdownCancelText}>MĂ©gsem</Text>
+            <Text style={styles.countdownCancelText}>Mégsem</Text>
           </TFPressable>
         </View>
       )}

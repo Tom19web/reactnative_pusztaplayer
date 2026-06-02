@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, Animated } from 'react-native';
+import Video from 'react-native-video';
 import TFPressable from './TFPressable';
 import { Channel, EpgEntry } from '../types';
 import { fetchShortEpg } from '../services/epgService';
@@ -62,14 +63,27 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
 
       <ScrollView contentContainerStyle={styles.scroll} nestedScrollEnabled>
 
-        {/* Logo + header */}
+        {/* Logo / Live thumbnail */}
         <View style={styles.header}>
-          {channel.logo ? (
+          {channel.streamUrl ? (
+            <View style={styles.logoWrap}>
+              <Video
+                source={{ uri: channel.streamUrl, headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36' } }}
+                style={styles.logo}
+                resizeMode="cover"
+                muted={true}
+                paused={false}
+                repeat={true}
+                playInBackground={false}
+                preventsDisplaySleepDuringVideoPlayback={false}
+              />
+            </View>
+          ) : channel.logo ? (
             <View style={styles.logoWrap}>
               <Image source={{ uri: channel.logo }} style={styles.logo} resizeMode="contain" />
             </View>
           ) : (
-            <View style={[styles.logoWrap, styles.logoPlaceholder]}>
+            <View style={styles.logoPlaceholder}>
               <Text style={styles.logoPlaceholderText}>{'\uD83D\uDCFA'}</Text>
             </View>
           )}
@@ -172,7 +186,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   logo: { width: '95%', height: '95%' },
-  logoPlaceholder: { backgroundColor: '#1a1a1a' },
+  logoPlaceholder: { width: 90, aspectRatio: 16 / 9, borderRadius: 6, backgroundColor: '#1a1a1a', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoPlaceholderText: { fontSize: 20 },
   headerInfo: { flex: 1 },
   title: {
