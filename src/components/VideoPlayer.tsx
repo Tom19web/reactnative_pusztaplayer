@@ -1,7 +1,7 @@
 ﻿import { useRef, useState, useCallback, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, DeviceEventEmitter, Platform, Pressable, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import Video, { VideoRef, OnProgressData, SelectedTrack } from 'react-native-video';
+import Video, { VideoRef, OnProgressData, OnLoadData, OnBufferData, OnVideoErrorData, SelectedTrack } from 'react-native-video';
 import PlayerControls from './PlayerControls';
 
 const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36';
@@ -269,7 +269,7 @@ export default function VideoPlayer({
   }, [resetTimer]);
 
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('onHWKeyEvent', (ev: any) => {
+    const sub = DeviceEventEmitter.addListener('onHWKeyEvent', (ev: { keyCode: number; longPress: boolean }) => {
       if (ev.eventType === 'rewind') {
         if (ev.eventKeyAction === 0) startScrub(-1);
         else stopFFRW();
@@ -308,20 +308,20 @@ export default function VideoPlayer({
           paused={paused}
         onProgress={handleProgress}
         progressUpdateInterval={1000}
-        onError={(e: any) => {
+        onError={(e: OnVideoErrorData) => {
           const err = e?.error || e || {};
           const msg = err.errorString || err.message || 'ismeretlen';
           cancelReconnect();
           onError?.(msg);
         }}
         onLoadStart={() => {}}
-        onLoad={(data: any) => {
+        onLoad={(data: OnLoadData) => {
           setBuffering(false);
           cancelReconnect();
           if (showLogoTransition) finishTransition();
           onDimensions?.(data.naturalSize?.width || 0, data.naturalSize?.height || 0);
         }}
-        onBuffer={(e: any) => {
+        onBuffer={(e: OnBufferData) => {
           setBuffering(e.isBuffering);
           if (e.isBuffering) scheduleReconnect();
           else cancelReconnect();

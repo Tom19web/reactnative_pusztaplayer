@@ -9,6 +9,8 @@ import Pagination from '../components/Pagination';
 import FilterItem from '../components/FilterItem';
 import { Movie } from '../types';
 import { COLORS, FONT, SPACING } from '../constants';
+import { getAllMoods, matchesMood } from '../constants/moods';
+import { useAIMoods } from '../hooks/useAIMoods';
 
 const CARD_W = 110;
 const CARD_GAP = 8;
@@ -26,7 +28,7 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
   const isFav = (key: string) => favItems.some(f => f.key === key);
   const [activeGroup, setActiveGroup] = useState('Összes film');
   const [activeYear, setActiveYear] = useState('Mind');
-  const [activeGenre, setActiveGenre] = useState('Mind');
+  const [activeMood, setActiveMood] = useState('Mind');
   const [activeSort, setActiveSort] = useState('Alapértelmezett');
   const [showFilter, setShowFilter] = useState<'group'|'year'|'genre'|'sort'|null>(null);
   const [page, setPage] = useState(0);
@@ -48,7 +50,7 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
     toggleWl({ key: selectedMovie.key, title: selectedMovie.title, type: 'movie', group: selectedMovie.group || '', logo: selectedMovie.logo || '' });
   }, [selectedMovie, toggleWl]);
 
-  useEffect(() => { setPage(0); }, [activeGroup, activeYear, activeGenre, activeSort, searchTerm]);
+  useEffect(() => { setPage(0); }, [activeGroup, activeYear, activeMood, activeSort, searchTerm]);
 
   useEffect(() => {
     const h = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -57,25 +59,40 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
       return true;
     });
     return () => h.remove();
-  }, [onBack]);
+  }, [onBack, selectedMovie]);
 
   const movies = playlist?.movies || [];
   const movieGroups = playlist?.movieGroups || ['Összes film'];
+  const { aiMoods, loading: aiLoading } = useAIMoods(playlist);
   const years = useMemo(() => ['Mind', ...([...new Set(movies.map(m=>m.year).filter(Boolean))] as string[]).sort((a,b)=>Number(b)-Number(a))], [movies]);
-  const genres = useMemo(() => ['Mind', ...[...new Set(movies.map(m=>m.genre).filter(Boolean))]], [movies]);
+  const moods = useMemo(() => {
+    const staticMoods = getAllMoods(movies);
+    const aiMoodSet = new Set<string>();
+    for (const v of Object.values(aiMoods)) {
+      for (const m of v) aiMoodSet.add(m);
+    }
+    const merged = ['Mind'];
+    for (const m of staticMoods) if (m !== 'Mind') merged.push(m);
+    for (const m of aiMoodSet) if (!merged.includes(m)) merged.push(m);
+    return merged;
+  }, [movies, aiMoods]);
 
   const filtered = useMemo(() => {
     let list = movies;
     if (activeGroup !== 'Összes film') list = list.filter(m => m.group === activeGroup);
     if (activeYear !== 'Mind') list = list.filter(m => m.year === activeYear);
-    if (activeGenre !== 'Mind') list = list.filter(m => m.genre === activeGenre);
+    if (activeMood !== 'Mind') list = list.filter(m => {
+      if (matchesMood(m.genre, activeMood)) return true;
+      const ai = aiMoods[m.key];
+      return ai ? ai.includes(activeMood) : false;
+    });
     if (searchTerm) list = list.filter(m => m.title.toLowerCase().includes(searchTerm.toLowerCase()));
     if (activeSort === 'A-Z') list = [...list].sort((a,b)=>a.title.localeCompare(b.title));
     if (activeSort === 'Z-A') list = [...list].sort((a,b)=>b.title.localeCompare(a.title));
     if (activeSort === 'Dátum \u2193') list = [...list].sort((a,b)=>Number(b.year)-Number(a.year));
     if (activeSort === 'Dátum \u2191') list = [...list].sort((a,b)=>Number(a.year)-Number(b.year));
     return list;
-  }, [movies, activeGroup, activeYear, activeGenre, activeSort, searchTerm]);
+  }, [movies, activeGroup, activeYear, activeMood, activeSort, searchTerm, aiMoods]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -86,7 +103,7 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
   }, [page, totalPages]);
 
   const sortOptions = ['Alapértelmezett', 'A-Z', 'Z-A', 'Dátum \u2193', 'Dátum \u2191'];
-  const filterOptions = showFilter==='group'?movieGroups:showFilter==='year'?years:showFilter==='genre'?genres:showFilter==='sort'?sortOptions:[];
+  const filterOptions = showFilter==='group'?movieGroups:showFilter==='year'?years:showFilter==='genre'?moods:showFilter==='sort'?sortOptions:[];
 
   if (!playlist) return <View style={styles.empty}><Text style={styles.emptyText}>Jelentkezz be a tartalmak eléréséhez.</Text></View>;
 
@@ -98,7 +115,7 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
           <Text style={styles.filterLabel}>Szűrés: </Text>
           <FilterBtn label={activeGroup} onPress={()=>setShowFilter(showFilter==='group'?null:'group')}/>
           <FilterBtn label={activeYear==='Mind'?'Év':activeYear} onPress={()=>setShowFilter(showFilter==='year'?null:'year')}/>
-          <FilterBtn label={activeGenre==='Mind'?'Műfaj':activeGenre} onPress={()=>setShowFilter(showFilter==='genre'?null:'genre')}/>
+          <FilterBtn label={activeMood==='Mind'?'Hangulat':activeMood} onPress={()=>setShowFilter(showFilter==='genre'?null:'genre')}/>
           <FilterBtn label={activeSort} onPress={()=>setShowFilter(showFilter==='sort'?null:'sort')}/>
           <Text style={styles.filterTitle}>{'\uD83C\uDFAC'} Filmek </Text>
         </View>
@@ -110,9 +127,9 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
             <ShadowWrapper offset={6} borderRadius={6}>
             <ScrollView style={styles.filterOverlay} nestedScrollEnabled>
               {filterOptions.map((opt:string) => {
-                const isActive = (showFilter==='group'&&opt===activeGroup)||(showFilter==='year'&&opt===activeYear)||(showFilter==='genre'&&opt===activeGenre)||(showFilter==='sort'&&opt===activeSort);
+                const isActive = (showFilter==='group'&&opt===activeGroup)||(showFilter==='year'&&opt===activeYear)||(showFilter==='genre'&&opt===activeMood)||(showFilter==='sort'&&opt===activeSort);
                 return <FilterItem key={opt} label={opt} isActive={isActive}
-                  onPress={()=>{if(showFilter==='group')setActiveGroup(opt);if(showFilter==='year')setActiveYear(opt);if(showFilter==='genre')setActiveGenre(opt);if(showFilter==='sort')setActiveSort(opt);setShowFilter(null);setPage(0);}} />;
+                  onPress={()=>{if(showFilter==='group')setActiveGroup(opt);if(showFilter==='year')setActiveYear(opt);if(showFilter==='genre')setActiveMood(opt);if(showFilter==='sort')setActiveSort(opt);setShowFilter(null);setPage(0);}} />;
               })}
             </ScrollView>
           </ShadowWrapper>

@@ -144,7 +144,7 @@ function HeroSlideContent({ item, playlist, onPlayContent, isFav, onToggleFav }:
 export default function HomeHero({ history, playlist, onPlayContent }: HomeHeroProps) {
   const favItems = useFavorites();
   const toggleFav = useToggleFavorite();
-  const items = history.slice(0, 3);
+  const items = history.slice(0, 5);
   const [currentIdx, setCurrentIdx] = useState(0);
   const animVal = useRef(new Animated.Value(0)).current;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);

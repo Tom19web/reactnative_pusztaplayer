@@ -113,5 +113,5 @@ export function useEpg(searchTerm: string, channels: Channel[], page: number, pa
     return result;
   }, [channels, epgByChannel, searchTerm, page, pageSize]);
 
-  return { rows, loading };
+  return { rows, loading, loadedCount: epgByChannel.size };
 }

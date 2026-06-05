@@ -50,13 +50,13 @@ export default function SimpleCard({ type, title, subtitle, imageUrl, onPress, o
           {isLive ? (
             <>
               <LinearGradient
-                colors={['#0d1b4a', '#4a0d5c', '#0d4a2a']}
-                start={{ x: 1, y: 0 }}
-                end={{ x: 0, y: 1 }}
+                colors={['#202020', '#080808']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={s.thumbGrad}
               />
               {imageUrl ? (
-                <Image source={{ uri: imageUrl }} style={s.thumbImgLive} resizeMode="contain" />
+                <Image source={{ uri: imageUrl }} style={s.thumbImgLive} resizeMode="contain" fadeDuration={0} />
               ) : (
                 <Text style={s.thumbFallbackLive}>{'\uD83D\uDCFA'}</Text>
               )}
@@ -64,7 +64,7 @@ export default function SimpleCard({ type, title, subtitle, imageUrl, onPress, o
           ) : (
             <>
               {imageUrl ? (
-                <Image source={{ uri: imageUrl }} style={s.thumbImg} resizeMode={isLive ? 'contain' : 'cover'} />
+                <Image source={{ uri: imageUrl }} style={s.thumbImg} resizeMode={isLive ? 'contain' : 'cover'} fadeDuration={0} />
               ) : (
                 <Text style={s.thumbFallback}>
                   {isLive ? '\uD83D\uDCFA' : type === 'movie' ? '\uD83C\uDFAC' : '\uD83D\uDCE6'}

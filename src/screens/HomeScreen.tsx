@@ -1,12 +1,14 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, FlatList, ScrollView, Image, ImageBackground, StyleSheet, BackHandler, Modal } from 'react-native';
+import { useEffect, useState, useRef, useMemo } from 'react';
+import { View, Text, ScrollView, Image, ImageBackground, StyleSheet, BackHandler, Modal } from 'react-native';
 import TFPressable from '../components/TFPressable';
 import HomeHero from '../components/HomeHero';
 import ShadowWrapper from '../components/ShadowWrapper';
 import SimpleCard from '../components/SimpleCard';
 import ExitDialog from '../components/ExitDialog';
 import DevLoginForm from '../components/DevLoginForm';
-import { useCore, useFavorites, useHistory, useClearHistory } from '../store/AppContext';
+import { useCore, useFavorites, useHistory, useClearHistory, useProfiles, useBackgroundAudio } from '../store/AppContext';
+import { useRecommended, usePopular } from '../hooks/useRecommendations';
+import { useAIRecommend } from '../hooks/useAIRecommend';
 import { COLORS, FONT, SPACING, SIZES, USER_STATUS_LOGGED_IN } from '../constants';
 import type { RouteName } from '../types';
 import { useDevLogin } from '../hooks/useDevLogin';
@@ -34,15 +36,25 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
   const { loading: devLoading, error: devError, login: devLoginApi, reset: resetDevLogin } = useDevLogin();
   const [showExit, setShowExit] = useState(false);
   const [showDevLogin, setShowDevLogin] = useState(false);
+  const { clear: clearBgAudio } = useBackgroundAudio();
   const logoTapCount = useRef(0);
   const logoTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const allLive = playlist ? (playlist.liveChannels || []) : [];
   const liveCards = useMemo(() => sample(allLive, Math.min(6, allLive.length)), [allLive]);
+  const profiles = useProfiles();
+
+  const allProfHistory = useMemo(() => profiles.flatMap(p => p.watch_progress || []), [profiles]);
+  const allProfFavorites = useMemo(() => profiles.flatMap(p => p.favorites || []), [profiles]);
+
+  const reco = useRecommended(watchHistory, playlist, favorites);
+  const popular = usePopular(profiles.length, playlist, allProfHistory, allProfFavorites);
+  const aiRec = useAIRecommend(watchHistory, playlist);
 
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (showDevLogin) { setShowDevLogin(false); return true; }
+      clearBgAudio();
       setShowExit(true);
       return true;
     });
@@ -133,6 +145,57 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
       <View style={{ marginBottom: 10 }}>
         <HomeHero history={watchHistory} playlist={playlist} onPlayContent={onPlayContent} />
       </View>
+
+      {reco.items.length > 0 && (
+        <View style={styles.section}>
+          <ShadowWrapper offset={6} borderRadius={10}>
+            <View style={styles.yellowHeader}>
+              <Text style={styles.yellowHeaderText}>{reco.title}</Text>
+            </View>
+          </ShadowWrapper>
+          <View style={[styles.gridWrap, { marginTop: SPACING.xs * 2 }]}>
+            {reco.items.slice(0, 8).map(item => (
+              <SimpleCard key={item.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={item.group || ''} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
+            ))}
+          </View>
+        </View>
+      )}
+
+      {popular.items.length > 0 && (
+        <View style={styles.section}>
+          <ShadowWrapper offset={6} borderRadius={10}>
+            <View style={styles.yellowHeader}>
+              <Text style={styles.yellowHeaderText}>Magyar nézők kedvencei</Text>
+            </View>
+          </ShadowWrapper>
+          <View style={[styles.gridWrap, { marginTop: SPACING.xs * 2 }]}>
+            {popular.items.slice(0, 8).map(item => (
+              <SimpleCard key={item.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={item.group || ''} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
+            ))}
+          </View>
+        </View>
+      )}
+
+      {aiRec.items.length > 0 && (
+        <View style={styles.section}>
+          <ShadowWrapper offset={6} borderRadius={10}>
+            <View style={styles.yellowHeader}>
+              <Text style={styles.yellowHeaderText}>{'\uD83E\uDD16'} AI Ajánlja</Text>
+            </View>
+          </ShadowWrapper>
+          <View style={[styles.gridWrap, { marginTop: SPACING.xs * 2 }]}>
+            {aiRec.items.slice(0, 5).map(rec => {
+              const movie = playlist?.movies?.find(m => m.key === rec.key);
+              const series = playlist?.series?.find(s => s.key === rec.key);
+              const item = movie || series;
+              if (!item) return null;
+              return (
+                <SimpleCard key={rec.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={rec.reason} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
+              );
+            })}
+          </View>
+        </View>
+      )}
 
       {watchHistory.length > 0 && (
         <View style={styles.section}>

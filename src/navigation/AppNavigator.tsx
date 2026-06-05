@@ -76,14 +76,6 @@ export default function AppNavigator() {
     return true;
   }, [activeProfile, showProfileSelect, user.status, currentRoute]);
 
-  // Auto-select first non-deleted profile when profiles are loaded but none active
-  useEffect(() => {
-    if (!profiles.length || !hasUser) return;
-    if (activeProfile && !activeProfile.deleted) return;
-    const first = profiles.find(p => !p.deleted);
-    if (first) setActive(first.id);
-  }, [profiles, hasUser, activeProfile, setActive]);
-
   const navigate = useCallback((route: string, params?: { id?: string }) => {
     if (route === 'player') {
       setPlayerContentId(params?.id || DEFAULT_PLAYER_CONTENT_ID);

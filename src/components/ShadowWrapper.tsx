@@ -1,9 +1,9 @@
-﻿import { View } from 'react-native';
+﻿import { View, StyleProp, ViewStyle } from 'react-native';
 
 interface ShadowWrapperProps {
   offset?: number;
   borderRadius?: number;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
   children: React.ReactNode;
 }
 

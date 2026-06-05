@@ -1,11 +1,11 @@
 ﻿import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, Pressable, Image, StyleSheet, BackHandler } from 'react-native';
+import { View, Text, Pressable, Image, StyleSheet, BackHandler, PressableStateCallbackType } from 'react-native';
 import VideoPlayer from '../components/VideoPlayer';
 import { SelectedTrackType } from 'react-native-video';
 import TFPressable from '../components/TFPressable';
 import { buildEpisodeUrl } from '../services/xtreamApi';
 import { addSeriesEpisode, loadXtreamCredentials } from '../services/playlistService';
-import { useFavorites, useAppDispatch, useHistory } from '../store/AppContext';
+import { useFavorites, useAppDispatch, useHistory, useBackgroundAudio } from '../store/AppContext';
 import { COLORS, FONT, SPACING, SIZES } from '../constants';
 import { useAutoPlay } from '../hooks/useAutoPlay';
 import { usePlayerSession } from '../hooks/usePlayerSession';
@@ -29,6 +29,7 @@ interface PlayerScreenProps {
 export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextChannel, onPlayContent, prevChanName, nextChanName }: PlayerScreenProps) {
   const favorites = useFavorites();
   const dispatch = useAppDispatch();
+  const { clear: clearBgAudio } = useBackgroundAudio();
   const [showLogo, setShowLogo] = useState(false);
   const [videoResolution, setVideoResolution] = useState('');
   const [transitionTrigger, setTransitionTrigger] = useState(0);
@@ -36,6 +37,9 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
   const watchHistory = useHistory();
   const seriesEpisodeKey = watchHistory.find(h => h.key === contentId)?.episodeKey;
   const actualContentId = seriesEpisodeKey || contentId;
+
+  // Stop background radio when video playback starts
+  useEffect(() => { clearBgAudio(); }, [clearBgAudio]);
 
   const {
     session, meta, loading, error, setError, setSession,
@@ -147,7 +151,7 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
         <Text style={styles.errorIcon}>{'\u26A0'}</Text>
         <Text style={styles.errorText}>{error}</Text>
         <Pressable
-          style={(state: any) => [styles.backBtn, state.focused && styles.backBtnFocused]}
+          style={(state: PressableStateCallbackType) => [styles.backBtn, state.focused && styles.backBtnFocused]}
           onPress={onBack}
         >
           <Text style={styles.backBtnText}>â† Vissza</Text>
@@ -161,7 +165,7 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>Nincs stream URL ehhez a tartalomhoz.</Text>
         <Pressable
-          style={(state: any) => [styles.backBtn, state.focused && styles.backBtnFocused]}
+          style={(state: PressableStateCallbackType) => [styles.backBtn, state.focused && styles.backBtnFocused]}
           onPress={onBack}
         >
           <Text style={styles.backBtnText}>â† Vissza</Text>

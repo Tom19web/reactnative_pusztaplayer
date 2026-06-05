@@ -12,7 +12,7 @@ interface Props {
   onBack: () => void;
 }
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 7;
 
 export default function EpgScreen({ onPlayContent, onBack }: Props) {
   const { state: { searchTerm, playlist } } = useCore();
@@ -28,12 +28,11 @@ export default function EpgScreen({ onPlayContent, onBack }: Props) {
     });
   }, [allChannels]);
   const [page, setPage] = useState(0);
-  const { rows, loading } = useEpg(searchTerm, channels, page, PAGE_SIZE);
+  const { rows, loading, loadedCount } = useEpg(searchTerm, channels, page, PAGE_SIZE);
   const [popup, setPopup] = useState<{ row: EpgRow; idx: number } | null>(null);
 
   const totalPages = Math.ceil(channels.length / PAGE_SIZE);
   const pageNumbers = useMemo(() => {
-    <Text style={styles.loadingText}>⏳ TV műsor betöltése...</Text>
     if (page < 3) return [0, 1, 2, 3, 4];
     if (page > totalPages - 4) return Array.from({ length: 5 }, (_, i) => totalPages - 5 + i);
     return [page - 2, page - 1, page, page + 1, page + 2];

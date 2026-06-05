@@ -42,6 +42,7 @@ interface AppState {
   activeProfileId: string;
   isLoading: boolean;
   searchTerm: string;
+  backgroundAudio: { stationName: string; stationLogo: string; streamUrl: string; streamType: string; isPlaying: boolean } | null;
 }
 
 const initialState: AppState = {
@@ -53,6 +54,7 @@ const initialState: AppState = {
   activeProfileId: '',
   isLoading: true,
   searchTerm: '',
+  backgroundAudio: null,
 };
 
 // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -102,7 +104,11 @@ type AppAction =
   | { type: 'SET_PROFILES'; payload: Profile[] }
   | { type: 'SET_ACTIVE_PROFILE'; payload: string }
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_SEARCH'; payload: string };
+  | { type: 'SET_SEARCH'; payload: string }
+  | { type: 'START_BACKGROUND_AUDIO'; payload: { stationName: string; stationLogo: string; streamUrl: string; streamType: string; isPlaying: boolean } }
+  | { type: 'STOP_BACKGROUND_AUDIO' }
+  | { type: 'CLEAR_BACKGROUND_AUDIO' }
+  | { type: 'SET_BACKGROUND_AUDIO'; payload: { stationName: string; stationLogo: string; streamUrl: string; streamType: string; isPlaying: boolean } | null };
 
 // â”€â”€â”€ Reducer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -158,6 +164,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_ACTIVE_PROFILE': return { ...state, activeProfileId: action.payload };
     case 'SET_LOADING':   return { ...state, isLoading: action.payload };
     case 'SET_SEARCH':    return { ...state, searchTerm: action.payload };
+    case 'START_BACKGROUND_AUDIO': return { ...state, backgroundAudio: action.payload };
+    case 'STOP_BACKGROUND_AUDIO': return state.backgroundAudio ? { ...state, backgroundAudio: { ...state.backgroundAudio, isPlaying: false } } : state;
+    case 'CLEAR_BACKGROUND_AUDIO': return { ...state, backgroundAudio: null };
+    case 'SET_BACKGROUND_AUDIO': return { ...state, backgroundAudio: action.payload };
     default:              return state;
   }
 }
@@ -171,6 +181,7 @@ export type CoreState = Readonly<{
   isLoading: AppState['isLoading'];
   profiles: AppState['profiles'];
   activeProfileId: AppState['activeProfileId'];
+  backgroundAudio: AppState['backgroundAudio'];
 }>;
 
 const CoreContext = createContext<{ state: CoreState; dispatch: React.Dispatch<AppAction> } | undefined>(undefined);
@@ -180,6 +191,7 @@ const HistoryContext = createContext<HistoryItem[]>([]);
 // â”€â”€â”€ AsyncStorage profile cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PROFILES_CACHE_KEY = 'pusztaplay_profiles_v2';
+const RADIO_CACHE_KEY = 'pusztaplay_last_radio';
 
 async function loadProfilesFromCache(): Promise<Profile[]> {
   try {
@@ -230,10 +242,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
           dispatch({ type: 'SET_PROFILES', payload: profiles });
         }
       } catch {}
-      if (!cancelled) {
-        dispatch({ type: 'SET_LOADING', payload: false });
-        loadedRef.current = true;
-      }
+        if (!cancelled) {
+          dispatch({ type: 'SET_LOADING', payload: false });
+          loadedRef.current = true;
+          // Load last radio station from cache
+          try {
+            const rawRadio = await AsyncStorage.getItem(RADIO_CACHE_KEY);
+            if (rawRadio) {
+              const radio = JSON.parse(rawRadio);
+              if (radio?.streamUrl) {
+                dispatch({ type: 'SET_BACKGROUND_AUDIO', payload: { ...radio, isPlaying: false } });
+              }
+            }
+          } catch {}
+        }
     })();
     return () => { cancelled = true; };
   }, []);
@@ -263,6 +285,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => { wpFlush(); };
   }, [state.profiles, state.user.apiKey, state.activeProfileId]);
 
+  // Save last radio to AsyncStorage
+  useEffect(() => {
+    if (!loadedRef.current) return;
+    try {
+      if (state.backgroundAudio) {
+        AsyncStorage.setItem(RADIO_CACHE_KEY, JSON.stringify(state.backgroundAudio));
+      } else {
+        AsyncStorage.removeItem(RADIO_CACHE_KEY);
+      }
+    } catch {}
+  }, [state.backgroundAudio]);
+
   // Flush pending WordPress sync when app goes to background
   useEffect(() => {
     const sub = RNAppState.addEventListener('change', (state: string) => {
@@ -278,9 +312,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     state: {
       user: state.user, playlist: state.playlist, searchTerm: state.searchTerm,
       isLoading: state.isLoading, profiles: state.profiles, activeProfileId: state.activeProfileId,
+      backgroundAudio: state.backgroundAudio,
     },
     dispatch,
-  }), [state.user, state.playlist, state.searchTerm, state.isLoading, state.profiles, state.activeProfileId, dispatch]);
+  }), [state.user, state.playlist, state.searchTerm, state.isLoading, state.profiles, state.activeProfileId, state.backgroundAudio, dispatch]);
 
   return (
     <CoreContext.Provider value={coreValue}>
@@ -380,4 +415,17 @@ export function useActiveProfile(): Profile | undefined {
 export function useProfiles(): Profile[] {
   const core = useCore();
   return core.state.profiles || [];
+}
+
+export function useBackgroundAudio() {
+  const core = useCore();
+  const d = useAppDispatch();
+  return {
+    audio: core.state.backgroundAudio,
+    isPlaying: core.state.backgroundAudio?.isPlaying === true,
+    start: (info: { stationName: string; stationLogo: string; streamUrl: string; streamType: string }) =>
+      d({ type: 'START_BACKGROUND_AUDIO', payload: { ...info, isPlaying: true } }),
+    stop: () => d({ type: 'STOP_BACKGROUND_AUDIO' }),
+    clear: () => d({ type: 'CLEAR_BACKGROUND_AUDIO' }),
+  };
 }

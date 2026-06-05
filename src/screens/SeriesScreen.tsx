@@ -11,6 +11,7 @@ import FilterItem from '../components/FilterItem';
 import { addSeriesEpisode } from '../services/playlistService';
 import { Series } from '../types';
 import { COLORS, FONT, SPACING } from '../constants';
+import { getAllMoods, matchesMood } from '../constants/moods';
 
 const CARD_W = 110;
 const CARD_GAP = 8;
@@ -28,7 +29,7 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
   const isFav = (key: string) => favItems.some(f => f.key === key);
   const [activeGroup, setActiveGroup] = useState('Összes sorozat');
   const [activeYear, setActiveYear] = useState('Mind');
-  const [activeGenre, setActiveGenre] = useState('Mind');
+  const [activeMood, setActiveMood] = useState('Mind');
   const [activeSort, setActiveSort] = useState('Alapértelmezett');
   const [showFilter, setShowFilter] = useState<'group'|'year'|'genre'|'sort'|null>(null);
   const [page, setPage] = useState(0);
@@ -61,27 +62,27 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
       return true;
     });
     return () => h.remove();
-  }, [onBack]);
+  }, [onBack, showEpisodes, selectedSeries]);
 
-  useEffect(() => { setPage(0); }, [activeGroup, activeYear, activeGenre, activeSort, searchTerm]);
+  useEffect(() => { setPage(0); }, [activeGroup, activeYear, activeMood, activeSort, searchTerm]);
 
   const series = playlist?.series || [];
   const seriesGroups = playlist?.seriesGroups || ['Összes sorozat'];
   const years = useMemo(() => ['Mind', ...([...new Set(series.map(s=>s.year).filter(Boolean))] as string[]).sort((a,b)=>Number(b)-Number(a))], [series]);
-  const genres = useMemo(() => ['Mind', ...[...new Set(series.map(s=>s.genre).filter(Boolean))]], [series]);
+  const moods = useMemo(() => getAllMoods(series), [series]);
 
   const filtered = useMemo(() => {
     let list = series;
     if (activeGroup !== 'Összes sorozat') list = list.filter(s => s.group === activeGroup);
     if (activeYear !== 'Mind') list = list.filter(s => s.year === activeYear);
-    if (activeGenre !== 'Mind') list = list.filter(s => s.genre === activeGenre);
+    if (activeMood !== 'Mind') list = list.filter(s => matchesMood(s.genre, activeMood));
     if (searchTerm) list = list.filter(s => s.title.toLowerCase().includes(searchTerm.toLowerCase()));
     if (activeSort === 'A-Z') list = [...list].sort((a,b)=>a.title.localeCompare(b.title));
     if (activeSort === 'Z-A') list = [...list].sort((a,b)=>b.title.localeCompare(a.title));
     if (activeSort === 'Dátum \u2193') list = [...list].sort((a,b)=>Number(b.year)-Number(a.year));
     if (activeSort === 'Dátum \u2191') list = [...list].sort((a,b)=>Number(a.year)-Number(b.year));
     return list;
-  }, [series, activeGroup, activeYear, activeGenre, activeSort, searchTerm]);
+  }, [series, activeGroup, activeYear, activeMood, activeSort, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -92,7 +93,7 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
   }, [page, totalPages]);
 
   const sortOptions = ['Alapértelmezett', 'A-Z', 'Z-A', 'Dátum \u2193', 'Dátum \u2191'];
-  const filterOptions = showFilter==='group'?seriesGroups:showFilter==='year'?years:showFilter==='genre'?genres:showFilter==='sort'?sortOptions:[];
+  const filterOptions = showFilter==='group'?seriesGroups:showFilter==='year'?years:showFilter==='genre'?moods:showFilter==='sort'?sortOptions:[];
 
   if (showEpisodes) {
     return (
@@ -119,7 +120,7 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
           <Text style={styles.filterLabel}>Szűrés: </Text>
           <FilterBtn label={activeGroup} onPress={()=>setShowFilter(showFilter==='group'?null:'group')}/>
           <FilterBtn label={activeYear==='Mind'?'Év':activeYear} onPress={()=>setShowFilter(showFilter==='year'?null:'year')}/>
-          <FilterBtn label={activeGenre==='Mind'?'Műfaj':activeGenre} onPress={()=>setShowFilter(showFilter==='genre'?null:'genre')}/>
+          <FilterBtn label={activeMood==='Mind'?'Hangulat':activeMood} onPress={()=>setShowFilter(showFilter==='genre'?null:'genre')}/>
           <FilterBtn label={activeSort} onPress={()=>setShowFilter(showFilter==='sort'?null:'sort')}/>
           <Text style={styles.filterTitle}>{'\uD83D\uDCFA'} Sorozatok </Text>
         </View>
@@ -131,9 +132,9 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
             <ShadowWrapper offset={6} borderRadius={6}>
               <ScrollView style={styles.filterOverlay} nestedScrollEnabled>
                 {filterOptions.map((opt:string) => {
-                  const isActive = (showFilter==='group'&&opt===activeGroup)||(showFilter==='year'&&opt===activeYear)||(showFilter==='genre'&&opt===activeGenre)||(showFilter==='sort'&&opt===activeSort);
+                  const isActive = (showFilter==='group'&&opt===activeGroup)||(showFilter==='year'&&opt===activeYear)||(showFilter==='genre'&&opt===activeMood)||(showFilter==='sort'&&opt===activeSort);
                   return <FilterItem key={opt} label={opt} isActive={isActive}
-                    onPress={()=>{if(showFilter==='group')setActiveGroup(opt);if(showFilter==='year')setActiveYear(opt);if(showFilter==='genre')setActiveGenre(opt);if(showFilter==='sort')setActiveSort(opt);setShowFilter(null);setPage(0);}} />;
+                    onPress={()=>{if(showFilter==='group')setActiveGroup(opt);if(showFilter==='year')setActiveYear(opt);if(showFilter==='genre')setActiveMood(opt);if(showFilter==='sort')setActiveSort(opt);setShowFilter(null);setPage(0);}} />;
                 })}
               </ScrollView>
             </ShadowWrapper>

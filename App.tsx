@@ -3,6 +3,7 @@ import { StatusBar, View, Text, Image, ImageBackground, StyleSheet, Animated, Lo
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider, useAppDispatch, useCore } from './src/store/AppContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import BackgroundAudio from './src/components/BackgroundAudio';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import * as Sentry from '@sentry/react-native';
 
@@ -218,6 +219,7 @@ Animated.timing(fadeEdition, { toValue: 1, duration: 300, useNativeDriver: false
   return (
     <View style={styles.container}>
       <StatusBar hidden />
+      <BackgroundAudio />
       <ErrorBoundary>
         <AppNavigator />
       </ErrorBoundary>

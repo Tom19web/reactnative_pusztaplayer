@@ -6,27 +6,49 @@ import Pagination from '../components/Pagination';
 import { radioStations, RadioStation } from '../constants/radioStations';
 import { COLORS, FONT, SPACING } from '../constants';
 import { useCore } from '../store/AppContext';
+import { getRadioPlayCounts, incrementRadioPlay, loadRadioRecents, saveRadioRecents } from '../services/radioStorage';
 
 interface Props {
   onPlayContent: (key: string) => void;
   onBack: () => void;
 }
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 15;
 const MAX_RECENTS = 5;
-const recents: RadioStation[] = [];
 
 export default function RadioScreen({ onPlayContent, onBack }: Props) {
   const { state: { searchTerm } } = useCore();
   const [page, setPage] = useState(0);
   const [playing, setPlaying] = useState<RadioStation | null>(null);
-  const [recentStations, setRecentStations] = useState<RadioStation[]>(recents);
+  const [playCounts, setPlayCounts] = useState<Record<string, number>>({});
+  const [recents, setRecents] = useState<RadioStation[]>([]);
+
+  // Load play counts + recents from storage
+  useEffect(() => {
+    (async () => {
+      const counts = await getRadioPlayCounts();
+      setPlayCounts(counts);
+      const recentKeys = await loadRadioRecents();
+      const recentStations = recentKeys.map(k => radioStations.find(s => s.key === k)).filter(Boolean) as RadioStation[];
+      if (recentStations.length > 0) setRecents(recentStations);
+    })();
+  }, []);
+
+  // Sort by popularity then alphabetically
+  const sorted = useMemo(() => {
+    return [...radioStations].sort((a, b) => {
+      const aPop = playCounts[a.key] || 0;
+      const bPop = playCounts[b.key] || 0;
+      if (aPop !== bPop) return bPop - aPop; // descending
+      return a.name.localeCompare(b.name);
+    });
+  }, [playCounts]);
 
   const filtered = useMemo(() => {
-    if (!searchTerm) return radioStations;
+    if (!searchTerm) return sorted;
     const t = searchTerm.toLowerCase();
-    return radioStations.filter(s => s.name.toLowerCase().includes(t));
-  }, [searchTerm]);
+    return sorted.filter(s => s.name.toLowerCase().includes(t));
+  }, [searchTerm, sorted]);
 
   const pageItems = useMemo(() => {
     return filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -43,14 +65,15 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
 
   useEffect(() => { setPage(0); }, [searchTerm]);
 
-  const handlePress = useCallback((station: RadioStation) => {
-    const idx = recents.findIndex(r => r.key === station.key);
-    if (idx >= 0) recents.splice(idx, 1);
-    recents.unshift(station);
-    if (recents.length > MAX_RECENTS) recents.pop();
-    setRecentStations([...recents]);
+  const handlePress = useCallback(async (station: RadioStation) => {
+    await incrementRadioPlay(station.key);
+    setPlayCounts(prev => ({ ...prev, [station.key]: (prev[station.key] || 0) + 1 }));
+
+    const newRecents = [station, ...recents.filter(r => r.key !== station.key)].slice(0, MAX_RECENTS);
+    setRecents(newRecents);
+    await saveRadioRecents(newRecents.map(r => r.key));
     setPlaying(station);
-  }, []);
+  }, [recents]);
 
   const handlePlayerBack = useCallback(() => {
     setPlaying(null);
@@ -66,11 +89,11 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
         <Text style={styles.header}>{'\uD83D\uDCFB'} Rádió</Text>
 
         {/* Recent stations */}
-        {!searchTerm && recentStations.length > 0 && (
+        {!searchTerm && recents.length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Legutóbb hallgatott</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentRow}>
-              {recentStations.map(s => (
+              {recents.map(s => (
                 <RadioCard key={s.key} station={s} onPress={() => setPlaying(s)} />
               ))}
             </ScrollView>
@@ -78,11 +101,11 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
         )}
 
         {pageItems.length === 0 ? (
-          <Text style={styles.empty}>Nincs találat</Text>
+          <View style={styles.empty}><Text style={styles.emptyText}>Nincs találat.</Text></View>
         ) : (
           <View style={styles.gridWrap}>
-            {pageItems.map(station => (
-              <RadioCard key={station.key} station={station} onPress={() => handlePress(station)} />
+            {pageItems.map(s => (
+              <RadioCard key={s.key} station={s} onPress={() => handlePress(s)} />
             ))}
           </View>
         )}
@@ -95,23 +118,12 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  grid: { paddingVertical: SPACING.md, paddingHorizontal: 20 },
-  header: {
-    color: COLORS.yellow, fontSize: FONT.xl, fontFamily: 'Bangers-Regular',
-    marginBottom: SPACING.sm, letterSpacing: 1,
-  },
-  sectionTitle: {
-    color: COLORS.cyan, fontSize: FONT.sm, fontFamily: 'Poppins-Bold',
-    marginBottom: SPACING.sm, letterSpacing: 1,
-  },
-  recentRow: {
-    marginBottom: SPACING.md,
-  },
-  gridWrap: {
-    flexDirection: 'row', flexWrap: 'wrap',
-    justifyContent: 'space-between', gap: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  empty: { color: COLORS.muted, fontSize: FONT.md, textAlign: 'center', marginTop: SPACING.xl },
+  container: { flex: 1 },
+  grid: { padding: SPACING.md },
+  header: { color: COLORS.yellow, fontSize: FONT.xl, fontFamily: 'Bangers-Regular', letterSpacing: 2, marginBottom: SPACING.md },
+  sectionTitle: { color: COLORS.muted, fontSize: FONT.sm, fontWeight: '600', marginBottom: SPACING.xs, marginTop: SPACING.xs },
+  recentRow: { marginBottom: SPACING.md },
+  gridWrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, paddingBottom: 20 },
+  empty: { alignItems: 'center', paddingVertical: 40 },
+  emptyText: { color: COLORS.muted, fontSize: FONT.md },
 });

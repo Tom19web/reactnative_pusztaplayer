@@ -1,0 +1,43 @@
+let Config: any = {};
+try { Config = require('react-native-config'); if (Config.default) Config = Config.default; if (Config.Config) Config = Config.Config; } catch {}
+
+const AI_PROXY_URL = (Config && Config.AI_PROXY_URL) || 'https://live.pusztaplay.eu/ai';
+const AI_PROXY_KEY = (Config && Config.AI_PROXY_KEY) || '';
+
+export async function aiSearchQuery(
+  query: string,
+  items: Array<{ key: string; title: string; type: string; genre: string }>,
+): Promise<string[]> {
+  if (!AI_PROXY_KEY || !query.trim()) return [];
+  try {
+    const res = await fetch(`${AI_PROXY_URL}/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': AI_PROXY_KEY },
+      body: JSON.stringify({ query, items }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.keys || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function aiRecommendQuery(
+  history: Array<{ title: string; type: string; genre?: string }>,
+  items: Array<{ key: string; title: string; type: string; genre: string; plot?: string }>,
+): Promise<Array<{ key: string; reason: string }>> {
+  if (!AI_PROXY_KEY) return [];
+  try {
+    const res = await fetch(`${AI_PROXY_URL}/recommend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': AI_PROXY_KEY },
+      body: JSON.stringify({ history, items }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.recommendations || [];
+  } catch {
+    return [];
+  }
+}

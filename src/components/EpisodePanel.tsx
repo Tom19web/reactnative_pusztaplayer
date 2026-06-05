@@ -17,6 +17,7 @@ export default function EpisodePanel({ seriesId, title, onPlayEpisode, onBack }:
   const [seasons, setSeasons] = useState<Record<string, XtreamEpisode[]>>({});
   const [expandedSeason, setExpandedSeason] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [seriesInfo, setSeriesInfo] = useState<XtreamSeriesInfo | null>(null);
 
   useEffect(() => {
@@ -33,7 +34,10 @@ export default function EpisodePanel({ seriesId, title, onPlayEpisode, onBack }:
           const keys = Object.keys(data.episodes || {}).sort((a, b) => Number(a) - Number(b));
           if (keys.length > 0) setExpandedSeason(keys[0]);
         }
-      } catch { /* silent */ }
+      } catch (e) {
+        if (__DEV__) console.warn('[EpisodePanel] load failed:', e);
+        if (!cancelled) setError('Nem sikerült betölteni az adatokat.');
+      }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };

@@ -23,6 +23,7 @@ interface SeriesInfo {
 export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpisodes, isFav, onToggleFav, isWatchLater, onToggleWatchLater }: SeriesDetailPanelProps) {
   const [info, setInfo] = useState<SeriesInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const epsBtnRef = useRef<View>(null);
 
   useEffect(() => {
@@ -43,7 +44,10 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
             seasonCount: Object.keys(data.episodes || {}).length,
           });
         }
-      } catch { /* silent */ }
+      } catch (e) {
+        if (__DEV__) console.warn('[SeriesDetailPanel] load failed:', e);
+        if (!c) setError('Nem sikerült betölteni az adatokat.');
+      }
       if (!c) setLoading(false);
     })();
     return () => { c = true; };

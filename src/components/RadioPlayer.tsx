@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { View, Text, Image, StyleSheet, Animated, Easing, BackHandler } from 'react-native';
-import Video, { VideoRef } from 'react-native-video';
 import TFPressable from './TFPressable';
+import { useBackgroundAudio } from '../store/AppContext';
 import { COLORS, FONT, SPACING } from '../constants';
 import { RadioStation } from '../constants/radioStations';
 
@@ -11,21 +11,40 @@ interface Props {
 }
 
 export default function RadioPlayer({ station, onBack }: Props) {
-  const videoRef = useRef<VideoRef>(null);
-  const playingRef = useRef(true);
-  const [videoKey, setVideoKey] = useState(0);
+  const { audio, isPlaying, start, stop, clear } = useBackgroundAudio();
   const [metadata, setMetadata] = useState('');
-  const [status, setStatus] = useState('');
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const visualizerBars = useRef(Array.from({ length: 7 }, () => new Animated.Value(0.2))).current;
   const metadataTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isAac = station.streamUrl.toLowerCase().endsWith('.aac');
+  const isThisStationPlaying = isPlaying && audio?.streamUrl === station.streamUrl;
 
   const handleToggle = () => {
-    playingRef.current = !playingRef.current;
-    setVideoKey(prev => prev + 1);
+    if (isThisStationPlaying) {
+      stop();
+    } else {
+      start({
+        stationName: station.name,
+        stationLogo: station.logo,
+        streamUrl: station.streamUrl,
+        streamType: isAac ? 'aac' : '',
+      });
+    }
   };
+
+  // Auto-start on mount
+  useEffect(() => {
+    if (!isThisStationPlaying) {
+      start({
+        stationName: station.name,
+        stationLogo: station.logo,
+        streamUrl: station.streamUrl,
+        streamType: isAac ? 'aac' : '',
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Visualizer animation
   useEffect(() => {
@@ -81,132 +100,77 @@ export default function RadioPlayer({ station, onBack }: Props) {
 
   return (
     <View style={styles.container}>
-      <Video
-        key={videoKey}
-        ref={videoRef}
-        source={{ uri: station.streamUrl, type: isAac ? 'aac' : undefined }}
-        style={styles.radioVideo}
-        paused={!playingRef.current}
-        onLoadStart={() => setStatus('\u23F3 Bet\u00F6l\u00E9s...')}
-        onLoad={(d: any) => setStatus('\u2705 Lej\u00E1tsz\u00E1s')}
-        onError={(e: any) => { const err = e?.error || e || {}; setStatus('\u274C ' + (err.errorString || err.message || 'ismeretlen') + ' ' + (err.errorCode || '')); }}
-      />
-
-      {/* Status */}
-      {__DEV__ && status !== '' && (
-        <View style={styles.statusBar} pointerEvents="none">
-          <Text style={styles.statusUrl} numberOfLines={1}>{station.streamUrl}</Text>
-          <Text style={styles.statusText}>{status}</Text>
-        </View>
-      )}
-
       {/* Header */}
-      <TFPressable style={styles.backBtn} focusedStyle={styles.backBtnFocus} onPress={onBack}>
-        <Text style={styles.backBtnText}>{'\u2190'} Vissza</Text>
-      </TFPressable>
-
-      {/* Center content */}
-      <View style={styles.center}>
-        {/* ON AIR badge */}
+      <View style={styles.header}>
+        <TFPressable style={styles.backBtn} focusedStyle={styles.backBtnFocus} onPress={onBack}>
+          <Text style={styles.backText}>{'\u25C0'} Vissza</Text>
+        </TFPressable>
         <View style={styles.onAirRow}>
-          <Animated.View style={[styles.onAirDot, { opacity: pulseAnim }]} />
+          <Animated.View style={[styles.onAirDot, { opacity: pulseAnim, transform: [{ scale: pulseAnim }] }]} />
           <Text style={styles.onAirText}>ON AIR</Text>
         </View>
-
-        {/* Visualizer */}
-        <View style={styles.visualizerRow}>
-          {visualizerBars.map((bar, i) => (
-            <Animated.View key={i} style={[styles.vizBar, { height: bar.interpolate({ inputRange: [0, 1], outputRange: [12, 48] }) }]} />
-          ))}
-        </View>
-
-        {/* Logo */}
-        <View style={styles.logoWrap}>
-          <Image source={{ uri: station.logo }} style={styles.logo} resizeMode="contain" />
-        </View>
-
-        {/* Station name */}
-        <Text style={styles.stationName}>{station.name}</Text>
-
-        {/* Metadata / Now playing */}
-        {metadata !== '' && (
-          <Text style={styles.metadata} numberOfLines={2}>{'\u266B'} {metadata}</Text>
-        )}
-
-        {/* Play/Stop */}
-        <TFPressable style={styles.playBtn} focusedStyle={styles.playBtnFocus} onPress={handleToggle} hasTVPreferredFocus>
-          <Text style={styles.playBtnText}>{playingRef.current ? '\u25A0' : '\u25B6'}</Text>
-        </TFPressable>
       </View>
+
+      {/* Visualizer bars */}
+      <View style={styles.visualizer}>
+        {visualizerBars.map((bar, i) => (
+          <Animated.View key={i} style={[styles.bar, { height: Animated.multiply(bar, 60) }]} />
+        ))}
+      </View>
+
+      {/* Station info */}
+      <View style={styles.stationInfo}>
+        {station.logo ? (
+          <Image source={{ uri: station.logo }} style={styles.logo} resizeMode="contain" />
+        ) : (
+          <Text style={styles.fallbackLogo}>{'\uD83D\uDCFB'}</Text>
+        )}
+        <Text style={styles.stationName}>{station.name}</Text>
+        {metadata ? <Text style={styles.metadata} numberOfLines={1}>{metadata}</Text> : null}
+      </View>
+
+      {/* Play/Stop */}
+      <TFPressable style={styles.playBtn} focusedStyle={styles.playBtnFocus} onPress={handleToggle}>
+        <Text style={styles.playBtnText}>{isThisStationPlaying ? '\u25A0' : '\u25B6'}</Text>
+      </TFPressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0a' },
-  radioVideo: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  statusBar: { position: 'absolute', top: 4, left: 4, zIndex: 50, backgroundColor: 'rgba(0,0,0,0.85)', borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, maxWidth: '80%' },
-  statusUrl: { color: '#ff0', fontSize: 9, fontFamily: 'monospace' },
-  statusText: { color: '#0f0', fontSize: 10, fontFamily: 'monospace' },
-  backBtn: {
-    position: 'absolute', top: SPACING.lg, left: SPACING.lg, zIndex: 10,
-    backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 8,
-    paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md,
-  },
-  backBtnFocus: { backgroundColor: COLORS.yellow },
-  backBtnText: { color: COLORS.white, fontSize: FONT.sm, fontFamily: 'Poppins-Bold' },
-  center: {
+  container: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: SPACING.xl, gap: SPACING.md,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    padding: SPACING.md,
   },
-  onAirRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginBottom: SPACING.md,
+  header: {
+    position: 'absolute', top: 20, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingHorizontal: SPACING.md,
   },
-  onAirDot: {
-    width: 12, height: 12, borderRadius: 6,
-    backgroundColor: COLORS.red,
+  backBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 6, backgroundColor: '#333', borderWidth: 1, borderColor: '#555' },
+  backBtnFocus: { borderColor: COLORS.yellow },
+  backText: { color: COLORS.text, fontSize: FONT.sm, fontWeight: '600' },
+  onAirRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  onAirDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.red },
+  onAirText: { color: COLORS.red, fontSize: FONT.sm, fontWeight: '800', letterSpacing: 2 },
+  visualizer: {
+    flexDirection: 'row', alignItems: 'flex-end',
+    justifyContent: 'center', height: 80, gap: 4,
+    marginBottom: 20,
   },
-  onAirText: {
-    color: COLORS.red, fontSize: 18, fontFamily: 'Bangers-Regular',
-    letterSpacing: 4,
-  },
-  visualizerRow: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 48,
-    marginBottom: SPACING.sm,
-  },
-  vizBar: {
-    width: 6, backgroundColor: COLORS.yellow, borderRadius: 3, opacity: 0.6,
-  },
-  logoWrap: {
-    width: 140, height: 140, borderRadius: 70,
-    backgroundColor: COLORS.panel,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: 'rgba(255,204,0,0.3)',
-    overflow: 'hidden',
-    marginBottom: SPACING.sm,
-  },
-  logo: { width: 100, height: 100 },
-  stationName: {
-    color: COLORS.yellow, fontSize: FONT.xl,
-    fontFamily: 'Bangers-Regular', letterSpacing: 2,
-    textAlign: 'center',
-  },
-  metadata: {
-    color: COLORS.muted, fontSize: FONT.sm, fontFamily: 'Poppins-Regular',
-    textAlign: 'center', fontStyle: 'italic', marginTop: SPACING.lg,
-  },
+  bar: { width: 8, backgroundColor: COLORS.cyan, borderRadius: 2, minHeight: 4 },
+  stationInfo: { alignItems: 'center', marginBottom: 30 },
+  logo: { width: 100, height: 100, borderRadius: 8, marginBottom: 12, borderWidth: 1, borderColor: '#333' },
+  fallbackLogo: { fontSize: 64, marginBottom: 12 },
+  stationName: { color: COLORS.white, fontSize: FONT.lg, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
+  metadata: { color: COLORS.muted, fontSize: FONT.sm, maxWidth: 300, textAlign: 'center' },
   playBtn: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: COLORS.yellow,
-    alignItems: 'center', justifyContent: 'center',
-    marginTop: SPACING.xl,
-  },
-  playBtnFocus: {
     backgroundColor: COLORS.cyan,
-    transform: [{ scale: 1.1 }],
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#000',
   },
-  playBtnText: {
-    color: COLORS.black, fontSize: 24,
-  },
+  playBtnFocus: { borderColor: COLORS.yellow },
+  playBtnText: { color: COLORS.black, fontSize: 28, fontWeight: '900' },
 });

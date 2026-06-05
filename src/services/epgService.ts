@@ -2,6 +2,16 @@ import { XTREAM_SERVER, CACHE_TTL_EPG } from '../constants';
 import { EpgEntry } from '../types';
 import { fetchWithTimeout } from './fetchWithTimeout';
 
+interface RawEpgItem {
+  start_timestamp?: number;
+  start?: string;
+  stop_timestamp?: number;
+  stop?: string;
+  title?: string;
+  description?: string;
+  [key: string]: unknown;
+}
+
 // ─── In-memory cache ───────────────────────────────
 const EPG_CACHE_MAX = 50;
 const _cache = new Map<string, { ts: number; rows: EpgEntry[] }>();
@@ -99,7 +109,7 @@ export async function fetchShortEpg(
     if (!res.ok) return [];
     const data = await res.json();
     const listings = data?.epg_listings || data?.EPG_Listings || [];
-    const rows: EpgEntry[] = listings.slice(0, limit).map((item: any) => {
+    const rows: EpgEntry[] = listings.slice(0, limit).map((item: RawEpgItem) => {
       const rawStart = item.start_timestamp || item.start || '0';
       const rawEnd = item.stop_timestamp || item.stop || '0';
       let startTs = typeof rawStart === 'number' ? rawStart : parseInt(String(rawStart), 10) || 0;

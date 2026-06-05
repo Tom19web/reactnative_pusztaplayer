@@ -4,6 +4,7 @@ import SimpleCard from '../components/SimpleCard';
 import ShadowWrapper from '../components/ShadowWrapper';
 import { useWatchLater, useToggleWatchLater } from '../store/AppContext';
 import { COLORS, FONT, SPACING } from '../constants';
+import { WatchLaterItem } from '../types';
 
 interface WatchLaterScreenProps {
   onPlayContent: (key: string) => void;
@@ -28,7 +29,7 @@ export default function WatchLaterScreen({ onPlayContent, onBack }: WatchLaterSc
     );
   }
 
-  const renderSection = (list: any[], label: string, ico: string) => {
+  const renderSection = (list: WatchLaterItem[], label: string, ico: string) => {
     if (list.length === 0) return null;
     return (
       <View style={styles.section}>
