@@ -21,6 +21,7 @@ function PageButton({ onPress, active, disabled, children, label }: {
       onPress={onPress}
       onFocus={onFocus}
       onBlur={onBlur}
+      focusable={!disabled}
       accessibilityLabel={label}
       accessibilityRole="button"
     >

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import SimpleCard from '../components/SimpleCard';
 import ShadowWrapper from '../components/ShadowWrapper';
+import RuggedBorder from '../components/RuggedBorder';
 import { useWatchLater, useToggleWatchLater } from '../store/AppContext';
 import { COLORS, FONT, SPACING } from '../constants';
 import { WatchLaterItem } from '../types';
@@ -33,11 +34,11 @@ export default function WatchLaterScreen({ onPlayContent, onBack }: WatchLaterSc
     if (list.length === 0) return null;
     return (
       <View style={styles.section}>
-        <ShadowWrapper offset={2} borderRadius={4}>
+        <RuggedBorder color={COLORS.black}>
           <View style={styles.yellowHeader}>
             <Text style={styles.yellowHeaderText}>{ico} {label} ({list.length})</Text>
           </View>
-        </ShadowWrapper>
+        </RuggedBorder>
         <View style={styles.grid}>
           {list.map(item => (
             <SimpleCard
@@ -70,7 +71,7 @@ const styles = StyleSheet.create({
   section: { marginBottom: SPACING.md },
   yellowHeader: {
     backgroundColor: COLORS.yellow,
-    borderRadius: 4,
+    borderRadius: 0,
     paddingTop: SPACING.xs,
     paddingBottom: SPACING.xs + 2,
     paddingHorizontal: SPACING.md,

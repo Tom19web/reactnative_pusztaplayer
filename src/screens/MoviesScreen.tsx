@@ -1,8 +1,10 @@
 ﻿import { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, BackHandler } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, BackHandler, Animated } from 'react-native';
 import { useCore, useToggleWatchLater, useWatchLater, useFavorites, useToggleFavorite } from '../store/AppContext';
 import SimpleCard from '../components/SimpleCard';
 import ShadowWrapper from '../components/ShadowWrapper';
+import RuggedBorder from '../components/RuggedBorder';
+import SoundEffect from '../components/SoundEffect';
 import FilterBtn from '../components/FilterBtn';
 import MovieDetailPanel from '../components/MovieDetailPanel';
 import Pagination from '../components/Pagination';
@@ -54,16 +56,17 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
 
   useEffect(() => {
     const h = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showFilter) { setShowFilter(null); return true; }
       if (selectedMovie) { setSelectedMovie(null); return true; }
       onBack();
       return true;
     });
     return () => h.remove();
-  }, [onBack, selectedMovie]);
+  }, [onBack, selectedMovie, showFilter]);
 
   const movies = playlist?.movies || [];
   const movieGroups = playlist?.movieGroups || ['Összes film'];
-  const { aiMoods, loading: aiLoading } = useAIMoods(playlist);
+  const { aiMoods, loading: aiLoading, progress: aiProgress } = useAIMoods(playlist);
   const years = useMemo(() => ['Mind', ...([...new Set(movies.map(m=>m.year).filter(Boolean))] as string[]).sort((a,b)=>Number(b)-Number(a))], [movies]);
   const moods = useMemo(() => {
     const staticMoods = getAllMoods(movies);
@@ -110,16 +113,21 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
   return (
     <View style={{ flex: 1, position: 'relative' }}>
     <ScrollView style={styles.container} nestedScrollEnabled>
-      <ShadowWrapper offset={2} borderRadius={4}>
+      {aiLoading && (
+        <View style={styles.aiProgressWrap}>
+          <View style={[styles.aiProgressBar, { width: `${Math.round(aiProgress * 100)}%` }]} />
+        </View>
+      )}
+      <RuggedBorder color={COLORS.cyan} style={{ marginBottom: SPACING.md }}>
         <View style={styles.filterBox}>
           <Text style={styles.filterLabel}>Szűrés: </Text>
           <FilterBtn label={activeGroup} onPress={()=>setShowFilter(showFilter==='group'?null:'group')}/>
           <FilterBtn label={activeYear==='Mind'?'Év':activeYear} onPress={()=>setShowFilter(showFilter==='year'?null:'year')}/>
           <FilterBtn label={activeMood==='Mind'?'Hangulat':activeMood} onPress={()=>setShowFilter(showFilter==='genre'?null:'genre')}/>
           <FilterBtn label={activeSort} onPress={()=>setShowFilter(showFilter==='sort'?null:'sort')}/>
-          <Text style={styles.filterTitle}>{'\uD83C\uDFAC'} Filmek </Text>
         </View>
-      </ShadowWrapper>
+        <SoundEffect text="SORT!" textColor={COLORS.red} bgColor={COLORS.cyan} top={-2} right={-8} rotate={5} />
+      </RuggedBorder>
       {showFilter && (
         <>
           <View style={styles.filterBgOverlay} pointerEvents="none" />
@@ -162,12 +170,13 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
 
 const styles = StyleSheet.create({
   container:{flex:1,paddingVertical:SPACING.md,paddingHorizontal:20},
-  filterBox:{backgroundColor:'rgba(0,255,255,0.08)',borderRadius:8,borderWidth:1,borderColor:'rgba(0,255,255,0.15)',paddingVertical:SPACING.sm,paddingHorizontal:SPACING.lg,flexDirection:'row',alignItems:'center',gap:SPACING.sm,marginBottom:SPACING.sm,flexWrap:'wrap'},
-  filterLabel:{color:COLORS.cyan,fontFamily:'Bangers-Regular',fontSize:14},
-  filterTitle:{color:COLORS.cyan,fontFamily:'Bangers-Regular',fontSize:16,flex:1,textAlign:'right',marginRight:10},
+  filterBox:{backgroundColor:'#ffcc00',borderRadius:0,paddingVertical:SPACING.sm,paddingHorizontal:SPACING.lg,flexDirection:'row',alignItems:'center',gap:SPACING.sm,flexWrap:'wrap'},
+  filterLabel:{color:COLORS.black,fontFamily:'Bangers-Regular',fontSize:16},
   filterBgOverlay:{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,0.35)',zIndex:998},
   filterOverlayWrap:{position:'absolute',top:SPACING.md+40,left:SPACING.md,zIndex:999,elevation:20},
   filterOverlay:{backgroundColor:'rgba(0,0,0,0.92)',borderRadius:10,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',padding:SPACING.xs,maxHeight:300,minWidth:200,maxWidth:350},
   gridPanel:{backgroundColor:'transparent',borderRadius:14,padding:SPACING.sm,marginBottom:SPACING.sm},gridWrap:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:SPACING.md},
   empty:{flex:1,alignItems:'center',justifyContent:'center',padding:SPACING.xl},emptyText:{color:COLORS.muted,fontSize:FONT.md},
+  aiProgressWrap:{height:3,backgroundColor:'rgba(255,255,255,0.06)',borderRadius:2,marginBottom:SPACING.xs,overflow:'hidden'},
+  aiProgressBar:{height:3,backgroundColor:COLORS.cyan,borderRadius:2},
 });

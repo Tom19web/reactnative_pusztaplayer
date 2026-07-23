@@ -13,6 +13,15 @@ export function useAIMoods(playlist: PlaylistData | null): UseAIMoodsResult {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const doneRef = useRef(false);
+  const prevRef = useRef(playlist);
+
+  useEffect(() => {
+    if (!playlist || playlist === prevRef.current) return;
+    prevRef.current = playlist;
+    doneRef.current = false;
+    setAiMoods({});
+    setProgress(0);
+  }, [playlist]);
 
   useEffect(() => {
     if (!playlist || doneRef.current) return;

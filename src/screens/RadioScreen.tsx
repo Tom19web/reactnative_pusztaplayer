@@ -94,7 +94,7 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
             <Text style={styles.sectionTitle}>Legutóbb hallgatott</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentRow}>
               {recents.map(s => (
-                <RadioCard key={s.key} station={s} onPress={() => setPlaying(s)} />
+                <RadioCard key={s.key} station={s} onPress={() => handlePress(s)} />
               ))}
             </ScrollView>
           </>

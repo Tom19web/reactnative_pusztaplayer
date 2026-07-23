@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Dimensions, StyleSheet, ActivityIndicator, ScrollView, Platform, Linking } from 'react-native';
+import { View, Text, Dimensions, StyleSheet, ActivityIndicator, ScrollView, Platform, Linking, ImageBackground } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import TFPressable from '../components/TFPressable';
 import PopArtCard from '../components/PopArtCard';
-import DevLoginForm from '../components/DevLoginForm';
-import { COLORS, FONT, USER_STATUS_LOGGED_IN } from '../constants';
-import { useDevLogin } from '../hooks/useDevLogin';
+import { USER_STATUS_LOGGED_IN } from '../constants';
 import { useSetUser, useSetPlaylist } from '../store/AppContext';
 import { xtreamLogin } from '../services/playlistService';
 import { saveXtreamCredentials } from '../services/storage';
@@ -18,24 +16,18 @@ try { isTV = Platform.isTV; } catch {}
 interface LoginScreenProps { onLoginSuccess: () => void; }
 
 export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
-  const [step, setStep] = useState<'idle' | 'devLogin' | 'qr' | 'polling' | 'loggingIn' | 'expired' | 'error'>('idle');
+  const [step, setStep] = useState<'idle' | 'qr' | 'polling' | 'loggingIn' | 'expired' | 'error'>('idle');
   const [qrData, setQrData] = useState<{ code: string; authUrl: string } | null>(null);
   const [verifyCode, setVerifyCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [countdown, setCountdown] = useState(0);
-  const { loading: devLoading, error: devError, login: devLoginApi, reset: resetDevLogin } = useDevLogin();
   const setUser = useSetUser();
   const setPlaylist = useSetPlaylist();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startRef = useRef(0);
+  const mountedRef = useRef(true);
 
-  useEffect(() => () => { stopPolling(); if (timerRef.current) clearInterval(timerRef.current); }, []);
-
-  // Windows: skip QR/polling flow (fetch crashes natively in RNW 0.84), go straight to dev login
-  const isWindows = isTV ? false : (() => { try { return Platform.OS === 'windows'; } catch { return false; } })();
-  useEffect(() => {
-    if (isWindows) setStep('devLogin');
-  }, [isWindows]);
+  useEffect(() => () => { mountedRef.current = false; stopPolling(); if (timerRef.current) clearInterval(timerRef.current); }, []);
 
   const fmtCode = (c: string) => {
     const s = c.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
@@ -80,23 +72,27 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
       setStep('polling');
       pollQRCode(r.code, async (authResult) => {
+        if (!mountedRef.current) return;
         const { xtreamUser, xtreamPass, userEmail, nickname, phone, apiKey } = authResult;
         if (xtreamUser && xtreamPass) {
           setStep('loggingIn');
           try {
             const playlist = await xtreamLogin(xtreamUser, xtreamPass);
-            setUser(xtreamUser, USER_STATUS_LOGGED_IN, userEmail || '', nickname || '', phone || '', apiKey || '');
+            if (!mountedRef.current) return;
             saveXtreamCredentials(xtreamUser, xtreamPass, { email: userEmail, nickname, phone, apiKey });
+            setUser(xtreamUser, USER_STATUS_LOGGED_IN, userEmail || '', nickname || '', phone || '', apiKey || '');
             setPlaylist(playlist);
             if (timerRef.current) clearInterval(timerRef.current);
             stopPolling();
             onLoginSuccess();
           } catch (e: unknown) {
+            if (!mountedRef.current) return;
             setStep('error');
             setErrorMsg('Bejelentkezési hiba: ' + (e instanceof Error ? e.message : 'ismeretlen'));
           }
         }
       }, (err) => {
+        if (!mountedRef.current) return;
         setStep('error');
         setErrorMsg(err);
       });
@@ -114,7 +110,6 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setVerifyCode('');
     setErrorMsg('');
     setCountdown(0);
-    resetDevLogin();
   };
 
   const handleRetry = () => {
@@ -127,33 +122,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setTimeout(handleStart, 100);
   };
 
-  // Dev login
-  if (step === 'devLogin') {
-    return (
-      <View style={s.root}>
-        <DevLoginForm
-          loading={devLoading}
-          error={devError || errorMsg}
-          onLogin={async (email, pass) => {
-            setStep('loggingIn');
-            const ok = await devLoginApi(email, pass);
-            if (ok) {
-              if (timerRef.current) clearInterval(timerRef.current);
-              stopPolling();
-              onLoginSuccess();
-            } else {
-              setStep('devLogin');
-            }
-          }}
-          onBack={handleBack}
-        />
-      </View>
-    );
-  }
-
-  // Normal render
   return (
-    <View style={s.root}>
+    <ImageBackground source={require('../../assets/splash-bg.png')} style={s.root} resizeMode="cover">
       <ScrollView contentContainerStyle={s.scrollInner} nestedScrollEnabled>
       <PopArtCard shadowOffset={10} borderRadius={22} borderWidth={4} contentStyle={s.cardInner}>
         <Text style={s.title}>PUSZTAPLAYER</Text>
@@ -172,12 +142,6 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             <TFPressable style={s.btnPrimary} focusedStyle={s.btnPrimaryFocus} onPress={handleStart} testID="qr-login-btn" accessibilityLabel={isTV ? 'Bejelentkezés QR kóddal' : 'Bejelentkezés'} accessibilityRole="button">
               <Text style={s.btnPrimaryText}>{isTV ? 'BEJELENTKEZÉS QR KÓDDAL' : 'BEJELENTKEZÉS'}</Text>
             </TFPressable>
-            {/* Dev login: visible on TV + Windows */}
-            {(isTV || Platform.OS === 'windows') && (
-              <TFPressable style={s.devGear} focusedStyle={s.devGearFocus} onPress={() => setStep('devLogin')} accessibilityLabel="Fejlesztői bejelentkezés" accessibilityRole="button">
-                <Text style={s.devGearText}>{'\u2699'}</Text>
-              </TFPressable>
-            )}
             {errorMsg ? <Text style={s.errText}>{'\u26A0 ' + errorMsg}</Text> : null}
           </>
         ) : (
@@ -242,7 +206,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         )}
       </PopArtCard>
       </ScrollView>
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -275,7 +239,4 @@ const s = StyleSheet.create({
   countdownText: { color: '#666', fontSize: 9, fontFamily: 'Poppins-Regular' },
   countdownWarn: { color: '#f6c800', fontFamily: 'Poppins-Bold' },
   errText: { color: '#ff4d57', fontSize: 11, fontFamily: 'Poppins-Bold', marginTop: 8, textAlign: 'center' },
-  devGear: { position: 'absolute', bottom: 10, right: 10, width: 28, height: 28, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center' },
-  devGearFocus: { backgroundColor: '#f6c800' },
-  devGearText: { color: '#444', fontSize: 16 },
 });

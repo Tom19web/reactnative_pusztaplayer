@@ -1,6 +1,11 @@
 import { useState } from 'react';
-import { View, Text, Image, StyleSheet, Platform, Dimensions } from 'react-native';
+import { View, Text, Image, StyleSheet, Platform, Dimensions, ScrollView } from 'react-native';
 import TFPressable from './TFPressable';
+import RuggedBorder from './RuggedBorder';
+import SoundEffect from './SoundEffect';
+import SidebarBg from './SidebarBg';
+import PanelBg from './PanelBg';
+import ComicStarburst from './ComicStarburst';
 import { COLORS, FONT, SPACING, SIZES, NAV_ITEMS, USER_STATUS_LOGGED_IN } from '../constants';
 import { useCore } from '../store/AppContext';
 
@@ -43,7 +48,10 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
 
   return (
     <View style={styles.container} testID="sidebar-container">
+      <SidebarBg />
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       {/* Brand header */}
+      <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginBottom: 8 }}>
       <View style={styles.sidebarBrand} testID="sidebar-brand">
         <View style={styles.sidebarLogo}>
           <Image
@@ -55,16 +63,23 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
           />
         </View>
         <View style={styles.sidebarBrandText}>
+          <View style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -100 }, { translateY: -100 }, { scaleX: 1.32 }, { scaleY: 0.63 }], zIndex: 0 }}>
+            <ComicStarburst size={200} pointsCount={12} fillColor={COLORS.yellow} borderColor="#FF6600" borderWidth={4} shadowOffset={4} />
+          </View>
           <Text style={styles.sidebarBrandName} numberOfLines={1} adjustsFontSizeToFit testID="sidebar-brand-name">
-            pusztaplayer
+            pusztaplayer{' '}
           </Text>
           <Text style={styles.sidebarVersion} testID="sidebar-version">v{APP_VERSION} &middot; {deviceLabel}</Text>
         </View>
       </View>
+      <SoundEffect text="POW!" textColor={COLORS.yellow} bgColor={COLORS.red} top={-27} right={-21} rotate={30} />
+      </RuggedBorder>
 
       {/* Stats panel (logged in) */}
       {hasCreds && (
+        <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginBottom: 8 }}>
         <View style={styles.sidebarStats} testID="sidebar-stats">
+          <PanelBg />
           <View style={styles.sidebarStatsGrid}>
             <View style={styles.sidebarStatsCol}>
               <Text style={styles.sidebarStatsNum}>{'\uD83D\uDCE1'} {liveCount}</Text>
@@ -79,7 +94,8 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
               <Text style={styles.sidebarStatsLabel}>Sorozatok</Text>
             </View>
           </View>
-        </View>
+      </View>
+      </RuggedBorder>
       )}
 
       {/* CTA (not logged in) */}
@@ -90,6 +106,7 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
       )}
 
       {/* Status panel */}
+      <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginBottom: 8 }}>
       <TFPressable
         style={styles.sidebarStatusPanel}
         focusedStyle={styles.sidebarStatusPanelFocused}
@@ -98,14 +115,18 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
         accessibilityLabel="Felhasználói információk"
         accessibilityRole="button"
       >
+        <PanelBg />
         <Text style={styles.sidebarStatusName}>{user.name || 'Vendég'}</Text>
         <Text style={[styles.sidebarStatusDot, hasCreds && styles.sidebarStatusDotOnline]}>
           {hasCreds ? '\u25CF online' : '\u25CF offline'}
         </Text>
       </TFPressable>
+      </RuggedBorder>
 
       {/* Nav items */}
+      <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginBottom: 8 }}>
       <View style={styles.sidebarNavContainer}>
+        <PanelBg />
         {NAV_ITEMS.map(item => {
           const isActive = activeRoute === item.key;
           return (
@@ -125,9 +146,13 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
           );
         })}
       </View>
+      <SoundEffect text="GO!" textColor="#FF6600" bgColor="#39FF14" top={140} right={-8} rotate={10} fontSize={26} />
+      </RuggedBorder>
 
       {/* Bottom panel */}
+      <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginBottom: 8 }}>
       <View style={styles.sidebarBottom}>
+        <PanelBg />
         {hasCreds && (
           <>
             <TFPressable
@@ -181,6 +206,10 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
           <Text style={styles.sidebarNavLabel}>{hasCreds ? 'Kijelentkezés' : 'Belépés'}</Text>
         </TFPressable>
       </View>
+      <SoundEffect text="BOOM" textColor={COLORS.yellow} bgColor={COLORS.red} bottom={-20} right={-9} rotate={-20} />
+      <SoundEffect text="CRACK" textColor={COLORS.red} bgColor="#008888" bottom={-30} left={-19} rotate={0} />
+      </RuggedBorder>
+      </ScrollView>
     </View>
   );
 }
@@ -188,20 +217,30 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
 const styles = StyleSheet.create({
   container: {
     width: SIZES.sidebarWidth,
-    backgroundColor: COLORS.bg2,
-    paddingHorizontal: 15,
+    paddingHorizontal: 5,
+    paddingTop: 4,
+    overflow: 'visible',
+  },
+  scroll: {
+    flex: 1,
+    overflow: 'visible',
+  },
+  scrollContent: {
+    paddingLeft: 14,
+    paddingRight: 18,
     paddingTop: 8,
+    paddingBottom: 22,
   },
   sidebarBrand: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: 9,
-    marginBottom: 5,
-    paddingHorizontal: 8, paddingVertical: 4,
-    backgroundColor: COLORS.panel,
+    gap: 4,
+    marginBottom: 0,
+    paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3,
+    backgroundColor: '#ffcc00',
     borderRadius: RADIUS,
-    borderWidth: 2,
-    borderColor: COLORS.cyan,
+    overflow: 'hidden',
   },
   sidebarLogo: {
     width: 54,
@@ -223,29 +262,34 @@ const styles = StyleSheet.create({
   sidebarBrandText: {
     flex: 1,
     justifyContent: 'space-between',
+    position: 'relative',
+    overflow: 'hidden',
   },
   sidebarBrandName: {
-    fontSize: 24,
-    color: COLORS.brandPink,
+    fontSize: 22,
+    color: '#000080',
     fontFamily: 'Bangers-Regular',
     letterSpacing: 1,
     lineHeight: 24,
     textAlign: 'center',
     marginTop: 12,
+    textShadowColor: '#000',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 3.5,
   },
   sidebarVersion: {
     fontSize: 9,
-    color: COLORS.muted,
-    fontFamily: 'Poppins-Regular',
+    color: '#000000',
+    fontFamily: 'CreativeBlockBB',
     textAlign: 'center',
   },
   sidebarStats: {
-    marginBottom: 6,
-    paddingHorizontal: 9, paddingVertical: 5,
-    borderWidth: 2,
-    borderColor: COLORS.cyan,
+    position: 'relative',
+    marginBottom: 0,
+    paddingHorizontal: 9, paddingVertical: 7,
     borderRadius: RADIUS,
-    backgroundColor: COLORS.panel,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
   },
   sidebarStatsGrid: {
     flexDirection: 'row',
@@ -256,32 +300,31 @@ const styles = StyleSheet.create({
   },
   sidebarStatsNum: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: 'CreativeBlockBB',
     color: COLORS.text,
   },
   sidebarStatsLabel: {
     fontSize: 7,
     color: COLORS.muted,
+    fontFamily: 'CreativeBlockBB',
     marginTop: 3,
   },
   sidebarStatusPanel: {
+    position: 'relative',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
-    paddingHorizontal: 9, paddingVertical: 7,
-    borderWidth: 2,
-    borderColor: COLORS.cyan,
+    marginBottom: 0,
+    paddingHorizontal: 9, paddingVertical: 9,
     borderRadius: RADIUS,
-    backgroundColor: COLORS.panel,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
   },
-  sidebarStatusPanelFocused: {
-    borderColor: COLORS.yellow,
-  },
+  sidebarStatusPanelFocused: {},
   sidebarStatusName: {
     fontSize: 9,
     color: COLORS.text,
-    fontFamily: 'Poppins-Regular',
+    fontFamily: 'CreativeBlockBB',
   },
   sidebarStatusDot: {
     fontSize: 9,
@@ -291,7 +334,7 @@ const styles = StyleSheet.create({
     color: COLORS.success,
   },
   sidebarCta: {
-    marginBottom: 9,
+    marginBottom: 0,
     padding: 9,
     backgroundColor: COLORS.yellow,
     borderRadius: RADIUS,
@@ -303,12 +346,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   sidebarNavContainer: {
-    marginBottom: 9,
-    borderWidth: 2,
-    borderColor: COLORS.cyan,
+    position: 'relative',
+    marginBottom: 0,
     borderRadius: RADIUS,
-    backgroundColor: COLORS.panel,
-    padding: 3,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+    padding: 5,
   },
   sidebarNavButtons: {
     flexDirection: 'row',
@@ -324,20 +367,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,204,0,0.15)',
   },
   sidebarNavLabel: {
-    color: COLORS.muted,
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    fontWeight: '800',
+    color: '#ffffff',
+    fontSize: 10,
+    fontFamily: '007Toontime',
+    textShadowColor: '#000000',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 1.5,
   },
   sidebarNavLabelActive: {
-    color: COLORS.yellow,
+    color: '#ffffff',
   },
   sidebarBottom: {
-    marginBottom: 18,
-    borderWidth: 2,
-    borderColor: COLORS.cyan,
+    position: 'relative',
     borderRadius: RADIUS,
-    backgroundColor: COLORS.panel,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
     padding: 3,
   },
   settingsPopup: {
@@ -357,8 +401,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,204,0,0.15)',
   },
   settingsLabel: {
-    color: COLORS.muted,
-    fontSize: 11,
-    fontFamily: 'Poppins-Regular',
+    color: '#ffffff',
+    fontSize: 9,
+    fontFamily: '007Toontime',
+    textShadowColor: '#000000',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 1.5,
   },
 });

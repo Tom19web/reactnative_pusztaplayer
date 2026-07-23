@@ -16,6 +16,7 @@ export function pollQRCode(
   onResult: (result: { xtreamUser: string; xtreamPass: string; userEmail?: string; nickname?: string; phone?: string; apiKey?: string; package?: string; subEnd?: string }) => void,
   onError: (error: string) => void,
 ): void {
+  stopPolling();
   let attempts = 0;
   const maxAttempts = Math.ceil(QR_POLL_TIMEOUT / QR_POLL_INTERVAL);
 

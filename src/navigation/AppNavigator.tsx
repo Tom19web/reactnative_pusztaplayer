@@ -1,8 +1,10 @@
-﻿import { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
+﻿import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { View, StyleSheet, useWindowDimensions, Animated } from 'react-native';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import DotBackground from '../components/DotBackground';
+import RuggedLine from '../components/RuggedLine';
+import MainBg from '../components/MainBg';
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LiveScreen from '../screens/LiveScreen';
@@ -47,6 +49,16 @@ export default function AppNavigator() {
     if (pl) dispatch({ type: 'SET_PLAYLIST', payload: pl });
     setRefreshing(false);
   }, [liveFormat, setLiveFormat, dispatch]);
+
+  // Screen transition: cross-fade on route change
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const prevRouteRef = useRef(currentRoute);
+  useEffect(() => {
+    if (prevRouteRef.current === currentRoute) return;
+    prevRouteRef.current = currentRoute;
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+  }, [currentRoute, fadeAnim]);
 
   useEffect(() => {
     if (!hasUser || !user.apiKey) return;
@@ -189,7 +201,9 @@ export default function AppNavigator() {
   if (currentRoute === 'Player' || currentRoute === 'Login' || !hasUser) {
     return (
       <View style={styles.fullScreen}>
-        {renderScreen()}
+        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+          {renderScreen()}
+        </Animated.View>
       </View>
     );
   }
@@ -211,7 +225,9 @@ export default function AppNavigator() {
         liveFormat={liveFormat}
         onToggleLiveFormat={toggleLiveFormat}
       />
+      <RuggedLine direction="vertical" color={COLORS.black} strokeWidth={3} />
       <View style={styles.content}>
+        <MainBg />
         <Topbar
           searchTerm={searchTerm}
           onSearchChange={setSearch}
@@ -219,6 +235,7 @@ export default function AppNavigator() {
           onPlayContent={playContent}
           onUserInfo={() => setCurrentRoute('UserInfo')}
         />
+        <RuggedLine direction="horizontal" color={COLORS.black} strokeWidth={3} />
         {renderScreen()}
       </View>
     </View>
@@ -228,5 +245,5 @@ export default function AppNavigator() {
 const styles = StyleSheet.create({
   fullScreen: { flex: 1, backgroundColor: COLORS.bg },
   layout: { flex: 1, flexDirection: 'row', backgroundColor: COLORS.bg },
-  content: { flex: 1, backgroundColor: 'transparent' },
+  content: { flex: 1, backgroundColor: 'transparent', position: 'relative' },
 });

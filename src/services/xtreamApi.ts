@@ -1,5 +1,6 @@
 import { XTREAM_SERVER, USER_AGENT, getLiveFormat } from '../constants';
 import { dedupKey } from '../utils/dedupKey';
+import { fetchWithTimeout } from './fetchWithTimeout';
 import {
   Channel, Movie, Series, UserInfo, LoginResult,
   XtreamLiveStream, XtreamVodStream, XtreamSeriesItem, XtreamCategory,
@@ -21,7 +22,7 @@ async function apiGet<T = any>(
   const url = `${XTREAM_SERVER}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}${action ? `&action=${action}` : ''}${extra}`;
   let res: Response;
   try {
-    res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    res = await fetchWithTimeout(url, { headers: { 'User-Agent': USER_AGENT } }, 20000);
   } catch (e: unknown) {
     throw new Error('A szerver nem elérhető. Ellenőrizd az internetkapcsolatot.');
   }

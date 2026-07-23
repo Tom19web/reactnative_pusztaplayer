@@ -120,8 +120,9 @@ export default function VideoPlayer({
 
   const startScrub = useCallback((dir: 1 | -1) => {
     if (ffInterval.current) return;
-    ffSpeedRef.current = 0;
     const p = progressRef.current;
+    if (p.duration <= 0) return;
+    ffSpeedRef.current = 0;
     const jump = 5;
     const t = dir > 0 ? Math.min(p.duration || 0, p.currentTime + jump) : Math.max(0, p.currentTime - jump);
     videoRef.current?.seek(t);
@@ -154,6 +155,10 @@ export default function VideoPlayer({
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const [showLogoTransition, setShowLogoTransition] = useState(false);
   const [transitionQuote, setTransitionQuote] = useState('');
+  const controlsSlideY = useRef(new Animated.Value(0)).current;
+  const controlsOpacity = useRef(new Animated.Value(1)).current;
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const runTransition = useCallback(() => {
     // Phase 1: Exit (200ms)
@@ -161,7 +166,7 @@ export default function VideoPlayer({
       Animated.timing(videoScale, { toValue: 0.85, duration: 200, useNativeDriver: true }),
       Animated.timing(videoOpacity, { toValue: 0.15, duration: 200, useNativeDriver: true }),
     ]).start(() => {
-      // Phase 2: Logo show (500ms)
+      if (!mountedRef.current) return;
       setTransitionQuote(TRANSITION_QUOTES[Math.floor(Math.random() * TRANSITION_QUOTES.length)]);
       setShowLogoTransition(true);
       logoScale.setValue(0.5);
@@ -189,6 +194,20 @@ export default function VideoPlayer({
   useEffect(() => {
     if (transitionTrigger && transitionTrigger > 0) runTransition();
   }, [transitionTrigger, runTransition]);
+
+  useEffect(() => {
+    if (fadeControls) {
+      Animated.parallel([
+        Animated.timing(controlsSlideY, { toValue: 60, duration: 300, useNativeDriver: true }),
+        Animated.timing(controlsOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.spring(controlsSlideY, { toValue: 0, friction: 7, useNativeDriver: true }),
+        Animated.timing(controlsOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [fadeControls, controlsSlideY, controlsOpacity]);
 
   const cancelReconnect = useCallback(() => {
     if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); reconnectTimer.current = null; }
@@ -227,7 +246,7 @@ export default function VideoPlayer({
   useEffect(() => {
     resetTimer();
     return () => { if (controlsTimer.current) clearTimeout(controlsTimer.current); };
-  }, []);
+  }, [resetTimer]);
 
   useEffect(() => {
     if (resumePosition && resumePosition > 5 && !resumedRef.current) {
@@ -239,7 +258,7 @@ export default function VideoPlayer({
 
   const handleProgress = useCallback((data: OnProgressData) => {
     const dur = data.seekableDuration || data.playableDuration || data.currentTime;
-    const p = { currentTime: data.currentTime, duration: dur };
+    const p = { currentTime: data.currentTime, duration: dur > 0 ? dur : progressRef.current.duration };
     progressRef.current = p;
     setProgress(p);
     if (data.currentTime > 0.5) {
@@ -258,8 +277,8 @@ export default function VideoPlayer({
     resetTimer();
   }, [resetTimer]);
   const handleSeek = useCallback((time: number) => { videoRef.current?.seek(time); resetTimer(); }, [resetTimer]);
-  const handleRew = useCallback(() => { const p = progressRef.current; videoRef.current?.seek(Math.max(0, p.currentTime - 10)); resetTimer(); }, [resetTimer]);
-  const handleFwd = useCallback(() => { const p = progressRef.current; videoRef.current?.seek(Math.min(p.duration || 0, p.currentTime + 30)); resetTimer(); }, [resetTimer]);
+  const handleRew = useCallback(() => { const p = progressRef.current; if (p.duration <= 0) return; videoRef.current?.seek(Math.max(0, p.currentTime - 10)); resetTimer(); }, [resetTimer]);
+  const handleFwd = useCallback(() => { const p = progressRef.current; if (p.duration <= 0) return; videoRef.current?.seek(Math.min(p.duration || 0, p.currentTime + 30)); resetTimer(); }, [resetTimer]);
   const handleRestart = useCallback(() => {
     videoRef.current?.seek(0);
     const d = progressRef.current.duration;
@@ -286,11 +305,15 @@ export default function VideoPlayer({
           setPaused(false); pausedRef.current = false;
         } else if (t === 'pause') {
           setPaused(true); pausedRef.current = true;
+        } else if (t === 'channelUp') {
+          onNextChannel?.();
+        } else if (t === 'channelDown') {
+          onPrevChannel?.();
         }
       }
     });
     return () => sub.remove();
-  }, [resetTimer, handlePlayPause, startScrub, stopFFRW]);
+  }, [resetTimer, handlePlayPause, startScrub, stopFFRW, onPrevChannel, onNextChannel]);
 
   const isVod = !isLive;
 
@@ -337,7 +360,7 @@ export default function VideoPlayer({
       {!Platform.isTV && fadeControls && (
         <Pressable style={styles.touchCatcher} onPress={resetTimer} />
       )}
-      <View style={[styles.controlsOverlay, { opacity: fadeControls ? 0 : 1 }]} pointerEvents={fadeControls ? 'none' : 'auto'}>
+      <Animated.View style={[styles.controlsOverlay, { opacity: controlsOpacity, transform: [{ translateY: controlsSlideY }] }]} pointerEvents={fadeControls ? 'none' : 'auto'}>
         <PlayerControls
           paused={paused}
           isLive={isLive}
@@ -385,7 +408,6 @@ export default function VideoPlayer({
           downmixToStereo={downmixToStereo}
           onToggleDownmix={onToggleDownmix}
         />
-      </View>
       </Animated.View>
       {showLogoTransition && (
         <LinearGradient
@@ -401,6 +423,7 @@ export default function VideoPlayer({
           </Animated.View>
         </LinearGradient>
       )}
+      </Animated.View>
     </View>
   );
 }

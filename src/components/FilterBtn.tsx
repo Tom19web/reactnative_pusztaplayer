@@ -39,9 +39,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,255,255,0.3)',
   },
   btnFocus: {
-    backgroundColor: 'rgba(255,204,0,0.2)',
+    backgroundColor: COLORS.cyan,
     borderColor: COLORS.yellow,
   },
-  text: { color: COLORS.cyan, fontFamily: 'Poppins-Bold', fontSize: 12 },
-  textFocus: { color: COLORS.yellow },
+  text: { color: COLORS.black, fontFamily: '007Toontime', fontSize: 10 },
+  textFocus: { color: COLORS.black, fontSize: 12 },
 });

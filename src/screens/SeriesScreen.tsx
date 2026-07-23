@@ -5,6 +5,8 @@ import SimpleCard from '../components/SimpleCard';
 import EpisodePanel from '../components/EpisodePanel';
 import SeriesDetailPanel from '../components/SeriesDetailPanel';
 import ShadowWrapper from '../components/ShadowWrapper';
+import RuggedBorder from '../components/RuggedBorder';
+import SoundEffect from '../components/SoundEffect';
 import FilterBtn from '../components/FilterBtn';
 import Pagination from '../components/Pagination';
 import FilterItem from '../components/FilterItem';
@@ -56,13 +58,14 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
 
   useEffect(() => {
     const h = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showFilter) { setShowFilter(null); return true; }
       if (showEpisodes) { setShowEpisodes(null); return true; }
       if (selectedSeries) { setSelectedSeries(null); return true; }
       onBack();
       return true;
     });
     return () => h.remove();
-  }, [onBack, showEpisodes, selectedSeries]);
+  }, [onBack, showEpisodes, selectedSeries, showFilter]);
 
   useEffect(() => { setPage(0); }, [activeGroup, activeYear, activeMood, activeSort, searchTerm]);
 
@@ -115,16 +118,16 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
   return (
     <View style={{ flex: 1, position: 'relative' }}>
     <ScrollView style={styles.container} nestedScrollEnabled>
-      <ShadowWrapper offset={2} borderRadius={4}>
+      <RuggedBorder color={COLORS.cyan} style={{ marginBottom: SPACING.md }}>
         <View style={styles.filterBox}>
           <Text style={styles.filterLabel}>Szűrés: </Text>
           <FilterBtn label={activeGroup} onPress={()=>setShowFilter(showFilter==='group'?null:'group')}/>
           <FilterBtn label={activeYear==='Mind'?'Év':activeYear} onPress={()=>setShowFilter(showFilter==='year'?null:'year')}/>
           <FilterBtn label={activeMood==='Mind'?'Hangulat':activeMood} onPress={()=>setShowFilter(showFilter==='genre'?null:'genre')}/>
           <FilterBtn label={activeSort} onPress={()=>setShowFilter(showFilter==='sort'?null:'sort')}/>
-          <Text style={styles.filterTitle}>{'\uD83D\uDCFA'} Sorozatok </Text>
         </View>
-      </ShadowWrapper>
+        <SoundEffect text="BINGE!" textColor={COLORS.white} bgColor={COLORS.red} top={-4} right={-10} rotate={-8} />
+      </RuggedBorder>
       {showFilter && (
         <>
           <View style={styles.filterBgOverlay} pointerEvents="none" />
@@ -167,9 +170,8 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
 
 const styles = StyleSheet.create({
   container:{flex:1,paddingVertical:SPACING.md,paddingHorizontal:20},
-  filterBox:{backgroundColor:'rgba(0,255,255,0.08)',borderRadius:8,borderWidth:1,borderColor:'rgba(0,255,255,0.15)',paddingVertical:SPACING.sm,paddingHorizontal:SPACING.lg,flexDirection:'row',alignItems:'center',gap:SPACING.sm,marginBottom:SPACING.sm,flexWrap:'wrap'},
-  filterLabel:{color:COLORS.cyan,fontFamily:'Bangers-Regular',fontSize:14},
-  filterTitle:{color:COLORS.cyan,fontFamily:'Bangers-Regular',fontSize:16,flex:1,textAlign:'right',marginRight:10},
+  filterBox:{backgroundColor:'#ffcc00',borderRadius:0,paddingVertical:SPACING.sm,paddingHorizontal:SPACING.lg,flexDirection:'row',alignItems:'center',gap:SPACING.sm,flexWrap:'wrap'},
+  filterLabel:{color:COLORS.black,fontFamily:'Bangers-Regular',fontSize:16},
   filterBgOverlay:{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,0.35)',zIndex:998},
   filterOverlayWrap:{position:'absolute',top:SPACING.md+40,left:SPACING.md,zIndex:999,elevation:20},
   filterOverlay:{backgroundColor:'rgba(0,0,0,0.92)',borderRadius:10,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',padding:SPACING.xs,maxHeight:300,minWidth:200,maxWidth:350},

@@ -7,6 +7,7 @@ const AI_PROXY_KEY = (Config && Config.AI_PROXY_KEY) || '';
 export async function aiSearchQuery(
   query: string,
   items: Array<{ key: string; title: string; type: string; genre: string }>,
+  signal?: AbortSignal,
 ): Promise<string[]> {
   if (!AI_PROXY_KEY || !query.trim()) return [];
   try {
@@ -14,6 +15,7 @@ export async function aiSearchQuery(
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': AI_PROXY_KEY },
       body: JSON.stringify({ query, items }),
+      signal,
     });
     if (!res.ok) return [];
     const data = await res.json();

@@ -42,6 +42,6 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,204,0,0.2)',
     borderColor: COLORS.yellow,
   },
-  text: { color: 'rgba(255,255,255,0.7)', fontSize: FONT.xs },
+  text: { color: 'rgba(255,255,255,0.7)', fontSize: FONT.xs, fontFamily: '007Toontime' },
   textActive: { color: COLORS.white, fontWeight: '700' },
 });

@@ -38,6 +38,16 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
   const seriesEpisodeKey = watchHistory.find(h => h.key === contentId)?.episodeKey;
   const actualContentId = seriesEpisodeKey || contentId;
 
+  const [playingContentId, setPlayingContentId] = useState(actualContentId);
+
+  const prevContentIdRef = useRef(contentId);
+  useEffect(() => {
+    if (contentId !== prevContentIdRef.current) {
+      prevContentIdRef.current = contentId;
+      setPlayingContentId(actualContentId);
+    }
+  }, [contentId, actualContentId]);
+
   // Stop background radio when video playback starts
   useEffect(() => { clearBgAudio(); }, [clearBgAudio]);
 
@@ -50,7 +60,7 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
   const { vodInfo, epgEntries, seriesEps, allSeasonsFlat, currentEpIdx, seasonNum, setCurrentEpIdx } =
     usePlayerContent(session, meta, actualContentId);
 
-  const { trackProgress, resumePosition, resumeEpisodeKey, savedSeriesId } = usePlayerHistory(actualContentId, session, meta);
+  const { trackProgress, resumePosition, resumeEpisodeKey, savedSeriesId } = usePlayerHistory(playingContentId, session, meta);
 
   const isFav = favorites.some(f => f.key === contentId);
   const [audioTracks, setAudioTracks] = useState<{ index: number; title: string; language?: string }[]>([]);
@@ -69,9 +79,13 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
   // Ref-based navigateToEp to avoid circular TDZ (navigateToEp â†’ useAutoPlay â†’ switchToEpisode â†’ navigateToEp)
   const switchToEpRef = useRef<(ep: EP) => Promise<void>>(async () => {});
   const navigateToEp = useCallback(async (ep: EP) => switchToEpRef.current(ep), []);
+  const channelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup channel switch timeout on unmount
+  useEffect(() => () => { if (channelTimerRef.current) clearTimeout(channelTimerRef.current); }, []);
 
   // Auto-play
-  const { countdown, handleProgress, cancelCountdown } = useAutoPlay(actualContentId, meta, session, allSeasonsFlat, navigateToEp);
+  const { countdown, handleProgress, cancelCountdown } = useAutoPlay(playingContentId, meta, session, allSeasonsFlat, navigateToEp);
 
   // Ref-based cancel to avoid TDZ (switchToEpisode uses cancelCountdown before declaration)
   const cancelRef = useRef(cancelCountdown);
@@ -90,6 +104,7 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
     if (meta?.seriesId != null && meta.seriesId > 0) {
       await addSeriesEpisode({ key: ep.key, title: ep.title, streamUrl: url, seriesId: meta.seriesId, group: meta?.group || '', logo: meta?.logo });
     }
+    setPlayingContentId(ep.key);
     setVideoUrl(url);
     setVideoTitle(ep.title);
     setVideoKey(prev => prev + 1);
@@ -103,23 +118,25 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
 
   const handlePrev = useCallback(async () => {
     if (allSeasonsFlat.length > 0) {
-      const idx = allSeasonsFlat.findIndex(e => e.key === actualContentId);
+      const idx = allSeasonsFlat.findIndex(e => e.key === playingContentId);
       if (idx > 0) await switchToEpisode(allSeasonsFlat[idx - 1]);
     } else {
       setTransitionTrigger(prev => prev + 1);
-      setTimeout(() => onPrevChannel?.(), 200);
+      if (channelTimerRef.current) clearTimeout(channelTimerRef.current);
+      channelTimerRef.current = setTimeout(() => { channelTimerRef.current = null; onPrevChannel?.(); }, 200);
     }
-  }, [allSeasonsFlat, actualContentId, onPrevChannel, switchToEpisode]);
+  }, [allSeasonsFlat, playingContentId, onPrevChannel, switchToEpisode]);
 
   const handleNext = useCallback(async () => {
     if (allSeasonsFlat.length > 0) {
-      const idx = allSeasonsFlat.findIndex(e => e.key === actualContentId);
+      const idx = allSeasonsFlat.findIndex(e => e.key === playingContentId);
       if (idx >= 0 && idx < allSeasonsFlat.length - 1) await switchToEpisode(allSeasonsFlat[idx + 1]);
     } else {
       setTransitionTrigger(prev => prev + 1);
-      setTimeout(() => onNextChannel?.(), 200);
+      if (channelTimerRef.current) clearTimeout(channelTimerRef.current);
+      channelTimerRef.current = setTimeout(() => { channelTimerRef.current = null; onNextChannel?.(); }, 200);
     }
-  }, [allSeasonsFlat, actualContentId, onNextChannel, switchToEpisode]);
+  }, [allSeasonsFlat, playingContentId, onNextChannel, switchToEpisode]);
 
   const handleToggleFav = useCallback(() => {
     dispatch({ type: 'TOGGLE_FAVORITE', payload: {

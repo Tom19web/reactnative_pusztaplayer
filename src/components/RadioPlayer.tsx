@@ -10,12 +10,26 @@ interface Props {
   onBack: () => void;
 }
 
+const RINGS = [
+  { color: COLORS.yellow, maxScale: 2.2, size: 100 },
+  { color: COLORS.cyan, maxScale: 3.0, size: 80 },
+  { color: COLORS.yellow, maxScale: 3.8, size: 60 },
+  { color: COLORS.cyan, maxScale: 4.6, size: 40 },
+];
+
 export default function RadioPlayer({ station, onBack }: Props) {
-  const { audio, isPlaying, start, stop, clear } = useBackgroundAudio();
+  const { audio, isPlaying, start, stop } = useBackgroundAudio();
   const [metadata, setMetadata] = useState('');
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const visualizerBars = useRef(Array.from({ length: 7 }, () => new Animated.Value(0.2))).current;
   const metadataTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const ringRefs = useRef(RINGS.map(() => ({
+    scale: new Animated.Value(0.5),
+    opacity: new Animated.Value(0.5),
+    scaleX: new Animated.Value(1),
+    scaleY: new Animated.Value(1),
+    rotate: new Animated.Value(0),
+  }))).current;
 
   const isAac = station.streamUrl.toLowerCase().endsWith('.aac');
   const isThisStationPlaying = isPlaying && audio?.streamUrl === station.streamUrl;
@@ -33,7 +47,6 @@ export default function RadioPlayer({ station, onBack }: Props) {
     }
   };
 
-  // Auto-start on mount
   useEffect(() => {
     if (!isThisStationPlaying) {
       start({
@@ -46,23 +59,60 @@ export default function RadioPlayer({ station, onBack }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Visualizer animation
   useEffect(() => {
-    const animations = visualizerBars.map((bar, i) => {
+    ringRefs.forEach(ring => {
+      ring.scale.setValue(0.5);
+      ring.opacity.setValue(0.5);
+      ring.scaleX.setValue(1);
+      ring.scaleY.setValue(1);
+      ring.rotate.setValue(0);
+    });
+    const loops = ringRefs.map((ring, i) => {
       const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(bar, { toValue: 0.3 + Math.random() * 0.7, duration: 500 + i * 80, useNativeDriver: false }),
-          Animated.timing(bar, { toValue: 0.15 + Math.random() * 0.3, duration: 400 + i * 60, useNativeDriver: false }),
+        Animated.parallel([
+          Animated.timing(ring.scale, {
+            toValue: RINGS[i].maxScale,
+            duration: 2000,
+            delay: i * 450,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(ring.opacity, {
+            toValue: 0,
+            duration: 2000,
+            delay: i * 450,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.loop(
+            Animated.sequence([
+              Animated.timing(ring.scaleX, { toValue: 1.5, duration: 300 + i * 200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+              Animated.timing(ring.scaleX, { toValue: 0.7, duration: 400 + i * 150, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            ]),
+          ),
+          Animated.loop(
+            Animated.sequence([
+              Animated.timing(ring.scaleY, { toValue: 0.6, duration: 400 + i * 200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+              Animated.timing(ring.scaleY, { toValue: 1.4, duration: 300 + i * 150, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            ]),
+          ),
+          Animated.loop(
+            Animated.timing(ring.rotate, {
+              toValue: 1,
+              duration: 3000 + i * 800,
+              easing: Easing.linear,
+              useNativeDriver: true,
+            }),
+          ),
         ]),
       );
       loop.start();
       return loop;
     });
-    return () => animations.forEach(a => a.stop());
+    return () => loops.forEach(l => l.stop());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [station.key]);
 
-  // ON AIR pulse animation
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
@@ -74,7 +124,6 @@ export default function RadioPlayer({ station, onBack }: Props) {
     return () => loop.stop();
   }, [pulseAnim]);
 
-  // Metadata polling (every 30s)
   useEffect(() => {
     if (!station.metadataUrl) return;
     const fetchMeta = async () => {
@@ -92,7 +141,6 @@ export default function RadioPlayer({ station, onBack }: Props) {
     return () => { if (metadataTimer.current) clearInterval(metadataTimer.current); };
   }, [station.metadataUrl]);
 
-  // Back button
   useEffect(() => {
     const h = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
     return () => h.remove();
@@ -100,7 +148,6 @@ export default function RadioPlayer({ station, onBack }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TFPressable style={styles.backBtn} focusedStyle={styles.backBtnFocus} onPress={onBack}>
           <Text style={styles.backText}>{'\u25C0'} Vissza</Text>
@@ -111,25 +158,45 @@ export default function RadioPlayer({ station, onBack }: Props) {
         </View>
       </View>
 
-      {/* Visualizer bars */}
-      <View style={styles.visualizer}>
-        {visualizerBars.map((bar, i) => (
-          <Animated.View key={i} style={[styles.bar, { height: Animated.multiply(bar, 60) }]} />
-        ))}
-      </View>
-
-      {/* Station info */}
       <View style={styles.stationInfo}>
-        {station.logo ? (
-          <Image source={{ uri: station.logo }} style={styles.logo} resizeMode="contain" />
-        ) : (
-          <Text style={styles.fallbackLogo}>{'\uD83D\uDCFB'}</Text>
-        )}
+        <View style={styles.ringsWrap}>
+          {RINGS.map((r, i) => {
+            const spin = ringRefs[i].rotate.interpolate({
+              inputRange: [0, 1],
+              outputRange: ['0deg', '360deg'],
+            });
+            return (
+            <Animated.View
+              key={i}
+              style={[
+                styles.ring,
+                {
+                  width: r.size,
+                  height: r.size,
+                  borderRadius: r.size / 2,
+                  borderColor: r.color,
+                  opacity: ringRefs[i].opacity,
+                  transform: [
+                    { scale: ringRefs[i].scale },
+                    { scaleX: ringRefs[i].scaleX },
+                    { scaleY: ringRefs[i].scaleY },
+                    { rotate: spin },
+                  ],
+                },
+              ]}
+            />
+            );
+          })}
+          {station.logo ? (
+            <Image source={{ uri: station.logo }} style={styles.logo} resizeMode="contain" />
+          ) : (
+            <Text style={styles.fallbackLogo}>{'\uD83D\uDCFB'}</Text>
+          )}
+        </View>
         <Text style={styles.stationName}>{station.name}</Text>
         {metadata ? <Text style={styles.metadata} numberOfLines={1}>{metadata}</Text> : null}
       </View>
 
-      {/* Play/Stop */}
       <TFPressable style={styles.playBtn} focusedStyle={styles.playBtnFocus} onPress={handleToggle}>
         <Text style={styles.playBtnText}>{isThisStationPlaying ? '\u25A0' : '\u25B6'}</Text>
       </TFPressable>
@@ -154,15 +221,20 @@ const styles = StyleSheet.create({
   onAirRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   onAirDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.red },
   onAirText: { color: COLORS.red, fontSize: FONT.sm, fontWeight: '800', letterSpacing: 2 },
-  visualizer: {
-    flexDirection: 'row', alignItems: 'flex-end',
-    justifyContent: 'center', height: 80, gap: 4,
-    marginBottom: 20,
-  },
-  bar: { width: 8, backgroundColor: COLORS.cyan, borderRadius: 2, minHeight: 4 },
   stationInfo: { alignItems: 'center', marginBottom: 30 },
-  logo: { width: 100, height: 100, borderRadius: 8, marginBottom: 12, borderWidth: 1, borderColor: '#333' },
-  fallbackLogo: { fontSize: 64, marginBottom: 12 },
+  ringsWrap: {
+    width: 140,
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  ring: {
+    position: 'absolute',
+    borderWidth: 2,
+  },
+  logo: { width: 100, height: 100, borderRadius: 8, zIndex: 1, borderWidth: 1, borderColor: '#333' },
+  fallbackLogo: { fontSize: 64, marginBottom: 12, zIndex: 1 },
   stationName: { color: COLORS.white, fontSize: FONT.lg, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
   metadata: { color: COLORS.muted, fontSize: FONT.sm, maxWidth: 300, textAlign: 'center' },
   playBtn: {

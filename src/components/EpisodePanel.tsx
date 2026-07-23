@@ -126,7 +126,7 @@ export default function EpisodePanel({ seriesId, title, onPlayEpisode, onBack }:
                     }}
                   >
                     <View style={styles.epBadge}>
-                      <Text style={styles.epBadgeText}>S{seasonNum.padStart(2, '0')}E{String(ep.episode_num || '').padStart(2, '0')}</Text>
+                      <Text style={styles.epBadgeText}>S{seasonNum.padStart(2, '0')}E{String(ep.episode_num ?? 0).padStart(2, '0')}</Text>
                     </View>
                     <Text style={styles.epTitle} numberOfLines={2}>{ep.title || `Epizód ${ep.episode_num}`}</Text>
                   </TFPressable>

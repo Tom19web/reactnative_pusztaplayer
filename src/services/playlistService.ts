@@ -100,29 +100,6 @@ export async function xtreamLogin(
   const result = await xtreamFullLogin(username, password);
   const playlist = loginResultToPlaylistData(result);
 
-  const needsCache =
-    playlist.liveChannels.length === 0 ||
-    playlist.movies.length === 0 ||
-    playlist.series.length === 0;
-  if (needsCache) {
-    const cached = await loadPlaylistFromCache();
-    if (cached) {
-      if (playlist.liveChannels.length === 0 && cached.liveChannels.length > 0) {
-        playlist.liveChannels = cached.liveChannels;
-        playlist.channels = cached.liveChannels;
-        playlist.groups = cached.groups.length > 0 ? cached.groups : playlist.groups;
-      }
-      if (playlist.movies.length === 0 && cached.movies.length > 0) {
-        playlist.movies = cached.movies;
-        playlist.movieGroups = cached.movieGroups.length > 0 ? cached.movieGroups : playlist.movieGroups;
-      }
-      if (playlist.series.length === 0 && cached.series.length > 0) {
-        playlist.series = cached.series;
-        playlist.seriesGroups = cached.seriesGroups.length > 0 ? cached.seriesGroups : playlist.seriesGroups;
-      }
-    }
-  }
-
   currentPlaylist = playlist;
   await savePlaylistToCache(playlist);
   await saveXtreamCredentials(username, password);

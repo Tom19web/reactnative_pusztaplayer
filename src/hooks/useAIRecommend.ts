@@ -14,6 +14,14 @@ export function useAIRecommend(
   const [items, setItems] = useState<AIRecItem[]>([]);
   const [loading, setLoading] = useState(false);
   const doneRef = useRef(false);
+  const prevRef = useRef(playlist);
+
+  useEffect(() => {
+    if (!playlist || playlist === prevRef.current) return;
+    prevRef.current = playlist;
+    doneRef.current = false;
+    setItems([]);
+  }, [playlist]);
 
   useEffect(() => {
     if (!playlist || doneRef.current) return;

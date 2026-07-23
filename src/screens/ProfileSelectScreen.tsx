@@ -82,22 +82,26 @@ export default function ProfileSelectScreen({ onProfileSelected }: Props) {
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    const updated = (profiles || []).map(p =>
-      p.id === deleteTarget ? { ...p, deleted: true, deletedAt: Date.now() } : p
-    );
-    setProfiles(updated);
-    await wpDeleteProfile(user.apiKey, deleteTarget);
+    try {
+      await wpDeleteProfile(user.apiKey, deleteTarget);
+      const updated = (profiles || []).map(p =>
+        p.id === deleteTarget ? { ...p, deleted: true, deletedAt: Date.now() } : p
+      );
+      setProfiles(updated);
+    } catch {}
     setDeleting(false);
     setConfirmDelete(false);
     setDeleteTarget(null);
   };
 
   const handleRestore = async (id: string) => {
-    const updated = (profiles || []).map(p =>
-      p.id === id ? { ...p, deleted: false, deletedAt: undefined } : p
-    );
-    setProfiles(updated);
-    await wpRestoreProfile(user.apiKey, id);
+    try {
+      await wpRestoreProfile(user.apiKey, id);
+      const updated = (profiles || []).map(p =>
+        p.id === id ? { ...p, deleted: false, deletedAt: undefined } : p
+      );
+      setProfiles(updated);
+    } catch {}
   };
 
   // Wizard

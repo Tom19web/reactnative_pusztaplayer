@@ -1,7 +1,12 @@
 ﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, Image, StyleSheet, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import Svg, { Polygon, G } from 'react-native-svg';
 import TFPressable from './TFPressable';
+import SoundEffect from './SoundEffect';
+import ComicStarburst, { comicStarburstPoints } from './ComicStarburst';
+import RuggedBorder from './RuggedBorder';
+import { PlayIcon } from '../../assets/icons';
 import { HistoryItem, PlaylistData } from '../types';
 import { COLORS, FONT, SPACING } from '../constants';
 import { fetchShortEpg } from '../services/epgService';
@@ -53,7 +58,7 @@ function fmtPos(s: number): string {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
-function HeroSlideContent({ item, playlist, onPlayContent, isFav, onToggleFav }: { item: HistoryItem; playlist: PlaylistData | null; onPlayContent: (key: string) => void; isFav?: boolean; onToggleFav?: () => void }) {
+function HeroSlideContent({ item, playlist, onPlayContent, isFav, onToggleFav, slideIndex }: { item: HistoryItem; playlist: PlaylistData | null; onPlayContent: (key: string) => void; isFav?: boolean; onToggleFav?: () => void; slideIndex: number }) {
   const [extra, setExtra] = useState<SlideExtra>({ loading: true });
 
   useEffect(() => {
@@ -98,18 +103,31 @@ function HeroSlideContent({ item, playlist, onPlayContent, isFav, onToggleFav }:
       : (playlist?.series?.find(s => s.key === item.key)?.logo || item.logo)
   );
 
+  const SFX = [
+    { text: 'BANG!', top: -8, right: 90, textColor: '#FFEE00', bgColor: '#FF0044', rotate: -8 },
+    { text: 'POW!', top: 6, right: 70, textColor: '#FF0000', bgColor: '#FFEE00', rotate: 6 },
+    { text: 'ZAP!', top: -6, right: 100, textColor: '#FFEE00', bgColor: '#39FF14', rotate: -12 },
+    { text: 'BOOM!', top: 10, right: 80, textColor: '#00FFFF', bgColor: '#FF6600', rotate: 10 },
+    { text: 'WHAM!', top: -14, right: 95, textColor: '#FFEE00', bgColor: '#FF0044', rotate: -4 },
+  ];
+  const sfx = SFX[slideIndex % SFX.length];
+
   return (
     <View style={slideStyles.container}>
       <View style={slideStyles.colLeft}>
-        <View style={slideStyles.titleRow}>
+        <View style={[slideStyles.titleRow, { position: 'relative' }]}>
           <Text style={slideStyles.title} numberOfLines={1}>{item.title}</Text>
+          <SoundEffect text={sfx.text} textColor={sfx.textColor} bgColor={sfx.bgColor} top={sfx.top} right={sfx.right} rotate={sfx.rotate} fontSize={18} />
           <View style={slideStyles.badge}>
             <Text style={slideStyles.badgeText}>{icon} {text}</Text>
           </View>
         </View>
           <View style={slideStyles.actionRow}>
             <TFPressable style={slideStyles.playBtn} focusedStyle={slideStyles.playBtnFocus} onPress={() => onPlayContent(item.key)} accessibilityLabel="Lejátszás folytatása" accessibilityRole="button">
-              <Text style={slideStyles.playBtnText}>{'\u25B6'} {item.type !== 'live' && item.position > 5 && item.duration > 0 ? `Folytatás ${fmtPos(item.position)}-nél` : 'Folytatás'}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <PlayIcon size={14} color={COLORS.black} />
+                <Text style={slideStyles.playBtnText}>{item.type !== 'live' && item.position > 5 && item.duration > 0 ? `Folytatás ${fmtPos(item.position)}-nél` : 'Lejátszás'}</Text>
+              </View>
             </TFPressable>
             {onToggleFav && (
               <TFPressable style={slideStyles.favBtn} focusedStyle={slideStyles.favBtnFocus} onPress={onToggleFav} accessibilityLabel={isFav ? 'Eltávolítás a kedvencekből' : 'Hozzáadás a kedvencekhez'} accessibilityRole="button">
@@ -119,10 +137,21 @@ function HeroSlideContent({ item, playlist, onPlayContent, isFav, onToggleFav }:
           </View>
         {item.type === 'live' && extra.epg && (
           <View style={slideStyles.infoBlock}>
-            <Text style={slideStyles.epgNow}>{'\uD83D\uDD34'} Most: {extra.epg[0]?.title || 'N/A'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={slideStyles.epgBadge}>
+                <Text style={slideStyles.epgBadgeText}>{'\uD83D\uDD34'} Most:</Text>
+              </View>
+              <Text style={slideStyles.epgNextTitle} numberOfLines={1}>{extra.epg[0]?.title || 'N/A'}</Text>
+            </View>
             {extra.epg[0]?.description ? <Text style={slideStyles.epgDesc} numberOfLines={2}>{extra.epg[0].description}</Text> : null}
-            {extra.epg[1] && <Text style={slideStyles.epgNextLabel}>Következő:</Text>}
-            {extra.epg[1] && <Text style={slideStyles.epgNextTitle}>{extra.epg[1].title}</Text>}
+            {extra.epg[1] && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <View style={slideStyles.epgBadge}>
+                  <Text style={slideStyles.epgBadgeText}>{'Következő:'}</Text>
+                </View>
+                <Text style={slideStyles.epgNextTitle} numberOfLines={1}>{extra.epg[1].title}</Text>
+              </View>
+            )}
             {extra.epg[1]?.description ? <Text style={slideStyles.epgNextDesc} numberOfLines={1}>{extra.epg[1].description}</Text> : null}
           </View>
         )}
@@ -149,6 +178,7 @@ export default function HomeHero({ history, playlist, onPlayContent }: HomeHeroP
   const animVal = useRef(new Animated.Value(0)).current;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const carouselWidthRef = useRef(0);
+  const [starDims, setStarDims] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
     setCurrentIdx(0);
@@ -187,17 +217,39 @@ export default function HomeHero({ history, playlist, onPlayContent }: HomeHeroP
   }
 
   return (
-      <View style={styles.carouselOuter} onLayout={(e) => { carouselWidthRef.current = e.nativeEvent.layout.width; }}>
+      <RuggedBorder color={COLORS.cyan} wobbleFactor={0.7}>
+      <View style={styles.carouselOuter} onLayout={(e) => { const { width, height } = e.nativeEvent.layout; carouselWidthRef.current = width; if (width > 0) setStarDims({ w: width, h: height }); }}>
         <LinearGradient
-          colors={['#202020', '#080808']}
+          colors={['#1a2228', '#101820', '#080810']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.carouselGradient}
         />
+        {starDims.w > 0 && (
+          <Svg width={starDims.w} height={starDims.h} style={styles.carouselGradient} pointerEvents="none">
+            <G transform={`translate(${starDims.w - 65}, 8)`}>
+              <G transform="translate(2,2)"><Polygon points={comicStarburstPoints(25, 5, 2, 2)} fill="#000" /></G>
+              <Polygon points={comicStarburstPoints(25, 5, 2, 2)} fill="#FFEE00" stroke="#000" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            </G>
+            <G transform={`translate(${starDims.w - 80}, ${starDims.h - 40})`}>
+              <G transform="translate(2,2)"><Polygon points={comicStarburstPoints(20, 5, 2, 2)} fill="#000" /></G>
+              <Polygon points={comicStarburstPoints(20, 5, 2, 2)} fill="#FF6600" stroke="#000" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            </G>
+            <G transform="translate(16, 30)">
+              <G transform="translate(2,2)"><Polygon points={comicStarburstPoints(22, 5, 2, 2)} fill="#000" /></G>
+              <Polygon points={comicStarburstPoints(22, 5, 2, 2)} fill="#39FF14" stroke="#000" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            </G>
+          </Svg>
+        )}
         <Animated.View style={[styles.track, { transform: [{ translateX: animVal }] }]}>
           {items.map((item, i) => (
             <View key={item.key} style={styles.slide}>
-              <HeroSlideContent item={item} playlist={playlist} onPlayContent={onPlayContent} isFav={favItems.some(f => f.key === item.key)} onToggleFav={() => toggleFav({ key: item.key, title: item.title, type: item.type === 'live' ? 'live' : item.type === 'series' ? 'series' : 'movie', group: item.group || '', logo: item.logo || '', streamUrl: '', seriesId: '' })} />
+              <HeroSlideContent slideIndex={i} item={item} playlist={playlist} onPlayContent={onPlayContent} isFav={favItems.some(f => f.key === item.key)} onToggleFav={() => toggleFav({ key: item.key, title: item.title, type: item.type === 'live' ? 'live' : item.type === 'series' ? 'series' : 'movie', group: item.group || '', logo: item.logo || '', streamUrl: '', seriesId: '' })} />
+              {(item.type === 'movie' || item.type === 'series') && (
+                <View style={{ position: 'absolute', top: 20, right: 10 }}>
+                  <ComicStarburst size={22} pointsCount={5} fillColor={['#39FF14', '#FFEE00', '#FF6600', '#FF0044'][i % 4]} borderColor="#000" borderWidth={2} shadowOffset={2} />
+                </View>
+              )}
             </View>
           ))}
         </Animated.View>
@@ -216,6 +268,7 @@ export default function HomeHero({ history, playlist, onPlayContent }: HomeHeroP
           </View>
         )}
       </View>
+      </RuggedBorder>
   );
 }
 
@@ -225,8 +278,8 @@ const slideStyles = StyleSheet.create({
     minHeight: 130,
   },
   colLeft: {
-    flex: 2,
-    paddingLeft: 20, paddingRight: 20, paddingTop: 12, paddingBottom: 16,
+    flex: 3,
+    paddingLeft: 20, paddingRight: 20, paddingTop: 6, paddingBottom: 16,
     gap: 8,
   },
   titleRow: {
@@ -241,8 +294,8 @@ const slideStyles = StyleSheet.create({
     paddingHorizontal: 12,
     borderWidth: 1, borderColor: '#000',
   },
-  badgeText: { color: COLORS.black, fontSize: 7, fontWeight: '700', fontFamily: 'Poppins-Bold' },
-  title: { color: COLORS.white, fontSize: 24, fontFamily: 'Bangers-Regular', letterSpacing: 1, flex: 1, marginRight: 8 },
+  badgeText: { color: COLORS.black, fontSize: 7, fontWeight: '700', fontFamily: '007Toontime' },
+  title: { color: COLORS.white, fontSize: 20, fontFamily: 'Bangers-Regular', letterSpacing: 1, flex: 1, marginRight: 8 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   playBtn: {
     backgroundColor: COLORS.yellow,
@@ -254,7 +307,7 @@ const slideStyles = StyleSheet.create({
     borderWidth: 1, borderColor: '#000',
   },
   playBtnFocus: { backgroundColor: COLORS.cyan },
-  playBtnText: { color: COLORS.black, fontSize: 10, fontWeight: '700', fontFamily: 'Poppins-Bold' },
+  playBtnText: { color: COLORS.black, fontSize: 8, fontWeight: '700', fontFamily: '007Toontime' },
   favBtn: {
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: COLORS.panel2,
@@ -265,17 +318,24 @@ const slideStyles = StyleSheet.create({
   favBtnText: { fontSize: 16, color: COLORS.muted },
   favBtnTextActive: { color: COLORS.red },
   infoBlock: { gap: 2 },
-  epgNow: { color: COLORS.yellow, fontSize: 10, fontWeight: '600' },
-  epgDesc: { color: COLORS.muted, fontSize: 10, lineHeight: 13 },
-  epgNextLabel: { color: COLORS.yellow, fontSize: 12, fontWeight: '600', marginTop: 2 },
-  epgNextTitle: { color: COLORS.muted, fontSize: 10 },
-  epgNextDesc: { color: COLORS.muted, fontSize: 8, lineHeight: 10 },
-  plot: { color: COLORS.muted, fontSize: 9, lineHeight: 13 },
+  epgBadge: {
+    backgroundColor: COLORS.cyan,
+    borderRadius: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderWidth: 1, borderColor: '#000',
+  },
+  epgBadgeText: { color: COLORS.black, fontSize: 9, fontFamily: '007Toontime' },
+  epgDesc: { color: COLORS.white, fontSize: 8, lineHeight: 11, fontFamily: '007Toontime' },
+  epgNextLabel: { color: COLORS.white, fontSize: 10, fontFamily: '007Toontime', marginTop: 2 },
+  epgNextTitle: { color: COLORS.white, fontSize: 10, fontFamily: '007Toontime' },
+  epgNextDesc: { color: COLORS.white, fontSize: 8, lineHeight: 10, fontFamily: '007Toontime' },
+  plot: { color: COLORS.white, fontSize: 9, lineHeight: 13, fontFamily: '007Toontime' },
   colRight: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
+    padding: 4,
     overflow: 'hidden',
   },
   poster: { width: 100, height: 150, borderRadius: 6 },
@@ -288,15 +348,15 @@ const styles = StyleSheet.create({
   emptyHeadline: { color: COLORS.yellow, fontSize: 38, fontWeight: '800', marginBottom: SPACING.xs },
   emptyTitle: { color: COLORS.text, fontSize: 30, fontWeight: '700' },
   emptySub: { color: COLORS.muted, fontSize: 20, marginTop: SPACING.sm, textAlign: 'center' },
-  carouselOuter: { borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#000', position: 'relative', backgroundColor: '#080808' },
+  carouselOuter: { borderRadius: 0, overflow: 'hidden', position: 'relative', backgroundColor: '#080808' },
   carouselGradient: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   track: { flexDirection: 'row' },
-  slide: { minWidth: '100%' },
+  slide: { minWidth: '100%', position: 'relative' },
   dots: {
     position: 'absolute', bottom: 12, left: 0, right: 0,
     flexDirection: 'row', justifyContent: 'center', gap: 8,
   },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.25)' },
+  dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)' },
   dotActive: { backgroundColor: COLORS.yellow },
   dotFocus: { backgroundColor: COLORS.yellow, transform: [{ scale: 1.2 }] },
 });

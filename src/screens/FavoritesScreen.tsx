@@ -3,6 +3,8 @@ import { View, Text, ScrollView, StyleSheet, BackHandler, Platform, DeviceEventE
 import { useCore, useFavorites, useToggleFavorite, useToggleWatchLater, useWatchLater } from '../store/AppContext';
 import SimpleCard from '../components/SimpleCard';
 import ShadowWrapper from '../components/ShadowWrapper';
+import RuggedBorder from '../components/RuggedBorder';
+import SoundEffect from '../components/SoundEffect';
 import TFPressable from '../components/TFPressable';
 import { COLORS, FONT, SPACING } from '../constants';
 
@@ -66,14 +68,15 @@ export default function FavoritesScreen({ onPlayContent, onBack }: FavoritesScre
     <ScrollView style={styles.container} nestedScrollEnabled>
       {liveFavorites.length > 0 && (
         <View style={styles.section}>
-          <ShadowWrapper offset={2} borderRadius={4}>
+          <RuggedBorder color={COLORS.black}>
             <View style={styles.yellowHeader}>
               <Text style={styles.yellowHeaderText}>{'\uD83D\uDCFA'} Live TV ({liveFavorites.length})</Text>
               <TFPressable style={styles.sortBtn} focusedStyle={styles.sortBtnFocused} onPress={() => setSortLive(s => s === 'az' ? 'za' : s === 'za' ? 'date' : 'az')} accessibilityLabel="Rendezés" accessibilityRole="button">
                 <Text style={styles.sortBtnText}>{sortLive === 'az' ? 'A-Z' : sortLive === 'za' ? 'Z-A' : '📅'}</Text>
               </TFPressable>
             </View>
-          </ShadowWrapper>
+            <SoundEffect text="FAV!" textColor={COLORS.white} bgColor={COLORS.red} top={-8} right={6} rotate={-6} />
+          </RuggedBorder>
           <View style={styles.grid}>
             {liveFavorites.map(item => (
               <View key={item.key} style={{ position: 'relative' }}>
@@ -106,14 +109,15 @@ export default function FavoritesScreen({ onPlayContent, onBack }: FavoritesScre
 
       {mediaFavorites.length > 0 && (
         <View style={styles.section}>
-          <ShadowWrapper offset={2} borderRadius={4}>
+          <RuggedBorder color={COLORS.black}>
             <View style={styles.yellowHeader}>
               <Text style={styles.yellowHeaderText}>{'\uD83C\uDFAC'} Film & Sorozat ({mediaFavorites.length})</Text>
               <TFPressable style={styles.sortBtn} focusedStyle={styles.sortBtnFocused} onPress={() => setSortMedia(s => s === 'az' ? 'za' : s === 'za' ? 'date' : 'az')} accessibilityLabel="Rendezés" accessibilityRole="button">
                 <Text style={styles.sortBtnText}>{sortMedia === 'az' ? 'A-Z' : sortMedia === 'za' ? 'Z-A' : '📅'}</Text>
               </TFPressable>
             </View>
-          </ShadowWrapper>
+            <SoundEffect text="POP!" textColor={COLORS.black} bgColor={COLORS.yellow} top={-8} right={6} rotate={-10} />
+          </RuggedBorder>
           <View style={styles.grid}>
             {mediaFavorites.map(item => {
               const type = item.type === 'series' ? 'series' as const : 'movie' as const;
@@ -153,7 +157,7 @@ const styles = StyleSheet.create({
   section: { marginBottom: SPACING.md },
   yellowHeader: {
     backgroundColor: COLORS.yellow,
-    borderRadius: 4,
+    borderRadius: 0,
     paddingTop: SPACING.xs,
     paddingBottom: SPACING.xs + 2,
     paddingHorizontal: SPACING.md,

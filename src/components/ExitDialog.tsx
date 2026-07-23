@@ -58,10 +58,12 @@ export default function ExitDialog({ onDismiss }: ExitDialogProps) {
       Animated.delay(400),
       Animated.timing(fadeOut, { toValue: 1, duration: 300, useNativeDriver: true }),
     ]).start(async () => {
-      if (user.apiKey && profiles.length > 0) {
-        await saveProfilesNow(user.apiKey, profiles);
-      }
-      await syncFlush();
+      try {
+        if (user.apiKey && profiles.length > 0) {
+          await saveProfilesNow(user.apiKey, profiles);
+        }
+        await syncFlush();
+      } catch {}
       BackHandler.exitApp();
     });
   };

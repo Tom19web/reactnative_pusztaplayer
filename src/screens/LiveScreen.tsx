@@ -4,6 +4,8 @@ import { useCore } from '../store/AppContext';
 import { useFavorites, useToggleWatchLater, useWatchLater, useToggleFavorite } from '../store/AppContext';
 import SimpleCard from '../components/SimpleCard';
 import ShadowWrapper from '../components/ShadowWrapper';
+import RuggedBorder from '../components/RuggedBorder';
+import SoundEffect from '../components/SoundEffect';
 import FilterBtn from '../components/FilterBtn';
 import Pagination from '../components/Pagination';
 import FilterItem from '../components/FilterItem';
@@ -129,13 +131,13 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
   return (
     <View style={styles.wrapper} testID="live-wrapper">
       <ScrollView style={styles.container} nestedScrollEnabled>
-        <ShadowWrapper offset={2} borderRadius={4}>
+        <RuggedBorder color={COLORS.cyan} style={{ marginBottom: SPACING.md }}>
           <View style={styles.filterBox} testID="live-filter">
-            <Text style={styles.filterLabel}>Válassz kategóriát! </Text>
+            <Text style={styles.filterLabel}>Válassz kategóriát! {' '}</Text>
             <FilterBtn label={activeGroup} onPress={() => setShowFilter(!showFilter)} testID="filter-btn-main" />
-            <Text style={styles.filterTitle}>{'\uD83D\uDCFA'} LIVE TV </Text>
           </View>
-        </ShadowWrapper>
+          <SoundEffect text="LIVE!" textColor={COLORS.white} bgColor={COLORS.red} top={-3} right={-8} rotate={8} />
+        </RuggedBorder>
         {showFilter && (
           <>
             <View style={styles.filterBgOverlay} pointerEvents="none" />
@@ -198,9 +200,8 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
 const styles = StyleSheet.create({
   wrapper:{flex:1,position:'relative'},
   container:{flex:1,paddingVertical:SPACING.md,paddingHorizontal:20},
-  filterBox:{backgroundColor:'rgba(0,255,255,0.08)',borderRadius:8,borderWidth:1,borderColor:'rgba(0,255,255,0.15)',paddingVertical:SPACING.sm,paddingHorizontal:SPACING.lg,flexDirection:'row',alignItems:'center',gap:SPACING.md,marginBottom:SPACING.sm},
-  filterLabel:{color:COLORS.cyan,fontFamily:'Bangers-Regular',fontSize:14},
-  filterTitle:{color:COLORS.cyan,fontFamily:'Bangers-Regular',fontSize:16,flex:1,textAlign:'right',marginRight:10},
+  filterBox:{backgroundColor:'#ffcc00',borderRadius:0,paddingVertical:SPACING.sm,paddingHorizontal:SPACING.lg,flexDirection:'row',alignItems:'center',gap:SPACING.md},
+  filterLabel:{color:COLORS.black,fontFamily:'Bangers-Regular',fontSize:16},
   filterBgOverlay:{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,0.35)',zIndex:998},
   filterOverlayWrap:{position:'absolute',left:SPACING.md,zIndex:999,elevation:20},
   filterOverlay:{backgroundColor:'rgba(0,0,0,0.92)',borderRadius:10,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',padding:SPACING.xs,maxHeight:300,minWidth:200,maxWidth:350},

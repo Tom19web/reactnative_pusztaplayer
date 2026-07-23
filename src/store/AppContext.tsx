@@ -282,8 +282,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const activeProfile = state.profiles.find(p => p.id === state.activeProfileId);
       wpSync(state.user.apiKey, state.profiles, activeProfile?.watch_progress);
     }
-    return () => { wpFlush(); };
   }, [state.profiles, state.user.apiKey, state.activeProfileId]);
+
+  // Flush WordPress sync on unmount
+  useEffect(() => () => { wpFlush(); }, []);
 
   // Save last radio to AsyncStorage
   useEffect(() => {

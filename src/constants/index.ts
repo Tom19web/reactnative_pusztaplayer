@@ -6,10 +6,24 @@ import { HomeIcon, LiveIcon, MoviesIcon, SeriesIcon, FavIcon, WatchLaterIcon, Ep
 let SCREEN_WIDTH = 1920;
 try { SCREEN_WIDTH = Dimensions.get('window').width; } catch {}
 const REFERENCE_WIDTH = 1920;
-const SCALE = Math.max(0.45, Math.min(SCREEN_WIDTH / REFERENCE_WIDTH, 1));
+let _scale = Math.max(0.45, Math.min(SCREEN_WIDTH / REFERENCE_WIDTH, 1));
+
+export function useScale(): number {
+  const [scale, setScale] = useState(_scale);
+  useEffect(() => {
+    try {
+      const sub = Dimensions.addEventListener('change', ({ window }) => {
+        _scale = Math.max(0.45, Math.min(window.width / REFERENCE_WIDTH, 1));
+        setScale(_scale);
+      });
+      return () => sub?.remove();
+    } catch {}
+  }, []);
+  return scale;
+}
 
 function s(value: number): number {
-  return Math.round(value * SCALE);
+  return Math.round(value * _scale);
 }
 
 // ─── Környezeti változók (.env fájlból) ─────────────

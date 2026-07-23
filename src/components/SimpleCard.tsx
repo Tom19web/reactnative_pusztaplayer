@@ -2,6 +2,7 @@
 import { View, Text, Image, StyleSheet } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import TFPressable from './TFPressable';
+import RuggedBorder from './RuggedBorder';
 import { COLORS, FONT, SPACING } from '../constants';
 
 const CARD_W = 120;
@@ -28,14 +29,16 @@ interface SimpleCardProps {
 export default function SimpleCard({ type, title, subtitle, imageUrl, onPress, onLongPress, onFocus, onBlur, progress, badge, isFav, onWatchLater, isWatchLater }: SimpleCardProps) {
   const isLive = type === 'live';
   const thHeight = isLive ? LIVE_THUMB_H : Math.round(CARD_W * 3 / 2);
+  const cardHeight = isLive ? CARD_H : Math.round(thHeight + 44);
   const [focused, setFocused] = useState(false);
 
   const showProgress = progress !== undefined && progress > 0 && progress < 1;
 
   return (
-    <View style={s.wrapper}>
-      <TFPressable
-        style={[isLive ? s.cardLive : s.card, { width: CARD_W }, isLive && { height: CARD_H }]} 
+    <RuggedBorder color={COLORS.cyan} width={CARD_W} height={cardHeight} wobbleFactor={0.4}>
+      <View style={{ overflow: 'hidden' }}>
+        <TFPressable
+        style={[isLive ? s.cardLive : s.card, { width: CARD_W, height: cardHeight }]} 
         focusedStyle={isLive ? s.cardFocusedLive : s.cardFocused}
         onPress={onPress}
         onLongPress={onLongPress}
@@ -94,22 +97,20 @@ export default function SimpleCard({ type, title, subtitle, imageUrl, onPress, o
             </View>
           ) : null}
         </View>
-      </TFPressable>
-    </View>
+        </TFPressable>
+      </View>
+    </RuggedBorder>
   );
 }
 
 const s = StyleSheet.create({
-  wrapper: { position: 'relative' },
-  // â”€â”€â”€ Non-live cards (movie/series) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Non-live cards (movie/series)
   card: {
     backgroundColor: COLORS.panel,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.cyan,
+    borderRadius: 0,
     overflow: 'hidden',
   },
-  cardFocused: { transform: [{ scale: 1.03 }, { translateY: -4 }], borderColor: COLORS.yellow },
+  cardFocused: { transform: [{ scale: 1.03 }, { translateY: -4 }] },
   thumb: {
     backgroundColor: COLORS.bg,
     alignItems: 'center',
@@ -126,7 +127,7 @@ const s = StyleSheet.create({
   meta: { paddingVertical: 0, paddingHorizontal: SPACING.xs, alignItems: 'center', justifyContent: 'center', gap: 1, minHeight: 38 },
   metaFocused: { backgroundColor: COLORS.yellow },
   metaFocusedLive: { backgroundColor: COLORS.yellow },
-  title: { color: COLORS.text, fontSize: FONT.xs, fontWeight: '700', textAlign: 'center' },
+  title: { color: COLORS.text, fontSize: FONT.xs - 2, textAlign: 'center', fontFamily: '007Toontime' },
   titleFocused: { color: COLORS.black },
   sub: { color: COLORS.muted, fontSize: FONT.xs - 4, textAlign: 'center' },
   subFocused: { color: COLORS.black },
@@ -137,12 +138,10 @@ const s = StyleSheet.create({
   // â”€â”€â”€ Live cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   cardLive: {
     backgroundColor: '#2a2a2a',
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: '#000',
+    borderRadius: 0,
     overflow: 'hidden',
   },
-  cardFocusedLive: { transform: [{ scale: 1.03 }, { translateY: -4 }], borderColor: COLORS.yellow },
+  cardFocusedLive: { transform: [{ scale: 1.03 }, { translateY: -4 }] },
   thumbLive: {
     backgroundColor: '#0d3b4a',
     borderRadius: 6,
@@ -159,5 +158,5 @@ const s = StyleSheet.create({
   thumbFallbackLive: { fontSize: 40, position: 'relative', zIndex: 10 },
   // Meta (live)
   metaLive: { paddingVertical: 0, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', minHeight: 30, borderBottomLeftRadius: 7, borderBottomRightRadius: 7 },
-  titleLive: { color: COLORS.text, fontSize: FONT.xs, fontWeight: '700', textAlign: 'center', lineHeight: FONT.xs, width: '100%' },
+  titleLive: { color: COLORS.text, fontSize: FONT.xs - 2, textAlign: 'center', lineHeight: FONT.xs - 2, width: '100%', fontFamily: '007Toontime' },
 });

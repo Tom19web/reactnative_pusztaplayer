@@ -107,53 +107,53 @@ function PlayerControls({
         {isVod && (
           <TFPressable style={styles.ctrlBtn} focusedStyle={styles.ctrlBtnFocus} onPress={onRew}
             onFocus={() => setFocusedCtrl('Visszatekerés')} onBlur={() => setFocusedCtrl('')}>
-            <RewindIcon size={20} color={COLORS.black} />
+            <RewindIcon size={16} color={COLORS.black} />
           </TFPressable>
         )}
         {onPrevChannel && (
           <TFPressable style={styles.ctrlBtn} focusedStyle={styles.ctrlBtnFocus} onPress={onPrevChannel}
             onFocus={() => setFocusedCtrl(prevChanName ? `Előző: ${prevChanName}` : 'Előző')} onBlur={() => setFocusedCtrl('')}>
-            <PrevIcon size={20} color={COLORS.black} />
+            <PrevIcon size={16} color={COLORS.black} />
           </TFPressable>
         )}
         <TFPressable style={styles.ctrlBtn} focusedStyle={styles.ctrlBtnFocus} onPress={onPlayPause} hasTVPreferredFocus
           onFocus={() => setFocusedCtrl(paused ? 'Lejátszás' : 'Szünet')} onBlur={() => setFocusedCtrl('')}>
-          {paused ? <PlayIcon size={20} color={COLORS.black} /> : <PauseIcon size={20} color={COLORS.black} />}
+          {paused ? <PlayIcon size={16} color={COLORS.black} /> : <PauseIcon size={16} color={COLORS.black} />}
         </TFPressable>
         {isVod && (
           <TFPressable style={styles.ctrlBtn} focusedStyle={styles.ctrlBtnFocus} onPress={onFwd}
             onFocus={() => setFocusedCtrl('Előretekerés')} onBlur={() => setFocusedCtrl('')}>
-            <ForwardIcon size={20} color={COLORS.black} />
+            <ForwardIcon size={16} color={COLORS.black} />
           </TFPressable>
         )}
         {onNextChannel && (
           <TFPressable style={styles.ctrlBtn} focusedStyle={styles.ctrlBtnFocus} onPress={onNextChannel}
             onFocus={() => setFocusedCtrl(nextChanName ? `Következő: ${nextChanName}` : 'Következő')} onBlur={() => setFocusedCtrl('')}>
-            <NextIcon size={20} color={COLORS.black} />
+            <NextIcon size={16} color={COLORS.black} />
           </TFPressable>
         )}
         {isVod && currentTime > 5 && onRestart && (
           <TFPressable style={styles.ctrlBtn} focusedStyle={styles.ctrlBtnFocus} onPress={onRestart}
             onFocus={() => setFocusedCtrl('Kezdés elölről')} onBlur={() => setFocusedCtrl('')}>
-            <RestartIcon size={20} color={COLORS.black} />
+            <RestartIcon size={16} color={COLORS.black} />
           </TFPressable>
         )}
           <TFPressable style={[styles.ctrlBtn, showSettings && styles.ctrlBtnActive]} focusedStyle={styles.ctrlBtnFocus} onPress={() => setShowSettings(s => !s)}
             onFocus={() => setFocusedCtrl('Beállítások')} onBlur={() => setFocusedCtrl('')}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: showSettings ? COLORS.yellow : COLORS.black }}>{'\u2699'}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: showSettings ? COLORS.yellow : COLORS.black }}>{'\u2699'}</Text>
           </TFPressable>
         {onBack && (
           <TFPressable style={[styles.ctrlBtn, sleepRemaining > 0 && styles.ctrlBtnActive]} focusedStyle={styles.ctrlBtnFocus} onPress={() => {
             if (sleepRemaining > 0) { setSleep(0); return; }
             setSleep(30);
           }} onFocus={() => setFocusedCtrl(sleepRemaining > 0 ? `⏱ Kikapcs ${Math.floor(sleepRemaining / 60)}:${String(sleepRemaining % 60).padStart(2, '0')}` : '⏱ Időzítő')} onBlur={() => setFocusedCtrl('')}>
-            <TimerIcon size={20} color={sleepRemaining > 0 ? COLORS.yellow : COLORS.black} />
+            <TimerIcon size={16} color={sleepRemaining > 0 ? COLORS.yellow : COLORS.black} />
           </TFPressable>
         )}
         {onToggleFav && (
           <TFPressable style={styles.ctrlBtn} focusedStyle={styles.ctrlBtnFocus} onPress={onToggleFav}
             onFocus={() => setFocusedCtrl(isFav ? 'Eltávolítás a kedvencekből' : 'Hozzáadás a kedvencekhez')} onBlur={() => setFocusedCtrl('')}>
-            {isFav ? <HeartIcon size={20} color={COLORS.red} /> : <HeartOutlineIcon size={20} color={COLORS.black} />}
+            {isFav ? <HeartIcon size={16} color={COLORS.red} /> : <HeartOutlineIcon size={16} color={COLORS.black} />}
           </TFPressable>
         )}
       </View>
@@ -301,7 +301,7 @@ function PlayerControls({
                 <View style={styles.epgNowBox}>
                   <View style={styles.channelRow}>
                     <Text style={[styles.channelTime, sF(styles.channelTime.fontSize)]}>{nowTime}{nowEndTime ? ` \u2013 ${nowEndTime}` : ''}</Text>
-                <Text style={[styles.channelNowLabel, sF(styles.channelNowLabel.fontSize)]}>MOST:</Text>
+                <Text style={[styles.channelNowLabel, sF(styles.channelNowLabel.fontSize)]}>MOST</Text>
                 <Text style={[styles.channelNow, sF(styles.channelNow.fontSize)]} numberOfLines={2}>{nowTitle}</Text>
                   </View>
                   {nowDesc ? <Text style={[styles.epgDesc, sF(styles.epgDesc.fontSize)]} numberOfLines={2}>{nowDesc}</Text> : null}
@@ -310,7 +310,7 @@ function PlayerControls({
               {nextTitle ? (
                 <View style={styles.channelRow}>
                   <Text style={[styles.channelTime, sF(styles.channelTime.fontSize)]}>{nextTime}{nextEndTime ? ` \u2013 ${nextEndTime}` : ''}</Text>
-              <Text style={[styles.channelNext, sF(styles.channelNext.fontSize)]}>Köv:</Text>
+              <Text style={[styles.channelNext, sF(styles.channelNext.fontSize)]}>KÖV</Text>
               <Text style={[styles.channelNextTitle, sF(styles.channelNextTitle.fontSize)]} numberOfLines={2}>{nextTitle}</Text>
                 </View>
               ) : null}
@@ -320,11 +320,16 @@ function PlayerControls({
             </View>
           </View>
           <View style={styles.chanNavRow}>
-            <View style={{ flex: 1, alignItems: 'center' }}>
-              {prevChanName ? <Text style={[styles.chanNavText, sF(styles.chanNavText.fontSize)]}>Előző: {prevChanName}</Text> : null}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {prevChanName ? <View style={styles.chanNavBadge}><Text style={styles.chanNavBadgeText}>ELŐZŐ</Text></View> : null}
+              {prevChanName ? <Text style={[styles.chanNavText, sF(styles.chanNavText.fontSize)]} numberOfLines={1}>{prevChanName}</Text> : null}
             </View>
-            <View style={styles.chanNavDivider} />
-            {nextChanName ? <Text style={[styles.chanNavText, sF(styles.chanNavText.fontSize)]}>Következő: {nextChanName}</Text> : <View />}
+            {nextChanName ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.chanNavText, sF(styles.chanNavText.fontSize)]} numberOfLines={1}>{nextChanName}</Text>
+                <View style={styles.chanNavBadge}><Text style={styles.chanNavBadgeText}>KÖV</Text></View>
+              </View>
+            ) : <View />}
           </View>
         </View>
       );
@@ -379,7 +384,7 @@ const styles = StyleSheet.create({
   controlsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginVertical: SPACING.xs },
   tooltipRow: { alignItems: 'center', marginBottom: 2 },
   tooltipText: { color: COLORS.yellow, fontSize: FONT.xs - 2, fontFamily: 'Poppins-Bold' },
-  ctrlBtn: { width: 38, height: 38, borderRadius: 8, backgroundColor: COLORS.yellow, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.black },
+  ctrlBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: COLORS.yellow, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.black },
   ctrlBtnFocus: { backgroundColor: COLORS.cyan, transform: [{ scale: 1.06 }] },
   ctrlBtnActive: { borderColor: COLORS.yellow, backgroundColor: 'rgba(255,204,0,0.3)' },
   // Info panel
@@ -389,18 +394,20 @@ const styles = StyleSheet.create({
   resText: { color: COLORS.cyan, fontSize: FONT.sm - 2, fontFamily: 'Poppins-Bold' },
   channelDividerLine: { height: 1, backgroundColor: 'rgba(255,255,255,0.15)' },
   channelBodyRow: { flexDirection: 'row', gap: SPACING.sm, alignItems: 'flex-start' },
-  channelLogo: { width: 100, height: 56, backgroundColor: COLORS.panel2, borderRadius: 6 },
+  channelLogo: { width: 120, height: 67, backgroundColor: COLORS.panel2, borderRadius: 6 },
   channelEpgCol: { flex: 1, gap: 4 },
   channelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  channelNowLabel: { color: COLORS.cyan, fontSize: Math.round(FONT.sm * 1.5) - 4, fontWeight: '700', fontFamily: 'Poppins-Bold' },
+  channelNowLabel: { backgroundColor: COLORS.yellow, color: COLORS.black, fontSize: 14, fontFamily: 'Poppins-Bold', fontWeight: '700', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden' },
   channelNow: { color: COLORS.white, fontSize: Math.round(FONT.sm * 1.5) - 4, fontFamily: 'Poppins-Regular', flex: 1 },
   channelTime: { color: COLORS.muted, fontSize: Math.round(FONT.sm * 1.5) - 4, fontFamily: 'Poppins-Regular' },
-  channelNext: { color: COLORS.cyan, fontSize: Math.round(FONT.sm * 1.5) - 4, fontWeight: '700', fontFamily: 'Poppins-Bold', minWidth: 20 },
+  channelNext: { backgroundColor: COLORS.cyan, color: COLORS.black, fontSize: 14, fontFamily: 'Poppins-Bold', fontWeight: '700', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden', minWidth: 20 },
   channelNextTitle: { color: COLORS.white, fontSize: Math.round(FONT.sm * 1.5) - 4, fontFamily: 'Poppins-Regular', flex: 1 },
   epgNowBox: { backgroundColor: 'rgba(255,204,0,0.1)', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, borderLeftWidth: 3, borderLeftColor: COLORS.yellow, marginBottom: 2 },
   epgDesc: { color: COLORS.muted, fontSize: Math.round(FONT.sm * 1.2) - 4, fontFamily: 'Poppins-Regular', lineHeight: Math.round(FONT.sm * 1.4), paddingLeft: 2, marginTop: 2 },
-  chanNavRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: 4 },
+  chanNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm, marginTop: 4 },
   chanNavText: { color: COLORS.muted, fontSize: FONT.xs + 2, fontFamily: 'Poppins-Regular' },
+  chanNavBadge: { backgroundColor: COLORS.panel2, borderWidth: 1, borderColor: '#555', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  chanNavBadgeText: { color: COLORS.muted, fontSize: 14, fontFamily: 'Poppins-Bold', fontWeight: '700' },
   chanNavDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.15)' },
   epScroll: { maxHeight: 50 },
   epRow: { flexDirection: 'row', gap: 6 },

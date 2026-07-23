@@ -1,7 +1,14 @@
 ﻿import { useState, useRef, useMemo, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, StyleSheet, Image } from 'react-native';
+import Svg, { Polygon } from 'react-native-svg';
 import TFPressable from './TFPressable';
+import RuggedBorder from './RuggedBorder';
 import ShadowWrapper from './ShadowWrapper';
+import SpeechBubbleBg from './SpeechBubbleBg';
+import HalftoneHeaderBg from './HalftoneHeaderBg';
+import RuggedLine from './RuggedLine';
+import SoundEffect, { starburstPoints } from './SoundEffect';
+import { PlayIcon, PauseIcon } from '../../assets/icons';
 import { useCore, useFavorites, useActiveProfile, useBackgroundAudio } from '../store/AppContext';
 import { useTVFocus } from '../hooks/useTVFocus';
 import { useDebounce } from '../hooks/useDebounce';
@@ -25,6 +32,7 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
   const activeProfile = useActiveProfile();
   const isLoggedIn = user.status === USER_STATUS_LOGGED_IN;
   const { isFocused: chipFocused, onFocus: onChipFocus, onBlur: onChipBlur } = useTVFocus();
+  const { isFocused: radioFocused, onFocus: onRadioFocus, onBlur: onRadioBlur } = useTVFocus();
   const { audio, isPlaying, start, stop } = useBackgroundAudio();
   const displayName = activeProfile?.name || user.nickname || user.email || user.name;
   const initial = isLoggedIn ? (String(displayName || 'P')[0] || '?').toUpperCase() : '?';
@@ -36,6 +44,9 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
   const [aiResults, setAiResults] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => { if (aiTimer.current) clearTimeout(aiTimer.current); }, []);
 
   const runAiSearch = () => {
     if (!localSearch.trim() || !playlist) {
@@ -43,6 +54,9 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
       return;
     }
     if (aiTimer.current) clearTimeout(aiTimer.current);
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     aiTimer.current = setTimeout(async () => {
       setAiLoading(true);
       const items = [
@@ -50,7 +64,7 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
         ...(playlist.series || []).map(s => ({ key: s.key, title: s.title, type: 'series', genre: s.genre })),
         ...(playlist.liveChannels || []).slice(0, 100).map(c => ({ key: c.key, title: c.title, type: 'live', genre: c.group })),
       ];
-      const keys = await aiSearchQuery(localSearch, items);
+      const keys = await aiSearchQuery(localSearch, items, controller.signal);
       setAiResults(keys);
       setAiLoading(false);
     }, 600);
@@ -72,7 +86,7 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
     }
   }, [showInput]);
 
-  const searchBarWidth = Math.round(contentWidth * 0.45);
+  const searchBarWidth = Math.round(contentWidth * 0.36);
 
   const searchResults = useMemo(() => {
     if (!searchTerm || !showInput || !playlist) return [];
@@ -107,16 +121,24 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
 
   return (
     <View style={styles.container}>
+      <HalftoneHeaderBg dotRadius={3} spacing={10} />
       {/* Search bar */}
-      {showInput ? (
-        <View style={styles.searchGroup}>
+      <View style={[styles.searchGroup, { width: searchBarWidth }]}>
+        <SpeechBubbleBg
+          width={searchBarWidth}
+          height={32}
+          fillColor={COLORS.cream}
+          borderColor={COLORS.black}
+          borderWidth={3}
+        />
+        {showInput ? (
           <View style={[styles.searchBar, styles.searchBarFocused, { width: searchBarWidth }]}>
             <Text style={styles.searchIcon}>{'\uD83D\uDD0D'}</Text>
             <TextInput
               ref={inputRef}
               style={styles.searchInput}
               placeholder="Keress..."
-              placeholderTextColor={COLORS.muted}
+              placeholderTextColor={COLORS.black}
               value={localSearch}
               onChangeText={setLocalSearch}
               autoFocus
@@ -124,42 +146,42 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
               onSubmitEditing={() => setShowInput(false)}
             />
           </View>
-          {searchResults.length > 0 && (
-            <View style={styles.searchDropdown}>
-              <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
-                {searchResults.map(item => {
-                  const fav = favorites.some(f => f.key === item.key);
-                  return (
-                    <TFPressable
-                      key={item.key}
-                      style={styles.dropdownItem}
-                      focusedStyle={styles.dropdownItemFocused}
-                      onPress={() => { onPlayContent(item.key); setShowInput(false); }}
-                    >
-                      <Text style={styles.dropdownIcon}>{item.type === 'live' ? '\uD83D\uDCFA' : item.type === 'movie' ? '\uD83C\uDFAC' : '\uD83D\uDCE6'}</Text>
-                      <Text style={styles.dropdownTitle} numberOfLines={1}>{item.title}</Text>
-                      <Text style={styles.dropdownSub} numberOfLines={1}>{item.group}</Text>
-                      {item.isAi ? <Text style={styles.dropdownAi}>{'\uD83E\uDD16'}</Text> : null}
-                      {fav ? <Text style={styles.dropdownFav}>{'\u2B50'}</Text> : null}
-                    </TFPressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          )}
-        </View>
-      ) : (
-        <TFPressable
-          style={[styles.searchBar, { width: searchBarWidth }]}
-          focusedStyle={styles.searchBarFocused}
-          onPress={() => setShowInput(true)}
-        >
-          <Text style={styles.searchIcon}>{'\uD83D\uDD0D'}</Text>
-          <Text style={styles.placeholderText}>
-            {searchTerm || 'Keress csatornát, filmet vagy sorozatot.'}
-          </Text>
-        </TFPressable>
-      )}
+        ) : (
+          <TFPressable
+            style={[styles.searchBar, { width: searchBarWidth }]}
+            focusedStyle={styles.searchBarFocused}
+            onPress={() => setShowInput(true)}
+          >
+            <Text style={styles.searchIcon}>{'\uD83D\uDD0D'}</Text>
+            <Text style={styles.placeholderText}>
+              {searchTerm || 'Keress csatornát, filmet vagy sorozatot.'}
+            </Text>
+          </TFPressable>
+        )}
+        {showInput && searchResults.length > 0 && (
+          <View style={styles.searchDropdown}>
+            <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
+              {searchResults.map(item => {
+                const fav = favorites.some(f => f.key === item.key);
+                return (
+                  <TFPressable
+                    key={item.key}
+                    style={styles.dropdownItem}
+                    focusedStyle={styles.dropdownItemFocused}
+                    onPress={() => { onPlayContent(item.key); setShowInput(false); }}
+                  >
+                    <Text style={styles.dropdownIcon}>{item.type === 'live' ? '\uD83D\uDCFA' : item.type === 'movie' ? '\uD83C\uDFAC' : '\uD83D\uDCE6'}</Text>
+                    <Text style={styles.dropdownTitle} numberOfLines={1}>{item.title}</Text>
+                    <Text style={styles.dropdownSub} numberOfLines={1}>{item.group}</Text>
+                    {item.isAi ? <Text style={styles.dropdownAi}>{'\uD83E\uDD16'}</Text> : null}
+                    {fav ? <Text style={styles.dropdownFav}>{'\u2B50'}</Text> : null}
+                  </TFPressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+      </View>
       {/* AI Search button */}
       {showInput && localSearch.trim() && (
         <TFPressable
@@ -172,26 +194,39 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
       )}
 
       {/* Radio capsule */}
-      {audio && (
-        <ShadowWrapper offset={SO} borderRadius={RADIUS}>
+      <View style={styles.radioWrap}>
+        <Svg width={185} height={76} viewBox="0 0 84 84" preserveAspectRatio="none" style={styles.radioBurst}>
+          <Polygon
+            points={starburstPoints(42, 42, 21, 42, 12)}
+            fill="#FF7700"
+            stroke="#000"
+            strokeWidth={2}
+          />
+        </Svg>
+        <SoundEffect text="ZING!" textColor={COLORS.red} bgColor={COLORS.yellow} top={-4} left={-60} rotate={-12} />
+        <RuggedBorder color={COLORS.black} wobbleFactor={0.7}>
           <TFPressable
             style={[styles.radioCapsule, isPlaying && styles.radioCapsuleActive]}
             focusedStyle={styles.radioCapsuleFocused}
-            onPress={() => isPlaying ? stop() : start({ stationName: audio.stationName, stationLogo: audio.stationLogo, streamUrl: audio.streamUrl, streamType: audio.streamType })}
+            onPress={() => isPlaying ? stop() : start({ stationName: audio?.stationName || 'Radio', stationLogo: audio?.stationLogo || '', streamUrl: audio?.streamUrl || '', streamType: audio?.streamType || '' })}
+            onFocus={onRadioFocus}
+            onBlur={onRadioBlur}
+            disabled={!audio}
           >
-            {audio.stationLogo ? (
+            {audio?.stationLogo ? (
               <Image source={{ uri: audio.stationLogo }} style={styles.radioLogo} resizeMode="contain" />
             ) : (
               <Text style={styles.radioIcon}>{'\uD83D\uDCFB'}</Text>
             )}
-            <Text style={styles.radioName} numberOfLines={1}>{audio.stationName}</Text>
-            <Text style={[styles.radioStop, isPlaying && { color: COLORS.red }]}>{isPlaying ? '\u23F9' : '\u25B6'}</Text>
+            <Text style={styles.radioName} numberOfLines={1}>{audio?.stationName || 'Rádió'}</Text>
+            {audio ? <View style={[styles.radioPlayBtn, radioFocused && styles.radioPlayBtnFocused]}>{isPlaying ? <PauseIcon size={12} color={COLORS.black} /> : <PlayIcon size={12} color={COLORS.black} />}</View> : null}
           </TFPressable>
-        </ShadowWrapper>
-      )}
+        </RuggedBorder>
+        <SoundEffect text="BAM!" textColor={COLORS.yellow} bgColor={COLORS.red} top={6} right={-30} rotate={14} />
+      </View>
       {/* User chip */}
       {isLoggedIn && (
-        <ShadowWrapper offset={SO} borderRadius={RADIUS}>
+        <RuggedBorder color={COLORS.cyan} wobbleFactor={0.7}>
           <TFPressable
             style={styles.userChip}
             focusedStyle={styles.userChipFocused}
@@ -199,12 +234,14 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
             onFocus={onChipFocus}
             onBlur={onChipBlur}
           >
-            <View style={styles.avatar}>
-              {activeProfile?.avatar ? (
-                <Text style={styles.avatarEmoji}>{activeProfile.avatar}</Text>
-              ) : (
-                <Text style={styles.avatarText}>{initial}</Text>
-              )}
+            <View style={styles.avatarWrap}>
+              <View style={styles.avatar}>
+                {activeProfile?.avatar ? (
+                  <Text style={styles.avatarEmoji}>{activeProfile.avatar}</Text>
+                ) : (
+                  <Text style={styles.avatarText}>{initial}</Text>
+                )}
+              </View>
             </View>
             <View style={styles.userInfo}>
               <Text style={[styles.username, chipFocused && styles.usernameFocused]} numberOfLines={1}>{displayName}</Text>
@@ -212,7 +249,7 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
             </View>
             <Text style={[styles.userHint, chipFocused && styles.userHintFocused]}>{'\u2699'}</Text>
           </TFPressable>
-        </ShadowWrapper>
+        </RuggedBorder>
       )}
     </View>
   );
@@ -224,23 +261,30 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xs + 2,
     gap: SPACING.md,
   },
-  searchGroup: { position: 'relative' },
+  searchGroup: { position: 'relative', paddingBottom: 12 },
+  speechTail: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderTopWidth: 12,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: COLORS.cream,
+    marginLeft: 24,
+    marginTop: -1,
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.cream,
-    borderRadius: RADIUS,
-    height: 40,
+    height: 32,
     paddingHorizontal: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.black,
   },
-  searchBarFocused: {
-    borderColor: COLORS.yellow,
-  },
+  searchBarFocused: {},
   searchIcon: {
     fontSize: FONT.md - 4,
     marginRight: SPACING.sm,
@@ -248,17 +292,17 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: COLORS.darkText,
-    fontSize: FONT.md - 4,
-    fontFamily: 'Poppins-Regular',
+    fontSize: FONT.md - 6,
+    fontFamily: '007Toontime',
     padding: 0,
     textAlignVertical: 'center',
     includeFontPadding: false,
   },
   placeholderText: {
     flex: 1,
-    color: COLORS.muted,
-    fontSize: FONT.md - 4,
-    fontFamily: 'Poppins-Regular',
+    color: COLORS.darkText,
+    fontSize: FONT.md - 6,
+    fontFamily: '007Toontime',
   },
   searchDropdown: {
     position: 'absolute',
@@ -284,52 +328,58 @@ const styles = StyleSheet.create({
   userChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(25, 25, 25, 0.92)',
-    borderRadius: RADIUS,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: COLORS.black,
+    backgroundColor: '#161625',
+    borderRadius: 0,
+    paddingVertical: 3,
+    paddingHorizontal: 12,
+    gap: 8,
   },
   userChipFocused: {
     backgroundColor: COLORS.yellow,
     borderColor: '#00FFFF',
     borderWidth: 1,
   },
+  avatarWrap: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   avatar: {
-    width: 32, height: 32, borderRadius: 16,
-    borderWidth: 3, borderColor: COLORS.cyan, backgroundColor: COLORS.cyan,
+    width: 26, height: 26, borderRadius: 13,
+    borderWidth: 1.5, borderColor: COLORS.black, backgroundColor: COLORS.cyan,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { color: COLORS.black, fontSize: FONT.sm, fontWeight: '800' },
-  avatarEmoji: { fontSize: 22 },
+  avatarText: { color: COLORS.black, fontSize: 12, fontWeight: '800' },
+  avatarEmoji: { fontSize: 20 },
   userInfo: {},
-  username: { color: COLORS.text, fontSize: FONT.sm, fontWeight: '700' },
+  username: { color: COLORS.text, fontSize: 10, fontFamily: '007Toontime' },
   usernameFocused: { color: COLORS.black },
-  userStatus: { color: COLORS.muted, fontSize: FONT.xs },
+  userStatus: { color: COLORS.muted, fontSize: 8, fontFamily: '007Toontime' },
   userHint: {
     color: COLORS.text,
-    fontSize: 20,
+    fontSize: 14,
   },
   userHintFocused: { color: COLORS.black },
   radioCapsule: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#202020',
-    borderRadius: RADIUS,
-    paddingHorizontal: 10,
-    height: 36,
-    borderWidth: 1,
-    borderColor: '#333',
+    backgroundColor: '#993300',
+    borderRadius: 0,
+    paddingHorizontal: 12,
+    height: 32,
+    minWidth: 140,
     gap: 6,
   },
   radioCapsuleActive: { borderColor: COLORS.cyan },
   radioCapsuleFocused: { borderColor: COLORS.yellow },
   radioLogo: { width: 22, height: 22, borderRadius: 3 },
-  radioIcon: { fontSize: 16 },
-  radioName: { color: COLORS.text, fontSize: FONT.xs, fontWeight: '600', maxWidth: 120 },
-  radioStop: { color: COLORS.red, fontSize: 14, marginLeft: 2 },
+  radioIcon: { fontSize: 15 },
+  radioName: { color: COLORS.black, fontSize: 11, fontWeight: '600', maxWidth: 110, fontFamily: '007Toontime' },
+  radioPlayBtn: {
+    width: 24, height: 24, borderRadius: 5,
+    backgroundColor: COLORS.yellow,
+    borderWidth: 1.5, borderColor: COLORS.black,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  radioPlayBtnFocused: { backgroundColor: COLORS.cyan },
+  radioWrap: { position: 'relative', width: 185, height: 66, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 0 },
+  radioBurst: { position: 'absolute', top: -20, left: 0 },
   aiBtn: {
     width: 36, height: 36, borderRadius: RADIUS,
     backgroundColor: 'rgba(0,255,255,0.1)',

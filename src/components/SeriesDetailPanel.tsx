@@ -1,6 +1,8 @@
 ﻿import { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, Animated } from 'react-native';
 import TFPressable from './TFPressable';
+import RuggedBorder from './RuggedBorder';
+import SoundEffect from './SoundEffect';
 import { xtreamGetSeriesInfo } from '../services/xtreamApi';
 import { loadXtreamCredentials } from '../services/storage';
 import { COLORS, FONT, SPACING } from '../constants';
@@ -59,6 +61,11 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
   }, []);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const entryAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(entryAnim, { toValue: 1, speed: 20, bounciness: 4, useNativeDriver: true }).start();
+  }, [entryAnim]);
 
   const handleClose = useCallback(() => {
     Animated.timing(slideAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start(() => onClose?.());
@@ -72,80 +79,85 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
     <>
       <View style={styles.focusOverlay} focusable={true} onFocus={handleTrapFocus} />
       <View style={styles.bgOverlay} />
-      <Animated.View style={[styles.container, { transform: [{ translateX: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 320] }) }] }]}>
-      {onClose && (
-        <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose}>
-          <Text style={styles.closeBtnText}>{'\u2716'}</Text>
-        </TFPressable>
-      )}
+      <View style={styles.panelWrap}>
+        <RuggedBorder color={COLORS.yellow}>
+          <Animated.View style={[styles.container, { opacity: entryAnim, transform: [{ translateX: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 320] }) }, { scale: entryAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]}>
+          {onClose && (
+            <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose}>
+              <Text style={styles.closeBtnText}>{'\u2716'}</Text>
+            </TFPressable>
+          )}
 
-      <ScrollView contentContainerStyle={styles.scroll} nestedScrollEnabled>
-        <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
-        <View style={styles.divider} />
+          <ScrollView contentContainerStyle={styles.scroll} nestedScrollEnabled>
+            <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
+            <View style={styles.divider} />
 
-        {loading ? (
-          <Text style={styles.loading}>{'\u23F3'} Információk betöltése...</Text>
-        ) : info ? (
-          <>
-            <View style={styles.content}>
-              <View style={styles.plotCol}>
-                <Text style={styles.plotLabel}>Tartalom:</Text>
-                <Text style={styles.plot} numberOfLines={12}>{info.plot || 'Nincs leírás.'}</Text>
-              </View>
-              <View style={styles.coverCol}>
-                {info.cover ? (
-                  <Image source={{ uri: info.cover }} style={styles.cover} resizeMode="cover" />
-                ) : null}
-              </View>
+            {loading ? (
+              <Text style={styles.loading}>{'\u23F3'} Információk betöltése...</Text>
+            ) : info ? (
+              <>
+                <View style={styles.content}>
+                  <View style={styles.plotCol}>
+                    <Text style={styles.plotLabel}>Tartalom:</Text>
+                    <Text style={styles.plot} numberOfLines={12}>{info.plot || 'Nincs leírás.'}</Text>
+                  </View>
+                  <View style={styles.coverCol}>
+                    {info.cover ? (
+                      <Image source={{ uri: info.cover }} style={styles.cover} resizeMode="cover" />
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={[styles.divider, { marginBottom: 2 }]} />
+                <View style={styles.tagsRow}>
+                  <View style={styles.tagBox}>
+                    <Text style={styles.tagText}>{'\uD83C\uDFAD'} {info.genre}</Text>
+                  </View>
+                  {info.rating ? (
+                    <View style={styles.tagBox}>
+                      <Text style={styles.tagRating}>{'\u2605'} {info.rating}</Text>
+                    </View>
+                  ) : null}
+                  {info.year ? (
+                    <View style={styles.tagBox}>
+                      <Text style={styles.tagText}>{info.year}</Text>
+                    </View>
+                  ) : null}
+                  {info.seasonCount > 0 ? (
+                    <View style={styles.tagBox}>
+                      <Text style={styles.tagText}>{info.seasonCount} {String.fromCharCode(233)}vad</Text>
+                    </View>
+                  ) : null}
+                </View>
+                {info.director ? <Text style={styles.director}>Rendez{String.fromCharCode(337)}: {info.director}</Text> : null}
+                {info.cast ? <Text style={styles.cast} numberOfLines={3}>Szerepl{String.fromCharCode(337)}k: {info.cast}</Text> : null}
+              </>
+            ) : (
+              <Text style={styles.loading}>{'\u26A0'} Nem sikerült betölteni az adatokat.</Text>
+            )}
+
+            <View style={styles.buttons}>
+              {onShowEpisodes && (
+                <TFPressable ref={epsBtnRef} hasTVPreferredFocus style={styles.btnEps} focusedStyle={styles.btnEpsFocus} onPress={onShowEpisodes}>
+                  <Text style={styles.btnEpsText}>{'\uD83D\uDCFA'} Epiz{String.fromCharCode(243)}dok</Text>
+                </TFPressable>
+              )}
+              {onToggleFav && (
+                <TFPressable style={[styles.btnFav, isFav && styles.btnFavActive]} focusedStyle={styles.btnFavFocus} onPress={onToggleFav}>
+                  <Text style={styles.btnFavText}>{isFav ? '\u2764\uFE0F' : '\uD83E\uDD0D'} Kedvencekhez</Text>
+                </TFPressable>
+              )}
+              {onToggleWatchLater && (
+                <TFPressable style={[styles.btnWl, isWatchLater && styles.btnWlActive]} focusedStyle={styles.btnWlFocus} onPress={onToggleWatchLater}>
+                  <Text style={styles.btnWlText}>{isWatchLater ? '\u23F1\uFE0F' : '\uD83D\uDCCB'} Megn{String.fromCharCode(233)}zend{String.fromCharCode(337)}</Text>
+                </TFPressable>
+              )}
             </View>
-
-            <View style={[styles.divider, { marginBottom: 2 }]} />
-            <View style={styles.tagsRow}>
-              <View style={styles.tagBox}>
-                <Text style={styles.tagText}>{'\uD83C\uDFAD'} {info.genre}</Text>
-              </View>
-              {info.rating ? (
-                <View style={styles.tagBox}>
-                  <Text style={styles.tagRating}>{'\u2605'} {info.rating}</Text>
-                </View>
-              ) : null}
-              {info.year ? (
-                <View style={styles.tagBox}>
-                  <Text style={styles.tagText}>{info.year}</Text>
-                </View>
-              ) : null}
-              {info.seasonCount > 0 ? (
-                <View style={styles.tagBox}>
-                  <Text style={styles.tagText}>{info.seasonCount} évad</Text>
-                </View>
-              ) : null}
-            </View>
-            {info.director ? <Text style={styles.director}>Rendező: {info.director}</Text> : null}
-            {info.cast ? <Text style={styles.cast} numberOfLines={3}>Szereplők: {info.cast}</Text> : null}
-          </>
-        ) : (
-          <Text style={styles.loading}>{'\u26A0'} Nem sikerült betölteni az adatokat.</Text>
-        )}
-
-        <View style={styles.buttons}>
-          {onShowEpisodes && (
-            <TFPressable ref={epsBtnRef} hasTVPreferredFocus style={styles.btnEps} focusedStyle={styles.btnEpsFocus} onPress={onShowEpisodes}>
-              <Text style={styles.btnEpsText}>{'\uD83D\uDCFA'} Epizódok</Text>
-            </TFPressable>
-          )}
-          {onToggleFav && (
-            <TFPressable style={[styles.btnFav, isFav && styles.btnFavActive]} focusedStyle={styles.btnFavFocus} onPress={onToggleFav}>
-              <Text style={styles.btnFavText}>{isFav ? '\u2764\uFE0F' : '\uD83E\uDD0D'} Kedvencekhez</Text>
-            </TFPressable>
-          )}
-          {onToggleWatchLater && (
-            <TFPressable style={[styles.btnWl, isWatchLater && styles.btnWlActive]} focusedStyle={styles.btnWlFocus} onPress={onToggleWatchLater}>
-              <Text style={styles.btnWlText}>{isWatchLater ? '\u23F1\uFE0F' : '\uD83D\uDCCB'} Megnézendő</Text>
-            </TFPressable>
-          )}
-        </View>
-      </ScrollView>
-    </Animated.View>
+          </ScrollView>
+        </Animated.View>
+        </RuggedBorder>
+        <SoundEffect text="BINGE!" textColor={COLORS.white} bgColor={COLORS.red} top={-15} right={8} rotate={10} />
+      </View>
     <View style={styles.focusOverlay} focusable={true} onFocus={handleTrapFocus} />
     </>
   );
@@ -159,11 +171,13 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 49,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  container: {
+  panelWrap: {
     position: 'absolute', top: 20, right: 24, zIndex: 50,
+  },
+  container: {
     width: 300, maxHeight: 600,
     backgroundColor: 'rgba(0,0,0,0.92)',
-    borderRadius: 10, padding: 10,
+    borderRadius: 0, padding: 10,
   },
   scroll: { gap: 0 },
   closeBtn: {
