@@ -5,6 +5,7 @@ import HomeHero from '../components/HomeHero';
 import ShadowWrapper from '../components/ShadowWrapper';
 import RuggedBorder from '../components/RuggedBorder';
 import SoundEffect from '../components/SoundEffect';
+import DotPattern from '../components/DotPattern';
 import SimpleCard from '../components/SimpleCard';
 import ExitDialog from '../components/ExitDialog';
 import { useCore, useFavorites, useHistory, useClearHistory, useProfiles, useBackgroundAudio } from '../store/AppContext';
@@ -111,15 +112,18 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
       </View>
 
       {reco.items.length > 0 && (
-        <View style={styles.section}>
-          <RuggedBorder color={COLORS.black}>
-            <View style={styles.yellowHeader}>
-              <Text style={styles.yellowHeaderText}>{reco.title}</Text>
+        <View style={[styles.section, { marginBottom: SPACING.md + 8 }]}>
+          <RuggedBorder color={COLORS.black} wobbleFactor={0.7} minDimension={80} strokeWidth={4}>
+            <View style={{ paddingHorizontal: 3 }}>
+              <View style={styles.yellowHeader}>
+                <DotPattern dotColor="#000" dotOpacity={0.12} spacing={10} />
+                <Text style={styles.yellowHeaderText}>{reco.title}</Text>
+              </View>
             </View>
-            <SoundEffect text="POP!" textColor="#FF6600" bgColor={COLORS.cyan} top={-10} right={10} rotate={-8} />
+            <SoundEffect text="POP!" textColor="#FF6600" bgColor={COLORS.cyan} top={-10} right={30} rotate={-8} fontSize={36} />
           </RuggedBorder>
-          <View style={[styles.gridWrap, { marginTop: SPACING.xs * 2 }]}>
-            {reco.items.slice(0, 8).map(item => (
+          <View style={[styles.gridWrap, { marginTop: SPACING.xs * 4 }]}>
+            {reco.items.slice(0, 5).map(item => (
               <SimpleCard key={item.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={item.group || ''} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
             ))}
           </View>
@@ -127,14 +131,18 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
       )}
 
       {popular.items.length > 0 && (
-        <View style={styles.section}>
-          <RuggedBorder color={COLORS.black}>
-            <View style={styles.yellowHeader}>
-              <Text style={styles.yellowHeaderText}>Magyar n{String.fromCharCode(233)}z{String.fromCharCode(337)}k kedvencei</Text>
+        <View style={[styles.section, { marginBottom: SPACING.md + 4 }]}>
+          <RuggedBorder color={COLORS.black} wobbleFactor={0.7} minDimension={80} strokeWidth={4}>
+            <View style={{ paddingHorizontal: 3 }}>
+              <View style={styles.yellowHeader}>
+                <DotPattern dotColor="#000" dotOpacity={0.12} spacing={10} />
+                <Text style={styles.yellowHeaderText}>Magyar n{String.fromCharCode(233)}z{String.fromCharCode(337)}k kedvencei</Text>
+              </View>
             </View>
+            <SoundEffect text="HOT!" textColor={COLORS.yellow} bgColor={COLORS.red} top={-12} right={200} rotate={12} fontSize={30} />
           </RuggedBorder>
-          <View style={[styles.gridWrap, { marginTop: SPACING.xs * 2 }]}>
-            {popular.items.slice(0, 8).map(item => (
+          <View style={[styles.gridWrap, { marginTop: SPACING.xs * 4 }]}>
+            {popular.items.slice(0, 5).map(item => (
               <SimpleCard key={item.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={item.group || ''} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
             ))}
           </View>
@@ -142,9 +150,10 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
       )}
 
       {aiRec.items.length > 0 && (
-        <View style={styles.section}>
+        <View style={[styles.section, { marginBottom: SPACING.md + 4 }]}>
           <RuggedBorder color={COLORS.black}>
             <View style={styles.yellowHeader}>
+              <DotPattern dotColor="#000" dotOpacity={0.12} spacing={10} />
               <Text style={styles.yellowHeaderText}>{'\uD83E\uDD16'} AI Aj{String.fromCharCode(225)}nlja</Text>
             </View>
           </RuggedBorder>
@@ -164,9 +173,11 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
 
       {watchHistory.length > 0 && (
         <View style={styles.section}>
-          <RuggedBorder color={COLORS.black}>
-            <View style={styles.yellowHeader}>
-              <Text style={styles.yellowHeaderText}>Utolj{String.fromCharCode(225)}ra megtekintett </Text>
+          <RuggedBorder color={COLORS.black} wobbleFactor={0.7} minDimension={80} strokeWidth={4}>
+            <View style={{ paddingHorizontal: 3 }}>
+              <View style={styles.yellowHeader}>
+                <DotPattern dotColor="#000" dotOpacity={0.12} spacing={10} />
+                <Text style={styles.yellowHeaderText}>Utolj{String.fromCharCode(225)}ra megtekintett </Text>
               {watchHistory.length > 0 && (
                 <ShadowWrapper offset={4} borderRadius={4}>
                   <TFPressable style={styles.clearBtn} focusedStyle={styles.clearBtnFocus} onPress={clearHistory}>
@@ -175,6 +186,7 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
                 </ShadowWrapper>
               )}
             </View>
+          </View>
           </RuggedBorder>
           {liveHistory.length > 0 && (
             <View style={styles.subSection}>
@@ -203,13 +215,17 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
       )}
 
       {liveCards.length > 0 && (
-        <View style={styles.section}>
-          <RuggedBorder color={COLORS.black}>
-            <View style={[styles.yellowHeader, { paddingTop: Math.round(SPACING.xs / 2), paddingBottom: Math.round((SPACING.xs + 2) / 2) }]}>
-              <Text style={styles.yellowHeaderText}>Most megy {String.fromCharCode(233)}l{String.fromCharCode(337)}ben </Text>
+        <View style={[styles.section, { marginBottom: SPACING.md + 4 }]}>
+          <RuggedBorder color={COLORS.black} wobbleFactor={0.7} minDimension={80} strokeWidth={4}>
+            <View style={{ paddingHorizontal: 3 }}>
+              <View style={[styles.yellowHeader, { paddingTop: Math.round(SPACING.xs / 2), paddingBottom: Math.round((SPACING.xs + 2) / 2) }]}>
+                <DotPattern dotColor="#000" dotOpacity={0.12} spacing={10} />
+                <Text style={styles.yellowHeaderText}>Most megy {String.fromCharCode(233)}l{String.fromCharCode(337)}ben </Text>
+              </View>
             </View>
+            <SoundEffect text="ON!" textColor={COLORS.red} bgColor={COLORS.cyan} top={-8} right={-6} rotate={-10} fontSize={30} />
           </RuggedBorder>
-          <View style={[styles.gridWrap, { marginTop: SPACING.xs * 2 }]}>
+          <View style={[styles.gridWrap, { marginTop: SPACING.xs * 4 }]}>
             {liveCards.slice(0, 5).map(item => (
               <SimpleCard key={item.key} type="live" title={item.title} subtitle={item.group || ''} imageUrl={item.logo} onPress={() => onPlayContent(item.key)} />
             ))}
@@ -227,7 +243,7 @@ const styles = StyleSheet.create({
   loadingText: { color: COLORS.muted, fontSize: FONT.lg },
   // Welcome screen
   welcomeRoot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  welcomeCenter: { alignItems: 'center', paddingHorizontal: 40 },
+  welcomeCenter: { alignItems: 'center', paddingHorizontal: 80 },
   welcomeLogo: { width: 120, height: 120, borderRadius: 24, marginBottom: 20 },
   welcomeTitle: { color: COLORS.yellow, fontSize: FONT.xxl, fontFamily: 'Bangers-Regular', letterSpacing: 2, textAlign: 'center', marginBottom: SPACING.xs },
   welcomeSub: { color: COLORS.muted, fontSize: FONT.md, fontFamily: 'Poppins-Regular', marginBottom: SPACING.lg, textAlign: 'center' },
@@ -238,8 +254,8 @@ const styles = StyleSheet.create({
   exitOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center' },
   // Sections
   section: { marginBottom: SPACING.md },
-  yellowHeader: { backgroundColor: COLORS.yellow, borderRadius: 0, paddingTop: SPACING.xs, paddingBottom: SPACING.xs + 2, paddingHorizontal: SPACING.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  yellowHeaderText: { color: COLORS.black, fontFamily: 'Bangers-Regular', fontSize: 18, letterSpacing: 0.5, textAlign: 'left' },
+  yellowHeader: { position: 'relative', backgroundColor: COLORS.yellow, borderRadius: 8, paddingTop: SPACING.xs, paddingBottom: SPACING.xs + 2, paddingHorizontal: SPACING.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  yellowHeaderText: { color: COLORS.black, fontFamily: 'Bangers-Regular', fontSize: 14, letterSpacing: 0.5, textAlign: 'left' },
   subHeader: { color: COLORS.white, fontFamily: 'Bangers-Regular', fontSize: 16, marginTop: SPACING.sm, marginBottom: SPACING.xs * 2 },
   subSection: { marginBottom: SPACING.sm + 4 },
   gridWrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: SPACING.md },

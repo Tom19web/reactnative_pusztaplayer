@@ -10,7 +10,7 @@ interface FilterBtnProps {
 }
 
 export default function FilterBtn({ label, onPress, testID }: FilterBtnProps) {
-  const { isFocused, onFocus, onBlur } = useTVFocus();
+  const { onFocus, onBlur } = useTVFocus();
 
   return (
     <TFPressable
@@ -23,25 +23,25 @@ export default function FilterBtn({ label, onPress, testID }: FilterBtnProps) {
       accessibilityLabel={`${label} szűrő`}
       accessibilityRole="button"
     >
-      <Text style={[styles.text, isFocused && styles.textFocus]}>{label}</Text>
+      <Text style={styles.text}>{label}</Text>
     </TFPressable>
   );
 }
 
 const styles = StyleSheet.create({
   btn: {
-    backgroundColor: 'rgba(0,255,255,0.15)',
+    backgroundColor: COLORS.cyan,
     borderRadius: 6,
-    paddingTop: SPACING.sm + 2,
+    paddingTop: SPACING.sm,
     paddingBottom: SPACING.sm,
     paddingHorizontal: SPACING.md,
-    borderWidth: 1,
-    borderColor: 'rgba(0,255,255,0.3)',
+    borderWidth: 2,
+    borderColor: COLORS.black,
+    borderStyle: 'solid',
   },
   btnFocus: {
-    backgroundColor: COLORS.cyan,
-    borderColor: COLORS.yellow,
+    backgroundColor: '#39ff14',
+    borderColor: COLORS.black,
   },
-  text: { color: COLORS.black, fontFamily: '007Toontime', fontSize: 10 },
-  textFocus: { color: COLORS.black, fontSize: 12 },
+  text: { color: COLORS.black, fontFamily: '007Toontime', fontSize: 8 },
 });

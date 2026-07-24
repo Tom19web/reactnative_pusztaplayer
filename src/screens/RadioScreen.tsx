@@ -1,8 +1,15 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import RadioCard from '../components/RadioCard';
 import RadioPlayer from '../components/RadioPlayer';
 import Pagination from '../components/Pagination';
+import RuggedBorder from '../components/RuggedBorder';
+import SoundEffect from '../components/SoundEffect';
+import DotPattern from '../components/DotPattern';
+import FilterBtn from '../components/FilterBtn';
+import FilterItem from '../components/FilterItem';
+import ShadowWrapper from '../components/ShadowWrapper';
 import { radioStations, RadioStation } from '../constants/radioStations';
 import { COLORS, FONT, SPACING } from '../constants';
 import { useCore } from '../store/AppContext';
@@ -13,8 +20,12 @@ interface Props {
   onBack: () => void;
 }
 
-const PAGE_SIZE = 15;
-const MAX_RECENTS = 5;
+const CARD_W = 100;
+const CARD_H = 80;
+const PAGE_SIZE = 24;
+const MAX_RECENTS = 7;
+
+const sortOptions = ['Név ↑', 'Név ↓'];
 
 export default function RadioScreen({ onPlayContent, onBack }: Props) {
   const { state: { searchTerm } } = useCore();
@@ -22,8 +33,9 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
   const [playing, setPlaying] = useState<RadioStation | null>(null);
   const [playCounts, setPlayCounts] = useState<Record<string, number>>({});
   const [recents, setRecents] = useState<RadioStation[]>([]);
+  const [activeSort, setActiveSort] = useState('Név ↑');
+  const [showSort, setShowSort] = useState(false);
 
-  // Load play counts + recents from storage
   useEffect(() => {
     (async () => {
       const counts = await getRadioPlayCounts();
@@ -34,15 +46,17 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
     })();
   }, []);
 
-  // Sort by popularity then alphabetically
+  useEffect(() => { setPage(0); }, [searchTerm, activeSort]);
+
   const sorted = useMemo(() => {
-    return [...radioStations].sort((a, b) => {
-      const aPop = playCounts[a.key] || 0;
-      const bPop = playCounts[b.key] || 0;
-      if (aPop !== bPop) return bPop - aPop; // descending
-      return a.name.localeCompare(b.name);
-    });
-  }, [playCounts]);
+    const list = [...radioStations];
+    if (activeSort === 'Név ↑') {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      list.sort((a, b) => b.name.localeCompare(a.name));
+    }
+    return list;
+  }, [activeSort]);
 
   const filtered = useMemo(() => {
     if (!searchTerm) return sorted;
@@ -63,8 +77,6 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
     return [page - 2, page - 1, page, page + 1, page + 2];
   }, [page, totalPages]);
 
-  useEffect(() => { setPage(0); }, [searchTerm]);
-
   const handlePress = useCallback(async (station: RadioStation) => {
     await incrementRadioPlay(station.key);
     setPlayCounts(prev => ({ ...prev, [station.key]: (prev[station.key] || 0) + 1 }));
@@ -79,27 +91,68 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
     setPlaying(null);
   }, []);
 
+  const filterTop = SPACING.sm + SPACING.sm + SPACING.md + SPACING.md;
+
   if (playing) {
     return <RadioPlayer station={playing} onBack={handlePlayerBack} />;
   }
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.grid}>
-        <Text style={styles.header}>{'\uD83D\uDCFB'} Rádió</Text>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} nestedScrollEnabled>
 
-        {/* Recent stations */}
+        {/* Recents section */}
         {!searchTerm && recents.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Legutóbb hallgatott</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentRow}>
-              {recents.map(s => (
-                <RadioCard key={s.key} station={s} onPress={() => handlePress(s)} />
-              ))}
-            </ScrollView>
-          </>
+          <View style={{ marginBottom: SPACING.md }}>
+            <RuggedBorder color={COLORS.cyan} wobbleFactor={0.7}>
+              <View style={styles.recentsWrap}>
+                <LinearGradient
+                  colors={['#1a2228', '#101820', '#080810']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.recentsGradient}
+                />
+                <DotPattern dotColor="#fff" dotOpacity={0.05} spacing={14} />
+                <Text style={styles.recentsTitle}>Legutóbb hallgatott</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentsRow}>
+                  {recents.map(s => (
+                    <RadioCard key={s.key} station={s} onPress={() => handlePress(s)} />
+                  ))}
+                </ScrollView>
+              </View>
+              <SoundEffect text="ON AIR!" textColor="#ffcc00" bgColor={COLORS.red} top={-10} right={-8} rotate={-6} fontSize={18} />
+            </RuggedBorder>
+          </View>
         )}
 
+        {/* Filter bar */}
+        <RuggedBorder color={COLORS.black} wobbleFactor={0.7} style={{ marginBottom: SPACING.md }}>
+          <View style={styles.filterBox}>
+            <DotPattern dotColor="#000" dotOpacity={0.15} spacing={6} dotRadius={1.5} />
+            <Text style={styles.filterLabel}>Rendezés: </Text>
+            <FilterBtn label={activeSort} onPress={() => setShowSort(!showSort)} />
+          </View>
+          <SoundEffect text="SORT!" textColor={COLORS.red} bgColor={COLORS.cyan} top={-2} right={-8} rotate={5} />
+        </RuggedBorder>
+
+        {showSort && (
+          <View style={styles.filterOverlay}>
+            <ShadowWrapper offset={6} borderRadius={6}>
+              <ScrollView style={styles.filterOverlayScroll} nestedScrollEnabled>
+                {sortOptions.map(opt => (
+                  <FilterItem
+                    key={opt}
+                    label={opt}
+                    isActive={opt === activeSort}
+                    onPress={() => { setActiveSort(opt); setShowSort(false); }}
+                  />
+                ))}
+              </ScrollView>
+            </ShadowWrapper>
+          </View>
+        )}
+
+        {/* Radio grid */}
         {pageItems.length === 0 ? (
           <View style={styles.empty}><Text style={styles.emptyText}>Nincs találat.</Text></View>
         ) : (
@@ -107,23 +160,70 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
             {pageItems.map(s => (
               <RadioCard key={s.key} station={s} onPress={() => handlePress(s)} />
             ))}
+            {Array.from({ length: PAGE_SIZE - pageItems.length }).map((_, i) => (
+              <View key={`e-${i}`} style={{ width: CARD_W, height: CARD_H }} />
+            ))}
           </View>
         )}
+
+        {totalPages > 1 && (
+          <Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={setPage} />
+        )}
       </ScrollView>
-      {totalPages > 1 && (
-        <Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={setPage} />
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  grid: { padding: SPACING.md },
-  header: { color: COLORS.yellow, fontSize: FONT.xl, fontFamily: 'Bangers-Regular', letterSpacing: 2, marginBottom: SPACING.md },
-  sectionTitle: { color: COLORS.muted, fontSize: FONT.sm, fontWeight: '600', marginBottom: SPACING.xs, marginTop: SPACING.xs },
-  recentRow: { marginBottom: SPACING.md },
-  gridWrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, paddingBottom: 20 },
+  scroll: { flex: 1 },
+  scrollContent: { padding: SPACING.md, paddingBottom: 40 },
+  // Recents
+  recentsWrap: {
+    position: 'relative',
+    padding: SPACING.sm,
+    overflow: 'hidden',
+  },
+  recentsGradient: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  recentsTitle: { color: COLORS.yellow, fontSize: FONT.md, fontFamily: 'Bangers-Regular', marginBottom: SPACING.xs, letterSpacing: 1 },
+  recentsRow: { flexDirection: 'row', gap: SPACING.sm },
+  // Filter
+  filterBox: {
+    position: 'relative',
+    backgroundColor: '#ffcc00',
+    borderRadius: 0,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    overflow: 'hidden',
+  },
+  filterLabel: { color: COLORS.black, fontFamily: 'Bangers-Regular', fontSize: 14 },
+  filterOverlay: {
+    position: 'absolute',
+    top: SPACING.lg + 40,
+    left: SPACING.md,
+    zIndex: 999,
+    elevation: 20,
+  },
+  filterOverlayScroll: {
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: SPACING.xs,
+    maxHeight: 160,
+    minWidth: 160,
+  },
+  // Grid
+  gridWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
   empty: { alignItems: 'center', paddingVertical: 40 },
   emptyText: { color: COLORS.muted, fontSize: FONT.md },
 });

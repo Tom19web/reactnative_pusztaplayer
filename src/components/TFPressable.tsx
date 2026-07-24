@@ -5,6 +5,7 @@ import { useTVFocus } from '../hooks/useTVFocus';
 interface TFPressableProps extends PressableProps {
   hasTVPreferredFocus?: boolean;
   focusedStyle?: StyleProp<ViewStyle>;
+  scaleFactor?: number;
 }
 
 const TFPressable = forwardRef<View, TFPressableProps>(function TFPressable({
@@ -15,13 +16,14 @@ const TFPressable = forwardRef<View, TFPressableProps>(function TFPressable({
   onFocus: onFocusProp,
   onBlur: onBlurProp,
   children,
+  scaleFactor = 1.03,
   ...rest
 }: TFPressableProps, ref) {
   const { isFocused, onFocus, onBlur } = useTVFocus();
   const animScale = useRef(new Animated.Value(1)).current;
 
   const handleFocus = (e: any) => {
-    Animated.spring(animScale, { toValue: 1.03, speed: 20, bounciness: 4, useNativeDriver: true }).start();
+    Animated.spring(animScale, { toValue: scaleFactor, speed: 20, bounciness: 4, useNativeDriver: true }).start();
     onFocus(e);
     onFocusProp?.(e);
   };

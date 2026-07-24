@@ -5,6 +5,7 @@ import Svg, { Polygon, G } from 'react-native-svg';
 import TFPressable from './TFPressable';
 import SoundEffect from './SoundEffect';
 import ComicStarburst, { comicStarburstPoints } from './ComicStarburst';
+import DotPattern from './DotPattern';
 import RuggedBorder from './RuggedBorder';
 import { PlayIcon } from '../../assets/icons';
 import { HistoryItem, PlaylistData } from '../types';
@@ -125,7 +126,7 @@ function HeroSlideContent({ item, playlist, onPlayContent, isFav, onToggleFav, s
           <View style={slideStyles.actionRow}>
             <TFPressable style={slideStyles.playBtn} focusedStyle={slideStyles.playBtnFocus} onPress={() => onPlayContent(item.key)} accessibilityLabel="Lejátszás folytatása" accessibilityRole="button">
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <PlayIcon size={14} color={COLORS.black} />
+                <PlayIcon size={12} color={COLORS.black} />
                 <Text style={slideStyles.playBtnText}>{item.type !== 'live' && item.position > 5 && item.duration > 0 ? `Folytatás ${fmtPos(item.position)}-nél` : 'Lejátszás'}</Text>
               </View>
             </TFPressable>
@@ -241,6 +242,7 @@ export default function HomeHero({ history, playlist, onPlayContent }: HomeHeroP
             </G>
           </Svg>
         )}
+        <DotPattern dotColor="#fff" dotOpacity={0.05} spacing={14} />
         <Animated.View style={[styles.track, { transform: [{ translateX: animVal }] }]}>
           {items.map((item, i) => (
             <View key={item.key} style={styles.slide}>
@@ -279,8 +281,8 @@ const slideStyles = StyleSheet.create({
   },
   colLeft: {
     flex: 3,
-    paddingLeft: 20, paddingRight: 20, paddingTop: 6, paddingBottom: 16,
-    gap: 8,
+    paddingLeft: 20, paddingRight: 20, paddingTop: 3, paddingBottom: 16,
+    gap: 4,
   },
   titleRow: {
     flexDirection: 'row',
@@ -295,19 +297,19 @@ const slideStyles = StyleSheet.create({
     borderWidth: 1, borderColor: '#000',
   },
   badgeText: { color: COLORS.black, fontSize: 7, fontWeight: '700', fontFamily: '007Toontime' },
-  title: { color: COLORS.white, fontSize: 20, fontFamily: 'Bangers-Regular', letterSpacing: 1, flex: 1, marginRight: 8 },
+  title: { color: COLORS.white, fontSize: 18, fontFamily: 'Bangers-Regular', fontWeight: '200', letterSpacing: 1, flex: 1, marginRight: 8 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   playBtn: {
     backgroundColor: COLORS.yellow,
     borderRadius: 6,
     paddingVertical: 4,
-    paddingHorizontal: 24,
+    paddingHorizontal: 10,
     alignItems: 'center',
     alignSelf: 'flex-start',
     borderWidth: 1, borderColor: '#000',
   },
   playBtnFocus: { backgroundColor: COLORS.cyan },
-  playBtnText: { color: COLORS.black, fontSize: 8, fontWeight: '700', fontFamily: '007Toontime' },
+  playBtnText: { color: COLORS.black, fontSize: 8, fontFamily: '007Toontime' },
   favBtn: {
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: COLORS.panel2,

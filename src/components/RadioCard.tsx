@@ -1,7 +1,13 @@
 import { View, Text, Image, StyleSheet } from 'react-native';
+import FastImage from 'react-native-fast-image';
+import LinearGradient from 'react-native-linear-gradient';
 import TFPressable from './TFPressable';
+import RuggedBorder from './RuggedBorder';
 import { COLORS, FONT } from '../constants';
 import { RadioStation } from '../constants/radioStations';
+
+const CARD_W = 100;
+const CARD_H = 80;
 
 interface Props {
   station: RadioStation;
@@ -10,55 +16,62 @@ interface Props {
 
 export default function RadioCard({ station, onPress }: Props) {
   return (
-    <TFPressable
-      style={styles.card}
-      focusedStyle={styles.cardFocused}
-      onPress={onPress}
-    >
-      <View style={styles.logoWrap}>
-        <Image source={{ uri: station.logo }} style={styles.logo} resizeMode="contain" />
+    <RuggedBorder color={COLORS.cyan} width={CARD_W} height={CARD_H} wobbleFactor={0.4}>
+      <View style={{ overflow: 'hidden' }}>
+        <TFPressable
+          style={styles.card}
+          focusedStyle={styles.cardFocused}
+          onPress={onPress}
+        >
+          <LinearGradient
+            colors={['#1a2228', '#101820', '#080810']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.gradient}
+          />
+          <View style={styles.logoWrap}>
+            {station.logo ? (
+              <FastImage source={{ uri: station.logo, priority: FastImage.priority.normal }} style={styles.logo} resizeMode={FastImage.resizeMode.contain} />
+            ) : (
+              <Text style={styles.fallback}>{'\uD83D\uDCFB'}</Text>
+            )}
+          </View>
+          <View style={styles.nameWrap}>
+            <Text style={styles.name} numberOfLines={1}>{station.name}</Text>
+          </View>
+        </TFPressable>
       </View>
-      <Text style={styles.name} numberOfLines={1}>{station.name}</Text>
-      <View style={styles.liveRow}>
-        <View style={styles.liveDot} />
-        <Text style={styles.liveText}>ÉLŐ</Text>
-      </View>
-    </TFPressable>
+    </RuggedBorder>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    width: 112, alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
-    padding: 10, gap: 6,
-  },
-  cardFocused: {
-    backgroundColor: 'rgba(255,204,0,0.12)',
-    borderColor: COLORS.yellow,
-    transform: [{ scale: 1.04 }],
-  },
-  logoWrap: {
-    width: 57, height: 57, borderRadius: 28,
-    backgroundColor: COLORS.panel,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    width: CARD_W,
+    height: CARD_H,
+    borderRadius: 0,
     overflow: 'hidden',
   },
-  logo: { width: 42, height: 42 },
+  cardFocused: { transform: [{ scale: 1.04 }], backgroundColor: 'rgba(255,204,0,0.15)' },
+  gradient: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  logoWrap: {
+    height: Math.round(CARD_H * 0.7),
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  logo: { width: '90%', height: '90%' },
+  fallback: { fontSize: 24 },
+  nameWrap: {
+    height: Math.round(CARD_H * 0.3),
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
   name: {
-    color: COLORS.text, fontSize: 8, fontFamily: 'Poppins-Bold',
+    color: COLORS.text,
+    fontSize: FONT.xs - 2,
     textAlign: 'center',
-  },
-  liveRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-  },
-  liveDot: {
-    width: 4, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.red,
-  },
-  liveText: {
-    color: COLORS.red, fontSize: 7, fontFamily: 'Poppins-Bold', letterSpacing: 1,
+    fontFamily: '007Toontime',
   },
 });

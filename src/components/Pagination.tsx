@@ -37,13 +37,13 @@ function PageButton({ onPress, active, disabled, children, label }: {
 export default function Pagination({ page, totalPages, pageNumbers, onPageChange }: PaginationProps) {
   return (
     <View style={styles.row} testID="pagination">
-      <PageButton label="Els\u0151 oldal" onPress={() => page > 0 && onPageChange(0)} disabled={page === 0}>{'|\u25C1'}</PageButton>
-      <PageButton label="El\u0151z\u0151 oldal" onPress={() => page > 0 && onPageChange(page - 1)} disabled={page === 0}>{'\u2190'}</PageButton>
+      <PageButton label="Els\u0151 oldal" onPress={() => page > 0 && onPageChange(0)} disabled={page === 0}>{'| \u25C1'}</PageButton>
+      <PageButton label="El\u0151z\u0151 oldal" onPress={() => page > 0 && onPageChange(page - 1)} disabled={page === 0}>{'\u2190 '}</PageButton>
       {pageNumbers.map(p => (
-        <PageButton key={p} label={`${p + 1}. oldal`} onPress={() => onPageChange(p)} active={p === page}>{p + 1}</PageButton>
+        <PageButton key={p} label={`${p + 1}. oldal`} onPress={() => onPageChange(p)} active={p === page}>{p + 1 + ' '}</PageButton>
       ))}
-      <PageButton label="K\u00F6vetkez\u0151 oldal" onPress={() => page < totalPages - 1 && onPageChange(page + 1)} disabled={page >= totalPages - 1}>{'\u2192'}</PageButton>
-      <PageButton label="Utols\u00F3 oldal" onPress={() => page < totalPages - 1 && onPageChange(totalPages - 1)} disabled={page >= totalPages - 1}>{'\u25B7|'}</PageButton>
+      <PageButton label="K\u00F6vetkez\u0151 oldal" onPress={() => page < totalPages - 1 && onPageChange(page + 1)} disabled={page >= totalPages - 1}>{'\u2192 '}</PageButton>
+      <PageButton label="Utols\u00F3 oldal" onPress={() => page < totalPages - 1 && onPageChange(totalPages - 1)} disabled={page >= totalPages - 1}>{'\u25B7 |'}</PageButton>
     </View>
   );
 }

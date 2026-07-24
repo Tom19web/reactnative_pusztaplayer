@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { View, Text, Image, StyleSheet, Animated, Easing, BackHandler } from 'react-native';
 import TFPressable from './TFPressable';
 import { useBackgroundAudio } from '../store/AppContext';
+import { useAudioVisualizer } from '../hooks/useAudioVisualizer';
+import AudioVisualizer from './AudioVisualizer';
 import { COLORS, FONT, SPACING } from '../constants';
 import { RadioStation } from '../constants/radioStations';
 
@@ -19,6 +21,7 @@ const RINGS = [
 
 export default function RadioPlayer({ station, onBack }: Props) {
   const { audio, isPlaying, start, stop } = useBackgroundAudio();
+  const { active: vizActive, start: vizStart, stop: vizStop, animValues } = useAudioVisualizer();
   const [metadata, setMetadata] = useState('');
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const metadataTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -57,6 +60,11 @@ export default function RadioPlayer({ station, onBack }: Props) {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => vizStart(), 1500);
+    return () => { clearTimeout(t); vizStop(); };
   }, []);
 
   useEffect(() => {
@@ -196,6 +204,8 @@ export default function RadioPlayer({ station, onBack }: Props) {
         <Text style={styles.stationName}>{station.name}</Text>
         {metadata ? <Text style={styles.metadata} numberOfLines={1}>{metadata}</Text> : null}
       </View>
+
+      <AudioVisualizer animValues={animValues} active={vizActive} />
 
       <TFPressable style={styles.playBtn} focusedStyle={styles.playBtnFocus} onPress={handleToggle}>
         <Text style={styles.playBtnText}>{isThisStationPlaying ? '\u25A0' : '\u25B6'}</Text>

@@ -7,6 +7,7 @@ import SeriesDetailPanel from '../components/SeriesDetailPanel';
 import ShadowWrapper from '../components/ShadowWrapper';
 import RuggedBorder from '../components/RuggedBorder';
 import SoundEffect from '../components/SoundEffect';
+import DotPattern from '../components/DotPattern';
 import FilterBtn from '../components/FilterBtn';
 import Pagination from '../components/Pagination';
 import FilterItem from '../components/FilterItem';
@@ -118,15 +119,16 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
   return (
     <View style={{ flex: 1, position: 'relative' }}>
     <ScrollView style={styles.container} nestedScrollEnabled>
-      <RuggedBorder color={COLORS.cyan} style={{ marginBottom: SPACING.md }}>
+      <RuggedBorder color={COLORS.black} wobbleFactor={0.7} style={{ marginBottom: SPACING.md }}>
         <View style={styles.filterBox}>
-          <Text style={styles.filterLabel}>Szűrés: </Text>
-          <FilterBtn label={activeGroup} onPress={()=>setShowFilter(showFilter==='group'?null:'group')}/>
-          <FilterBtn label={activeYear==='Mind'?'Év':activeYear} onPress={()=>setShowFilter(showFilter==='year'?null:'year')}/>
-          <FilterBtn label={activeMood==='Mind'?'Hangulat':activeMood} onPress={()=>setShowFilter(showFilter==='genre'?null:'genre')}/>
-          <FilterBtn label={activeSort} onPress={()=>setShowFilter(showFilter==='sort'?null:'sort')}/>
-        </View>
-        <SoundEffect text="BINGE!" textColor={COLORS.white} bgColor={COLORS.red} top={-4} right={-10} rotate={-8} />
+          <DotPattern dotColor="#000" dotOpacity={0.15} spacing={6} dotRadius={1.5} />
+        <Text style={styles.filterLabel}>Szűrés: </Text>
+        <FilterBtn label={activeGroup} onPress={()=>setShowFilter(showFilter==='group'?null:'group')}/>
+        <FilterBtn label={activeYear==='Mind'?'Év':activeYear} onPress={()=>setShowFilter(showFilter==='year'?null:'year')}/>
+        <FilterBtn label={activeMood==='Mind'?'Hangulat':activeMood} onPress={()=>setShowFilter(showFilter==='genre'?null:'genre')}/>
+        <FilterBtn label={activeSort} onPress={()=>setShowFilter(showFilter==='sort'?null:'sort')}/>
+      </View>
+        <SoundEffect text="BINGE!" textColor={COLORS.white} bgColor={COLORS.red} top={-4} right={-10} rotate={-8} fontSize={28} />
       </RuggedBorder>
       {showFilter && (
         <>
@@ -148,7 +150,12 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
         <View style={styles.gridPanel}><View style={styles.gridWrap}>
           {pageItems.map((item)=><SimpleCard key={item.key} type="series" title={item.title} subtitle={item.group||''} imageUrl={item.logo} onPress={() => setSelectedSeries(item)} onLongPress={() => onPlayContent(item.key)} isWatchLater={isWl(item.key)}/>)}
           {Array.from({length:PAGE_SIZE-pageItems.length}).map((_,i)=><View key={`e-${i}`} style={{width:CARD_W,margin:CARD_GAP/2}}/>)}
-        </View></View>
+        </View>
+        <SoundEffect text="POW!" textColor={COLORS.cyan} bgColor={COLORS.yellow} top={40} right={120} rotate={-10} fontSize={20} />
+        <SoundEffect text="BAM!" textColor={COLORS.yellow} bgColor={COLORS.red} top={180} left={100} rotate={14} fontSize={18} />
+        <SoundEffect text="WHOA!" textColor={COLORS.white} bgColor={COLORS.cyan} top={300} right={60} rotate={-14} fontSize={22} />
+        <SoundEffect text="FLASH!" textColor={COLORS.red} bgColor={COLORS.yellow} top={420} left={200} rotate={8} fontSize={18} />
+        </View>
       )}
       {totalPages>1&&<Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={setPage}/>}
     </ScrollView>
@@ -170,12 +177,12 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
 
 const styles = StyleSheet.create({
   container:{flex:1,paddingVertical:SPACING.md,paddingHorizontal:20},
-  filterBox:{backgroundColor:'#ffcc00',borderRadius:0,paddingVertical:SPACING.sm,paddingHorizontal:SPACING.lg,flexDirection:'row',alignItems:'center',gap:SPACING.sm,flexWrap:'wrap'},
-  filterLabel:{color:COLORS.black,fontFamily:'Bangers-Regular',fontSize:16},
+  filterBox:{position:'relative',backgroundColor:'#ffcc00',borderRadius:0,paddingVertical:SPACING.sm,paddingHorizontal:SPACING.lg,flexDirection:'row',alignItems:'center',gap:SPACING.sm,flexWrap:'wrap',overflow:'hidden'},
+  filterLabel:{color:COLORS.black,fontFamily:'Bangers-Regular',fontSize:14},
   filterBgOverlay:{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,0.35)',zIndex:998},
   filterOverlayWrap:{position:'absolute',top:SPACING.md+40,left:SPACING.md,zIndex:999,elevation:20},
   filterOverlay:{backgroundColor:'rgba(0,0,0,0.92)',borderRadius:10,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',padding:SPACING.xs,maxHeight:300,minWidth:200,maxWidth:350},
-  gridPanel:{backgroundColor:'transparent',borderRadius:14,padding:SPACING.sm,marginBottom:SPACING.sm},gridWrap:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:SPACING.md},
+  gridPanel:{position:'relative',backgroundColor:'transparent',borderRadius:14,padding:SPACING.sm,marginBottom:SPACING.sm},gridWrap:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:SPACING.md},
   empty:{flex:1,alignItems:'center',justifyContent:'center',padding:SPACING.xl},emptyText:{color:COLORS.muted,fontSize:FONT.md},
   epOverlay:{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:COLORS.bg,zIndex:1000,elevation:30},
   epPanel:{flex:1,margin:SPACING.md},

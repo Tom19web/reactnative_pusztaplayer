@@ -6,6 +6,7 @@ import SimpleCard from '../components/SimpleCard';
 import ShadowWrapper from '../components/ShadowWrapper';
 import RuggedBorder from '../components/RuggedBorder';
 import SoundEffect from '../components/SoundEffect';
+import DotPattern from '../components/DotPattern';
 import FilterBtn from '../components/FilterBtn';
 import Pagination from '../components/Pagination';
 import FilterItem from '../components/FilterItem';
@@ -131,12 +132,13 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
   return (
     <View style={styles.wrapper} testID="live-wrapper">
       <ScrollView style={styles.container} nestedScrollEnabled>
-        <RuggedBorder color={COLORS.cyan} style={{ marginBottom: SPACING.md }}>
+        <RuggedBorder color={COLORS.black} wobbleFactor={0.7} style={{ marginBottom: SPACING.md }}>
           <View style={styles.filterBox} testID="live-filter">
-            <Text style={styles.filterLabel}>Válassz kategóriát! {' '}</Text>
-            <FilterBtn label={activeGroup} onPress={() => setShowFilter(!showFilter)} testID="filter-btn-main" />
-          </View>
-          <SoundEffect text="LIVE!" textColor={COLORS.white} bgColor={COLORS.red} top={-3} right={-8} rotate={8} />
+            <DotPattern dotColor="#000" dotOpacity={0.15} spacing={6} dotRadius={1.5} />
+          <Text style={styles.filterLabel}>Válassz kategóriát! {' '}</Text>
+          <FilterBtn label={activeGroup} onPress={() => setShowFilter(!showFilter)} testID="filter-btn-main" />
+        </View>
+          <SoundEffect text="LIVE!" textColor={COLORS.white} bgColor={COLORS.red} top={-3} right={72} rotate={8} fontSize={28} />
         </RuggedBorder>
         {showFilter && (
           <>
@@ -176,6 +178,10 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
               ))}
               {Array.from({length:PAGE_SIZE-pageItems.length}).map((_,i)=><View key={`e-${i}`} style={{width:CARD_W,margin:CARD_GAP/2}}/>)}
             </View>
+            <SoundEffect text="ZAP!" textColor={COLORS.yellow} bgColor={COLORS.red} top={30} right={130} rotate={-8} fontSize={20} />
+            <SoundEffect text="BOOM!" textColor={COLORS.white} bgColor={COLORS.cyan} top={150} left={80} rotate={12} fontSize={22} />
+            <SoundEffect text="CRACK!" textColor={COLORS.red} bgColor={COLORS.cyan} top={280} right={160} rotate={-12} fontSize={18} />
+            <SoundEffect text="POP!" textColor={COLORS.red} bgColor={COLORS.yellow} top={380} left={200} rotate={-6} fontSize={20} />
           </View>
         )}
         {totalPages>1&&<Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={setPage}/>}
@@ -200,11 +206,11 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
 const styles = StyleSheet.create({
   wrapper:{flex:1,position:'relative'},
   container:{flex:1,paddingVertical:SPACING.md,paddingHorizontal:20},
-  filterBox:{backgroundColor:'#ffcc00',borderRadius:0,paddingVertical:SPACING.sm,paddingHorizontal:SPACING.lg,flexDirection:'row',alignItems:'center',gap:SPACING.md},
-  filterLabel:{color:COLORS.black,fontFamily:'Bangers-Regular',fontSize:16},
+  filterBox:{position:'relative',backgroundColor:'#ffcc00',borderRadius:0,paddingVertical:SPACING.sm,paddingHorizontal:SPACING.lg,flexDirection:'row',alignItems:'center',gap:SPACING.md,overflow:'hidden'},
+  filterLabel:{color:COLORS.black,fontFamily:'Bangers-Regular',fontSize:14},
   filterBgOverlay:{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,0.35)',zIndex:998},
   filterOverlayWrap:{position:'absolute',left:SPACING.md,zIndex:999,elevation:20},
   filterOverlay:{backgroundColor:'rgba(0,0,0,0.92)',borderRadius:10,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',padding:SPACING.xs,maxHeight:300,minWidth:200,maxWidth:350},
-  gridPanel:{backgroundColor:'transparent',borderRadius:14,padding:SPACING.sm,marginBottom:SPACING.sm},gridWrap:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:SPACING.md},
+  gridPanel:{position:'relative',backgroundColor:'transparent',borderRadius:14,padding:SPACING.sm,marginBottom:SPACING.sm},gridWrap:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:SPACING.md},
   empty:{flex:1,alignItems:'center',justifyContent:'center',padding:SPACING.xl},emptyText:{color:COLORS.muted,fontSize:FONT.md},
 });

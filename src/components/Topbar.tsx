@@ -222,7 +222,7 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
             {audio ? <View style={[styles.radioPlayBtn, radioFocused && styles.radioPlayBtnFocused]}>{isPlaying ? <PauseIcon size={12} color={COLORS.black} /> : <PlayIcon size={12} color={COLORS.black} />}</View> : null}
           </TFPressable>
         </RuggedBorder>
-        <SoundEffect text="BAM!" textColor={COLORS.yellow} bgColor={COLORS.red} top={6} right={-30} rotate={14} />
+        <SoundEffect text="BAM!" textColor={COLORS.yellow} bgColor={COLORS.red} top={6} right={-60} rotate={14} />
       </View>
       {/* User chip */}
       {isLoggedIn && (
@@ -264,6 +264,8 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.md,
     paddingBottom: SPACING.xs + 2,
     gap: SPACING.md,
+    height: 70,
+    overflow: 'hidden',
   },
   searchGroup: { position: 'relative', paddingBottom: 12 },
   speechTail: {

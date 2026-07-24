@@ -1,14 +1,16 @@
 ﻿import { useState } from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import FastImage from 'react-native-fast-image';
 import LinearGradient from 'react-native-linear-gradient';
 import TFPressable from './TFPressable';
 import RuggedBorder from './RuggedBorder';
+import RuggedLine from './RuggedLine';
 import { COLORS, FONT, SPACING } from '../constants';
 
 const CARD_W = 120;
 const LIVE_THUMB_W = CARD_W - 2;
 const LIVE_THUMB_H = Math.round(LIVE_THUMB_W * 9 / 16 * 10) / 10;
-const CARD_H = Math.round(LIVE_THUMB_H) + 30;
+const CARD_H = Math.round(LIVE_THUMB_H) + 28;
 
 interface SimpleCardProps {
   type: 'live' | 'movie' | 'series';
@@ -29,7 +31,7 @@ interface SimpleCardProps {
 export default function SimpleCard({ type, title, subtitle, imageUrl, onPress, onLongPress, onFocus, onBlur, progress, badge, isFav, onWatchLater, isWatchLater }: SimpleCardProps) {
   const isLive = type === 'live';
   const thHeight = isLive ? LIVE_THUMB_H : Math.round(CARD_W * 3 / 2);
-  const cardHeight = isLive ? CARD_H : Math.round(thHeight + 44);
+  const cardHeight = isLive ? CARD_H : Math.round(thHeight + 40);
   const [focused, setFocused] = useState(false);
 
   const showProgress = progress !== undefined && progress > 0 && progress < 1;
@@ -53,13 +55,13 @@ export default function SimpleCard({ type, title, subtitle, imageUrl, onPress, o
           {isLive ? (
             <>
               <LinearGradient
-                colors={['#202020', '#080808']}
+                colors={['#181818', '#303030']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={s.thumbGrad}
               />
               {imageUrl ? (
-                <Image source={{ uri: imageUrl }} style={s.thumbImgLive} resizeMode="contain" fadeDuration={0} />
+                <FastImage source={{ uri: imageUrl, priority: FastImage.priority.normal }} style={s.thumbImgLive} resizeMode={FastImage.resizeMode.contain} />
               ) : (
                 <Text style={s.thumbFallbackLive}>{'\uD83D\uDCFA'}</Text>
               )}
@@ -67,7 +69,7 @@ export default function SimpleCard({ type, title, subtitle, imageUrl, onPress, o
           ) : (
             <>
               {imageUrl ? (
-                <Image source={{ uri: imageUrl }} style={s.thumbImg} resizeMode={isLive ? 'contain' : 'cover'} fadeDuration={0} />
+                <FastImage source={{ uri: imageUrl, priority: FastImage.priority.normal }} style={s.thumbImg} resizeMode={FastImage.resizeMode.cover} />
               ) : (
                 <Text style={s.thumbFallback}>
                   {isLive ? '\uD83D\uDCFA' : type === 'movie' ? '\uD83C\uDFAC' : '\uD83D\uDCE6'}
@@ -81,6 +83,9 @@ export default function SimpleCard({ type, title, subtitle, imageUrl, onPress, o
             </>
           )}
         </View>
+
+        {/* â”€â”€â”€ Divider line (live only) â”€â”€â”€ */}
+        {isLive && <RuggedLine direction="horizontal" color="#000" strokeWidth={2} />}
 
         {/* â”€â”€â”€ Meta area â”€â”€â”€ */}
         <View style={[isLive ? s.metaLive : s.meta, focused && (isLive ? s.metaFocusedLive : s.metaFocused)]} testID={`card-meta-${type}`}>
@@ -124,7 +129,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 4, paddingVertical: 1,
   },
   cornerBadgeText: { color: COLORS.black, fontSize: 9, fontWeight: '700', fontFamily: 'Poppins-Bold' },
-  meta: { paddingVertical: 0, paddingHorizontal: SPACING.xs, alignItems: 'center', justifyContent: 'center', gap: 1, minHeight: 38 },
+  meta: { paddingVertical: 0, paddingHorizontal: SPACING.xs, alignItems: 'center', justifyContent: 'center', gap: 1, minHeight: 36 },
   metaFocused: { backgroundColor: COLORS.yellow },
   metaFocusedLive: { backgroundColor: COLORS.yellow },
   title: { color: COLORS.text, fontSize: FONT.xs - 2, textAlign: 'center', fontFamily: '007Toontime' },
@@ -132,8 +137,8 @@ const s = StyleSheet.create({
   sub: { color: COLORS.muted, fontSize: FONT.xs - 4, textAlign: 'center' },
   subFocused: { color: COLORS.black },
   progressWrap: { height: 5, width: 120 - 16, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2, overflow: 'hidden', marginTop: 1 },
-  progressFill: { height: 5, backgroundColor: COLORS.yellow, borderRadius: 2, position: 'absolute', left: 0, top: 0 },
-  progressText: { color: COLORS.yellow, fontSize: 7, fontWeight: '600', textAlign: 'center', lineHeight: 5 },
+  progressFill: { height: 5, backgroundColor: COLORS.cyan, borderRadius: 2, position: 'absolute', left: 0, top: 0 },
+  progressText: { color: COLORS.black, fontSize: 7, fontWeight: '600', textAlign: 'center', lineHeight: 5 },
 
   // â”€â”€â”€ Live cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   cardLive: {
@@ -157,6 +162,6 @@ const s = StyleSheet.create({
   thumbImgLive: { width: '95%', height: '95%', position: 'relative', zIndex: 10 },
   thumbFallbackLive: { fontSize: 40, position: 'relative', zIndex: 10 },
   // Meta (live)
-  metaLive: { paddingVertical: 0, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', minHeight: 30, borderBottomLeftRadius: 7, borderBottomRightRadius: 7 },
+  metaLive: { paddingVertical: 0, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', minHeight: 28, borderBottomLeftRadius: 7, borderBottomRightRadius: 7 },
   titleLive: { color: COLORS.text, fontSize: FONT.xs - 2, textAlign: 'center', lineHeight: FONT.xs - 2, width: '100%', fontFamily: '007Toontime' },
 });

@@ -3,7 +3,7 @@ import { View, Text, Image, StyleSheet, Platform, Dimensions, ScrollView } from 
 import TFPressable from './TFPressable';
 import RuggedBorder from './RuggedBorder';
 import SoundEffect from './SoundEffect';
-import SidebarBg from './SidebarBg';
+import SidebarBg, { SidebarStars } from './SidebarBg';
 import PanelBg from './PanelBg';
 import ComicStarburst from './ComicStarburst';
 import { COLORS, FONT, SPACING, SIZES, NAV_ITEMS, USER_STATUS_LOGGED_IN } from '../constants';
@@ -56,15 +56,15 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
         <View style={styles.sidebarLogo}>
           <Image
             source={require('../../assets/pp-logo.png')}
-            style={styles.sidebarLogoImg}
+            style={[styles.sidebarLogoImg, { marginLeft: -10 }]}
             resizeMode="cover"
             accessibilityLabel="PusztaPlayer logo"
             testID="sidebar-logo"
           />
         </View>
         <View style={styles.sidebarBrandText}>
-          <View style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -100 }, { translateY: -100 }, { scaleX: 1.32 }, { scaleY: 0.63 }], zIndex: 0 }}>
-            <ComicStarburst size={200} pointsCount={12} fillColor={COLORS.yellow} borderColor="#FF6600" borderWidth={4} shadowOffset={4} />
+            <View style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -80 }, { translateY: -70 }, { scaleX: 1.32 }, { scaleY: 0.63 }], zIndex: 0 }}>
+            <ComicStarburst size={160} pointsCount={12} fillColor="#39ff14" borderColor="#FF6600" borderWidth={4} shadowOffset={4} />
           </View>
           <Text style={styles.sidebarBrandName} numberOfLines={1} adjustsFontSizeToFit testID="sidebar-brand-name">
             pusztaplayer{' '}
@@ -77,7 +77,7 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
 
       {/* Stats panel (logged in) */}
       {hasCreds && (
-        <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginBottom: 8 }}>
+      <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginTop: 4, marginBottom: 8 }}>
         <View style={styles.sidebarStats} testID="sidebar-stats">
           <PanelBg />
           <View style={styles.sidebarStatsGrid}>
@@ -106,7 +106,7 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
       )}
 
       {/* Status panel */}
-      <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginBottom: 8 }}>
+      <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginTop: 4, marginBottom: 8 }}>
       <TFPressable
         style={styles.sidebarStatusPanel}
         focusedStyle={styles.sidebarStatusPanelFocused}
@@ -124,7 +124,7 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
       </RuggedBorder>
 
       {/* Nav items */}
-      <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginBottom: 8 }}>
+      <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginTop: 4, marginBottom: 8 }}>
       <View style={styles.sidebarNavContainer}>
         <PanelBg />
         {NAV_ITEMS.map(item => {
@@ -146,11 +146,11 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
           );
         })}
       </View>
-      <SoundEffect text="GO!" textColor="#FF6600" bgColor="#39FF14" top={140} right={-8} rotate={10} fontSize={26} />
+      <SoundEffect text="GO!" textColor="#FF6600" bgColor="#39FF14" top={40} right={-8} rotate={10} fontSize={31} />
       </RuggedBorder>
 
       {/* Bottom panel */}
-      <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginBottom: 8 }}>
+      <RuggedBorder color={COLORS.cyan} wobbleFactor={1.0} style={{ marginTop: 4, marginBottom: 8 }}>
       <View style={styles.sidebarBottom}>
         <PanelBg />
         {hasCreds && (
@@ -210,6 +210,7 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
       <SoundEffect text="CRACK" textColor={COLORS.red} bgColor="#008888" bottom={-30} left={-19} rotate={0} />
       </RuggedBorder>
       </ScrollView>
+      <SidebarStars />
     </View>
   );
 }
@@ -217,7 +218,7 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
 const styles = StyleSheet.create({
   container: {
     width: SIZES.sidebarWidth,
-    paddingHorizontal: 5,
+    paddingHorizontal: 0,
     paddingTop: 4,
     overflow: 'visible',
   },
@@ -226,8 +227,8 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   scrollContent: {
-    paddingLeft: 14,
-    paddingRight: 18,
+    paddingLeft: 10,
+    paddingRight: 12,
     paddingTop: 8,
     paddingBottom: 22,
   },
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     gap: 4,
     marginBottom: 0,
-    paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3,
+    paddingLeft: 4, paddingRight: 1, paddingTop: 1, paddingBottom: 1,
     backgroundColor: '#ffcc00',
     borderRadius: RADIUS,
     overflow: 'hidden',
@@ -249,10 +250,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
     backgroundColor: COLORS.yellow,
-    borderWidth: 1,
-    borderColor: '#000',
+    borderWidth: 0,
+    borderColor: 'transparent',
     borderRadius: 6,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
+    overflow: 'hidden',
   },
   sidebarLogoImg: {
     width: '100%',
@@ -261,18 +263,21 @@ const styles = StyleSheet.create({
   },
   sidebarBrandText: {
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     position: 'relative',
-    overflow: 'hidden',
+    overflow: 'visible',
+    gap: 2,
+    paddingTop: 6,
+    paddingBottom: 6,
   },
   sidebarBrandName: {
     fontSize: 22,
     color: '#000080',
     fontFamily: 'Bangers-Regular',
-    letterSpacing: 1,
+    letterSpacing: 2,
     lineHeight: 24,
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: 6,
     textShadowColor: '#000',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 3.5,
@@ -282,6 +287,7 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontFamily: 'CreativeBlockBB',
     textAlign: 'center',
+    marginTop: -4,
   },
   sidebarStats: {
     position: 'relative',
@@ -358,7 +364,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingVertical: 5,
-    paddingHorizontal: 24,
+    paddingHorizontal: 18,
   },
   sidebarNavButtonsActive: {
     backgroundColor: 'rgba(255,204,0,0.1)',

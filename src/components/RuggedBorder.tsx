@@ -9,11 +9,14 @@ interface RuggedBorderProps {
   width?: number;
   height?: number;
   wobbleFactor?: number;
+  minDimension?: number;
+  strokeWidth?: number;
 }
 
-function buildPath(w: number, h: number, seed: number, wf: number): string {
-  const cr = Math.min(w, h) * 0.06;
-  const baseAmp = Math.min(w, h) * 0.018 * wf;
+function buildPath(w: number, h: number, seed: number, wf: number, md?: number): string {
+  const refSize = md !== undefined ? md : Math.min(w, h);
+  const cr = refSize * 0.06;
+  const baseAmp = refSize * 0.018 * wf;
   const tw = w - 2 * cr;
   const th = h - 2 * cr;
   const cornerLen = (Math.PI / 2) * cr;
@@ -89,7 +92,7 @@ function buildPath(w: number, h: number, seed: number, wf: number): string {
   return d + 'Z';
 }
 
-export default function RuggedBorder({ children, color, style, width: staticW, height: staticH, wobbleFactor = 0.5 }: RuggedBorderProps) {
+export default function RuggedBorder({ children, color, style, width: staticW, height: staticH, wobbleFactor = 0.5, minDimension, strokeWidth = 2 }: RuggedBorderProps) {
   const hasStaticDims = staticW !== undefined && staticH !== undefined;
   const [dims, setDims] = useState(hasStaticDims ? { w: staticW, h: staticH } : { w: 0, h: 0 });
   const prevDims = useRef({ w: 0, h: 0 });
@@ -97,8 +100,8 @@ export default function RuggedBorder({ children, color, style, width: staticW, h
 
   const pathD = useMemo(() => {
     if (dims.w < 10 || dims.h < 10) return '';
-    return buildPath(dims.w, dims.h, seed, wobbleFactor);
-  }, [dims.w, dims.h, seed, wobbleFactor]);
+    return buildPath(dims.w, dims.h, seed, wobbleFactor, minDimension);
+  }, [dims.w, dims.h, seed, wobbleFactor, minDimension]);
 
   const handleLayout = useCallback((e: any) => {
     const { width, height } = e.nativeEvent.layout;
@@ -110,6 +113,8 @@ export default function RuggedBorder({ children, color, style, width: staticW, h
     }
   }, []);
 
+  const pad = Math.ceil(strokeWidth / 2) + 2;
+
   return (
     <View
       style={[s.wrap, style]}
@@ -117,12 +122,12 @@ export default function RuggedBorder({ children, color, style, width: staticW, h
     >
       {children}
       {pathD !== '' && (
-        <View style={s.borderOverlay} pointerEvents="none">
-          <Svg width={dims.w + 4} height={dims.h + 4} viewBox={`-2 -2 ${dims.w + 4} ${dims.h + 4}`}>
+        <View style={[s.borderOverlay, { top: -pad, left: -pad, right: -pad, bottom: -pad }]} pointerEvents="none">
+          <Svg width={dims.w + pad * 2} height={dims.h + pad * 2} viewBox={`${-pad} ${-pad} ${dims.w + pad * 2} ${dims.h + pad * 2}`}>
             <Path
               d={pathD}
               stroke={color}
-              strokeWidth={2}
+              strokeWidth={strokeWidth}
               fill="none"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -141,10 +146,6 @@ const s = StyleSheet.create({
   },
   borderOverlay: {
     position: 'absolute',
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
     zIndex: 1,
   },
 });

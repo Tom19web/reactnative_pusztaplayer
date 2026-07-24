@@ -21,6 +21,7 @@
     "react-native": "0.85.2",
     "react-native-config": "^1.6.1",
     "react-native-encrypted-storage": "^4.0.3",
+    "react-native-fast-image": "^8.6.3",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-safe-area-context": "^5.5.2",

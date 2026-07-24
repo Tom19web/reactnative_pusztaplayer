@@ -150,7 +150,7 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
           </ScrollView>
         </Animated.View>
         </RuggedBorder>
-        <SoundEffect text="POP!" textColor={COLORS.black} bgColor={COLORS.yellow} top={-15} left={8} rotate={-12} />
+        <SoundEffect text="POP!" textColor={COLORS.red} bgColor={COLORS.yellow} top={-15} left={208} rotate={-12} />
       </View>
     <View style={styles.focusOverlay} focusable={true} onFocus={handleTrapFocus} />
     </>
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   tagRating: { fontSize: 9, color: COLORS.yellow },
   director: { fontSize: 9, color: COLORS.muted, marginTop: 1 },
   cast: { fontSize: 9, color: COLORS.muted, maxHeight: 33, overflow: 'hidden', marginTop: 1 },
-  buttons: { flexDirection: 'column', gap: 4, marginTop: 8 },
+  buttons: { flexDirection: 'column', gap: 4, marginTop: 8, marginHorizontal: 4 },
   btnPlay: {
     backgroundColor: COLORS.yellow, borderRadius: 10,
     paddingTop: 8, paddingBottom: 8, alignItems: 'center',
