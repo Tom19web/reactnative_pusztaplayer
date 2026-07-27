@@ -85,6 +85,15 @@ export async function xtreamCheckLogin(
 
 // ─── Live csatornák ─────────────────────────────────
 
+const CC_PATTERN = /\s*\|?(?:HU|RO|DE|FR|IT|ES|CA|UK|CZ|SK|PL|NL|BG|RS|GR|AT|HR|SI|TR)\|?(?:\s+|:)/gi;
+
+function cleanChannelTitle(raw: string): string {
+  let t = raw;
+  t = t.replace(/^\|?(?:HU|RO|DE|FR|IT|ES|CA|UK|CZ|SK|PL|NL|BG|RS|GR|AT|HR|SI|TR)\|?(?:\s+|:)/gi, '');
+  t = t.replace(/\s*\|?(?:HU|RO|DE|FR|IT|ES|CA|UK|CZ|SK|PL|NL|BG|RS|GR|AT|HR|SI|TR)\|?\s*$/gi, '');
+  return t.trim() || raw;
+}
+
 export async function xtreamGetLive(
   username: string,
   password: string,
@@ -101,7 +110,7 @@ export async function xtreamGetLive(
     return {
       key,
       streamId: s.stream_id,
-      title: s.name || 'Ismeretlen csatorna',
+      title: cleanChannelTitle(s.name || 'Ismeretlen csatorna'),
       group,
       logo: s.stream_icon || '',
       status: `Élő · ${group}`,
