@@ -85,7 +85,7 @@ export default function SimpleCard({ type, title, subtitle, imageUrl, onPress, o
         </View>
 
         {/* â”€â”€â”€ Divider line (live only) â”€â”€â”€ */}
-        {isLive && <RuggedLine direction="horizontal" color="#000" strokeWidth={2} />}
+        {isLive && <View style={{ marginTop: -10, zIndex: 1 }}><RuggedLine direction="horizontal" color="#000" strokeWidth={2} /></View>}
 
         {/* â”€â”€â”€ Meta area â”€â”€â”€ */}
         <View style={[isLive ? s.metaLive : s.meta, focused && (isLive ? s.metaFocusedLive : s.metaFocused)]} testID={`card-meta-${type}`}>
@@ -153,8 +153,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 8,
-    borderWidth: 1,
-    borderColor: '#000',
+    borderWidth: 0,
+    borderColor: 'transparent',
     overflow: 'hidden',
     width: '100%',
   },

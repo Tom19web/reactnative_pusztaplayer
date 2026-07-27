@@ -96,3 +96,27 @@ export async function recommendByEmbedding(
     return [];
   }
 }
+
+export interface EpisodePlot {
+  title: string;
+  plot: string;
+  air_date: string;
+}
+
+export async function fetchEpisodePlot(
+  seriesId: number,
+  season: number,
+  episode: number,
+): Promise<EpisodePlot | null> {
+  try {
+    const res = await fetch(
+      `${SEMANTIC_API}/api/v1/episodes/plot?series_id=${seriesId}&season=${season}&episode=${episode}`,
+      { headers: { 'User-Agent': 'PusztaPlayer v1.0' } },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.title || data.plot ? data : null;
+  } catch {
+    return null;
+  }
+}

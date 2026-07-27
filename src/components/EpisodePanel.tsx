@@ -5,6 +5,7 @@ import { xtreamGetSeriesInfo, buildEpisodeUrl } from '../services/xtreamApi';
 import { loadXtreamCredentials } from '../services/storage';
 import { COLORS, FONT, SPACING, SIZES } from '../constants';
 import TFPressable from './TFPressable';
+import { fetchEpisodePlot, EpisodePlot } from '../services/aiProxy';
 
 interface EpisodePanelProps {
   seriesId: number;
@@ -19,6 +20,7 @@ export default function EpisodePanel({ seriesId, title, onPlayEpisode, onBack }:
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seriesInfo, setSeriesInfo] = useState<XtreamSeriesInfo | null>(null);
+  const [epPlots, setEpPlots] = useState<Record<string, EpisodePlot | null>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +52,21 @@ export default function EpisodePanel({ seriesId, title, onPlayEpisode, onBack }:
   const info = seriesInfo?.info;
   const seasonKeys = Object.keys(seasons);
   if (!seasonKeys.length) return <Text style={styles.muted}>Nincsenek epizódok.</Text>;
+
+  useEffect(() => {
+    if (!expandedSeason || !seasons[expandedSeason]) return;
+    let cancelled = false;
+    (async () => {
+      const eps = seasons[expandedSeason];
+      for (const ep of eps) {
+        const key = `${expandedSeason}_${ep.episode_num}`;
+        if (epPlots[key] !== undefined) continue;
+        const plotData = await fetchEpisodePlot(seriesId, parseInt(expandedSeason), ep.episode_num || 0);
+        if (!cancelled) setEpPlots(prev => ({ ...prev, [key]: plotData }));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [expandedSeason]);
 
   const cover = info?.cover || info?.backdrop_path?.[0];
   const genre = info?.genre || '';
@@ -128,7 +145,14 @@ export default function EpisodePanel({ seriesId, title, onPlayEpisode, onBack }:
                     <View style={styles.epBadge}>
                       <Text style={styles.epBadgeText}>S{seasonNum.padStart(2, '0')}E{String(ep.episode_num ?? 0).padStart(2, '0')}</Text>
                     </View>
-                    <Text style={styles.epTitle} numberOfLines={2}>{ep.title || `Epizód ${ep.episode_num}`}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.epTitle} numberOfLines={2}>{ep.title || `Epizód ${ep.episode_num}`}</Text>
+                      {(() => {
+                        const pk = `${seasonNum}_${ep.episode_num}`;
+                        const pd = epPlots[pk];
+                        return pd?.plot ? <Text style={styles.epPlot} numberOfLines={3}>{pd.plot}</Text> : null;
+                      })()}
+                    </View>
                   </TFPressable>
                 );
               })}
@@ -202,4 +226,5 @@ const styles = StyleSheet.create({
   epBadge: { backgroundColor: COLORS.panel2, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
   epBadgeText: { color: COLORS.cyan, fontSize: FONT.xs, fontWeight: '700' },
   epTitle: { color: COLORS.text, fontSize: FONT.sm, flex: 1 },
+  epPlot: { color: COLORS.muted, fontSize: FONT.xs - 2, marginTop: 4, lineHeight: 14 },
 });

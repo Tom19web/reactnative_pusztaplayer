@@ -89,6 +89,15 @@ export function usePlayerContent(
           setCurrentEpIdx(allEps.findIndex(e => e.key === contentId));
           setAllSeasonsFlat(allEps);
 
+          // Set series-level info as vodInfo for display in player controls
+          setVodInfo({
+            plot: data.info?.plot || '',
+            cast: data.info?.cast || '',
+            genre: data.info?.genre || '',
+            rating: data.info?.rating || '',
+            director: data.info?.director || '',
+          });
+
           // Mass-cache all episode URLs so they survive cold starts
           allEps.forEach(ep => {
             saveEpisodeUrl(ep.key, buildEpisodeUrl(creds.username, creds.password, ep.id, ep.ext), ep.title);

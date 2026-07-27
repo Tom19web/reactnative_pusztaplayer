@@ -245,6 +245,22 @@ function PlayerControls({
               ))}
             </View>
           </ScrollView>
+          {(vodPlot || vodDirector || vodCast) && (
+            <View style={styles.movieDetailRow}>
+              <View style={styles.moviePlotCol}>
+                <Text style={[styles.vodSectionLabel, sF(styles.vodSectionLabel.fontSize)]}>Tartalom:</Text>
+                <Text style={[styles.vodPlot, sF(styles.vodPlot.fontSize)]} numberOfLines={5}>{vodPlot || 'Nincs leírás.'}</Text>
+              </View>
+              <View style={styles.movieMetaCol}>
+                {vodDirector ? <View style={styles.metaItem}><Text style={[styles.vodMetaLabel, sF(styles.vodMetaLabel.fontSize)]}>Rendező:</Text><Text style={[styles.vodMeta, sF(styles.vodMeta.fontSize)]} numberOfLines={2}>{vodDirector}</Text></View> : null}
+                {vodCast ? <View style={styles.metaItem}><Text style={[styles.vodMetaLabel, sF(styles.vodMetaLabel.fontSize)]}>Szereplők:</Text><Text style={[styles.vodMeta, sF(styles.vodMeta.fontSize)]} numberOfLines={3}>{vodCast}</Text></View> : null}
+                <View style={styles.metaRow}>
+                  {vodGenre ? <View style={styles.tagBox}><Text style={styles.tagText}>{'\uD83C\uDFAD'} {vodGenre}</Text></View> : null}
+                  {vodRating ? <View style={styles.tagBox}><Text style={styles.tagRating}>{'\u2B50'} {vodRating}</Text></View> : null}
+                </View>
+              </View>
+            </View>
+          )}
         </View>
       );
     }
