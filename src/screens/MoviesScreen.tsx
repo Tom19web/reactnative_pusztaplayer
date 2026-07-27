@@ -2,6 +2,7 @@
 import { View, Text, ScrollView, StyleSheet, BackHandler, Animated } from 'react-native';
 import { useCore, useToggleWatchLater, useWatchLater, useFavorites, useToggleFavorite } from '../store/AppContext';
 import SimpleCard from '../components/SimpleCard';
+import TFPressable from '../components/TFPressable';
 import ShadowWrapper from '../components/ShadowWrapper';
 import RuggedBorder from '../components/RuggedBorder';
 import SoundEffect from '../components/SoundEffect';
@@ -14,6 +15,7 @@ import { Movie } from '../types';
 import { COLORS, FONT, SPACING } from '../constants';
 import { getAllMoods, matchesMood } from '../constants/moods';
 import { useAIMoods } from '../hooks/useAIMoods';
+import { semanticSearch, type SemanticResult } from '../services/aiProxy';
 
 const CARD_W = 110;
 const CARD_GAP = 8;
@@ -36,6 +38,8 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
   const [showFilter, setShowFilter] = useState<'group'|'year'|'genre'|'sort'|null>(null);
   const [page, setPage] = useState(0);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [semanticLoading, setSemanticLoading] = useState(false);
+  const [semanticMatches, setSemanticMatches] = useState<Array<{key: string; title: string; type: string; similarity: number}>>([]);
 
   const handlePlay = useCallback(() => {
     if (selectedMovie) { onPlayContent(selectedMovie.key); setSelectedMovie(null); }
@@ -72,6 +76,26 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
     });
     return () => h.remove();
   }, [onBack, selectedMovie, showFilter]);
+
+  useEffect(() => {
+    if (!searchTerm || searchTerm.length < 3) { setSemanticMatches([]); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setSemanticLoading(true);
+      const results = await semanticSearch(searchTerm, 8);
+      if (cancelled) return;
+      const movies = playlist?.movies || [];
+      const matched = results
+        .filter(r => movies.some(m => m.title.toLowerCase() === r.title.toLowerCase()))
+        .map(r => {
+          const m = movies.find(m => m.title.toLowerCase() === r.title.toLowerCase())!;
+          return { key: m.key, title: m.title, type: m.type, similarity: Math.round(r.similarity * 100) };
+        });
+      setSemanticMatches(matched);
+      setSemanticLoading(false);
+    }, 600);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [searchTerm, playlist]);
 
   const movies = playlist?.movies || [];
   const movieGroups = playlist?.movieGroups || ['Összes film'];
@@ -154,6 +178,25 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
         </View>
         </>
       )}
+      {semanticMatches.length > 0 && (
+        <View style={styles.aiResults}>
+          <Text style={styles.aiResultsLabel}>{'\uD83E\uDD16'} AI tal{String.fromCharCode(225)}latok:</Text>
+          <View style={styles.aiResultsRow}>
+            {semanticMatches.map(m => (
+              <TFPressable key={m.key} style={styles.aiResultCard} focusedStyle={styles.aiResultCardFocus} onPress={() => {
+                const item = (playlist?.movies || []).find(x => x.key === m.key);
+                if (item) setSelectedMovie(item);
+              }}>
+                <Text style={styles.aiResultTitle} numberOfLines={1}>{m.title}</Text>
+                <Text style={styles.aiResultPct}>{m.similarity}%</Text>
+              </TFPressable>
+            ))}
+          </View>
+        </View>
+      )}
+      {semanticLoading && searchTerm && searchTerm.length >= 3 && (
+        <Text style={styles.aiLoading}>{'\u23F3'} AI keres{String.fromCharCode(233)}s...</Text>
+      )}
       {pageItems.length===0 ? <View style={styles.empty}><Text style={styles.emptyText}>Nincs találat.</Text></View> : (
           <View style={styles.gridPanel}><View style={styles.gridWrap}>
             {pageItems.map((item)=><SimpleCard key={item.key} type="movie" title={item.title} subtitle={item.group||''} imageUrl={item.logo} onPress={() => setSelectedMovie(item)} onLongPress={() => onPlayContent(item.key)} isWatchLater={isWl(item.key)}/>)}
@@ -195,4 +238,12 @@ const styles = StyleSheet.create({
   empty:{flex:1,alignItems:'center',justifyContent:'center',padding:SPACING.xl},emptyText:{color:COLORS.muted,fontSize:FONT.md},
   aiProgressWrap:{height:3,backgroundColor:'rgba(255,255,255,0.06)',borderRadius:2,marginBottom:SPACING.xs,overflow:'hidden'},
   aiProgressBar:{height:3,backgroundColor:COLORS.cyan,borderRadius:2},
+  aiResults:{marginBottom:SPACING.sm,padding:SPACING.sm,backgroundColor:'rgba(0,255,255,0.06)',borderRadius:8,borderWidth:1,borderColor:'rgba(0,255,255,0.15)'},
+  aiResultsLabel:{color:COLORS.cyan,fontSize:FONT.sm,fontFamily:'Bangers-Regular',letterSpacing:0.5,marginBottom:SPACING.xs},
+  aiResultsRow:{flexDirection:'row',flexWrap:'wrap',gap:6},
+  aiResultCard:{minWidth:90,maxWidth:'30%',backgroundColor:COLORS.panel2,borderRadius:6,padding:6,borderWidth:1,borderColor:'transparent'},
+  aiResultCardFocus:{borderColor:COLORS.yellow,backgroundColor:COLORS.panel},
+  aiResultTitle:{fontSize:9,color:COLORS.text,lineHeight:11},
+  aiResultPct:{fontSize:9,color:COLORS.cyan,fontWeight:'700',marginTop:2},
+  aiLoading:{color:COLORS.muted,fontSize:FONT.sm,textAlign:'center',marginBottom:SPACING.sm},
 });

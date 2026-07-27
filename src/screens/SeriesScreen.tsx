@@ -16,6 +16,8 @@ import { Series } from '../types';
 import { COLORS, FONT, SPACING } from '../constants';
 import { getAllMoods, matchesMood } from '../constants/moods';
 import { useAIMoods } from '../hooks/useAIMoods';
+import { semanticSearch } from '../services/aiProxy';
+import TFPressable from '../components/TFPressable';
 
 const CARD_W = 110;
 const CARD_GAP = 8;
@@ -39,6 +41,8 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
   const [page, setPage] = useState(0);
   const [showEpisodes, setShowEpisodes] = useState<Series | null>(null);
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null);
+  const [semanticLoading, setSemanticLoading] = useState(false);
+  const [semanticMatches, setSemanticMatches] = useState<Array<{key: string; title: string; type: string; similarity: number}>>([]);
 
   const handleClose = useCallback(() => setSelectedSeries(null), []);
 
@@ -76,6 +80,26 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
     });
     return () => h.remove();
   }, [onBack, showEpisodes, selectedSeries, showFilter]);
+
+  useEffect(() => {
+    if (!searchTerm || searchTerm.length < 3) { setSemanticMatches([]); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setSemanticLoading(true);
+      const results = await semanticSearch(searchTerm, 8);
+      if (cancelled) return;
+      const series = playlist?.series || [];
+      const matched = results
+        .filter(r => series.some(s => s.title.toLowerCase() === r.title.toLowerCase()))
+        .map(r => {
+          const s = series.find(s => s.title.toLowerCase() === r.title.toLowerCase())!;
+          return { key: s.key, title: s.title, type: s.type, similarity: Math.round(r.similarity * 100) };
+        });
+      setSemanticMatches(matched);
+      setSemanticLoading(false);
+    }, 600);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [searchTerm, playlist]);
 
   useEffect(() => { setPage(0); }, [activeGroup, activeYear, activeMood, activeSort, searchTerm]);
 
@@ -175,6 +199,25 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
           <View style={[styles.aiProgressBar, { width: `${Math.round(aiProgress * 100)}%` }]} />
         </View>
       )}
+      {semanticMatches.length > 0 && (
+        <View style={styles.aiResults}>
+          <Text style={styles.aiResultsLabel}>{'\uD83E\uDD16'} AI tal{String.fromCharCode(225)}latok:</Text>
+          <View style={styles.aiResultsRow}>
+            {semanticMatches.map(m => (
+              <TFPressable key={m.key} style={styles.aiResultCard} focusedStyle={styles.aiResultCardFocus} onPress={() => {
+                const item = (playlist?.series || []).find(x => x.key === m.key);
+                if (item) setSelectedSeries(item);
+              }}>
+                <Text style={styles.aiResultTitle} numberOfLines={1}>{m.title}</Text>
+                <Text style={styles.aiResultPct}>{m.similarity}%</Text>
+              </TFPressable>
+            ))}
+          </View>
+        </View>
+      )}
+      {semanticLoading && searchTerm && searchTerm.length >= 3 && (
+        <Text style={styles.aiLoading}>{'\u23F3'} AI keres{String.fromCharCode(233)}s...</Text>
+      )}
       {pageItems.length===0 ? <View style={styles.empty}><Text style={styles.emptyText}>Nincs találat.</Text></View> : (
         <View style={styles.gridPanel}><View style={styles.gridWrap}>
           {pageItems.map((item)=><SimpleCard key={item.key} type="series" title={item.title} subtitle={item.group||''} imageUrl={item.logo} onPress={() => setSelectedSeries(item)} onLongPress={() => onPlayContent(item.key)} isWatchLater={isWl(item.key)}/>)}
@@ -218,4 +261,12 @@ const styles = StyleSheet.create({
   epPanel:{flex:1,margin:SPACING.md},
   aiProgressWrap:{height:4,backgroundColor:'rgba(0,255,255,0.15)',marginBottom:SPACING.sm,borderRadius:2,overflow:'hidden'},
   aiProgressBar:{height:4,backgroundColor:COLORS.cyan,borderRadius:2},
+  aiResults:{marginBottom:SPACING.sm,padding:SPACING.sm,backgroundColor:'rgba(0,255,255,0.06)',borderRadius:8,borderWidth:1,borderColor:'rgba(0,255,255,0.15)'},
+  aiResultsLabel:{color:COLORS.cyan,fontSize:FONT.sm,fontFamily:'Bangers-Regular',letterSpacing:0.5,marginBottom:SPACING.xs},
+  aiResultsRow:{flexDirection:'row',flexWrap:'wrap',gap:6},
+  aiResultCard:{minWidth:90,maxWidth:'30%',backgroundColor:COLORS.panel2,borderRadius:6,padding:6,borderWidth:1,borderColor:'transparent'},
+  aiResultCardFocus:{borderColor:COLORS.yellow,backgroundColor:COLORS.panel},
+  aiResultTitle:{fontSize:9,color:COLORS.text,lineHeight:11},
+  aiResultPct:{fontSize:9,color:COLORS.cyan,fontWeight:'700',marginTop:2},
+  aiLoading:{color:COLORS.muted,fontSize:FONT.sm,textAlign:'center',marginBottom:SPACING.sm},
 });

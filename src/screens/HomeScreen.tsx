@@ -16,6 +16,7 @@ import { useRecommended, usePopular } from '../hooks/useRecommendations';
 import { useAIRecommend } from '../hooks/useAIRecommend';
 import { COLORS, FONT, SPACING, USER_STATUS_LOGGED_IN } from '../constants';
 import type { RouteName, Movie, Series } from '../types';
+import { fetchSimilar, type EmbeddingRecommendation } from '../services/aiProxy';
 
 function sample<T>(arr: T[], n: number): T[] {
   const copy = [...arr];
@@ -96,6 +97,20 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
       const s = playlist?.series?.find(s => s.seriesId === item.seriesId);
       if (s) setTimeout(() => setSelectedSeries(s), 100);
     }
+  }, [playlist]);
+
+  const [dailyPicks, setDailyPicks] = useState<EmbeddingRecommendation[]>([]);
+  const [dailyLoading, setDailyLoading] = useState(false);
+
+  useEffect(() => {
+    const movies = playlist?.movies;
+    if (!movies || movies.length === 0 || dailyPicks.length > 0) return;
+    setDailyLoading(true);
+    const seed = movies[Math.floor(Math.random() * movies.length)];
+    fetchSimilar(seed.streamId, 'movie', 5).then(items => {
+      setDailyPicks(items);
+      setDailyLoading(false);
+    });
   }, [playlist]);
 
   useEffect(() => {
@@ -224,6 +239,33 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
             {popular.items.slice(0, 5).map(item => (
               <SimpleCard key={item.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={item.group || ''} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
             ))}
+          </View>
+        </View>
+      )}
+
+      {dailyPicks.length > 0 && (
+        <View style={[styles.section, { marginBottom: SPACING.md + 4 }]}>
+          <RuggedBorder color={COLORS.black} wobbleFactor={0.7} minDimension={80} strokeWidth={4}>
+            <View style={{ paddingHorizontal: 3 }}>
+              <View style={styles.yellowHeader}>
+                <DotPattern dotColor="#000" dotOpacity={0.12} spacing={10} />
+                <Text style={styles.yellowHeaderText}>{'\uD83D\uDCC5'} Napi v{String.fromCharCode(225)}logat{String.fromCharCode(225)}s</Text>
+              </View>
+            </View>
+          </RuggedBorder>
+          <View style={[styles.gridWrap, { marginTop: SPACING.xs * 4 }]}>
+            {dailyPicks.slice(0, 5).map(rec => {
+              const movie = playlist?.movies?.find(m => m.streamId === parseInt(rec.key, 10));
+              const series = playlist?.series?.find(s => s.seriesId === parseInt(rec.key, 10));
+              const item = movie || series;
+              if (!item) return null;
+              return (
+                <SimpleCard key={rec.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={`${Math.round(rec.similarity * 100)}% ${rec.reason || ''}`} imageUrl={item.logo || ''} onPress={() => {
+                  if (movie) setSelectedMovie(movie);
+                  else if (series) setSelectedSeries(series);
+                }} isFav={favorites.some(f => f.key === item.key)} />
+              );
+            })}
           </View>
         </View>
       )}
