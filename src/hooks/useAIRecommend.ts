@@ -40,18 +40,22 @@ export function useAIRecommend(
       try {
         const recs = await recommendByEmbedding(historyItems, 10);
         if (recs.length > 0) {
-          // Map backend keys (streamId/seriesId) to playlist keys
+          const seen = new Set<string>();
           const mapped = recs
             .map(r => {
               const id = parseInt(r.key, 10);
+              const isEp = r.type === 'episode';
               const match =
                 playlist.movies?.find(m => m.streamId === id) ||
                 playlist.series?.find(s => s.seriesId === id);
-              return match ? {
+              if (!match || seen.has(match.key)) return null;
+              seen.add(match.key);
+              const epPrefix = isEp ? r.title : '';
+              return {
                 key: match.key,
-                reason: `${r.reason || r.description?.slice(0, 30) || 'AI'}`,
+                reason: epPrefix || r.reason || r.description?.slice(0, 30) || 'AI',
                 similarity: Math.round(r.similarity * 100),
-              } : null;
+              };
             })
             .filter(Boolean) as AIRecItem[];
           if (mapped.length > 0) setItems(mapped);
