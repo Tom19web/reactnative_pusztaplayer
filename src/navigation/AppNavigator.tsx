@@ -23,6 +23,7 @@ import { flush as syncFlush, fetchProfiles, setProfilesVersion } from '../servic
 import { clearXtreamCredentials } from '../services/storage';
 import { COLORS, SIZES, USER_STATUS_LOGGED_IN, DEFAULT_PLAYER_CONTENT_ID, useLiveFormat } from '../constants';
 import { useChannelNavigation } from '../hooks/useChannelNavigation';
+import { dedupLiveChannels } from '../utils/dedupChannels';
 import type { RouteName } from '../types';
 
 export default function AppNavigator() {
@@ -149,7 +150,8 @@ export default function AppNavigator() {
 
   const { width: screenW } = useWindowDimensions();
   const contentWidth = screenW - SIZES.sidebarWidth - 32;
-  const { prev, next } = useChannelNavigation(playlist?.liveChannels || [], playerContentId, playContent);
+  const dedupedLive = useMemo(() => dedupLiveChannels(playlist?.liveChannels || []), [playlist?.liveChannels]);
+  const { prev, next } = useChannelNavigation(dedupedLive, playerContentId, playContent);
 
   const renderScreen = () => {
     switch (currentRoute) {

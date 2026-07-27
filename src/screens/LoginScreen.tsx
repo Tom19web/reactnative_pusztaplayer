@@ -7,6 +7,7 @@ import { USER_STATUS_LOGGED_IN } from '../constants';
 import { useSetUser, useSetPlaylist } from '../store/AppContext';
 import { xtreamLogin } from '../services/playlistService';
 import { saveXtreamCredentials } from '../services/storage';
+import { registerSession } from '../services/liveProxy';
 import { requestQRCode, pollQRCode, stopPolling } from '../services/qrAuth';
 let isTV = false;
 try { isTV = Platform.isTV; } catch {}
@@ -78,6 +79,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             const playlist = await xtreamLogin(xtreamUser, xtreamPass);
             if (!mountedRef.current) return;
             saveXtreamCredentials(xtreamUser, xtreamPass, { email: userEmail, nickname, phone, apiKey });
+            registerSession(xtreamUser, xtreamPass, apiKey || '');
             setUser(xtreamUser, USER_STATUS_LOGGED_IN, userEmail || '', nickname || '', phone || '', apiKey || '');
             setPlaylist(playlist);
             if (timerRef.current) clearInterval(timerRef.current);
