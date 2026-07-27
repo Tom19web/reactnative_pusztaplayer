@@ -105,7 +105,6 @@ export default function VideoPlayer({
   const videoRef = useRef<VideoRef>(null);
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
-  const [buffering, setBuffering] = useState(false);
   const [progress, setProgress] = useState({ currentTime: 0, duration: 0 });
   const progressRef = useRef({ currentTime: 0, duration: 0 });
   const [fadeControls, setFadeControls] = useState(false);
@@ -339,24 +338,17 @@ export default function VideoPlayer({
         }}
         onLoadStart={() => {}}
         onLoad={(data: OnLoadData) => {
-          setBuffering(false);
           cancelReconnect();
           if (showLogoTransition) finishTransition();
           onDimensions?.(data.naturalSize?.width || 0, data.naturalSize?.height || 0);
         }}
         onBuffer={(e: OnBufferData) => {
-          setBuffering(e.isBuffering);
           if (e.isBuffering) scheduleReconnect();
           else cancelReconnect();
         }}
         selectedTextTrack={selectedTextTrack}
         selectedAudioTrack={selectedAudioTrack}
       />
-      {buffering && (
-        <View style={styles.bufferingOverlay} pointerEvents="none">
-          <Text style={styles.bufferingText}>{'\u23F3'}</Text>
-        </View>
-      )}
       {!Platform.isTV && fadeControls && (
         <Pressable style={styles.touchCatcher} onPress={resetTimer} />
       )}
@@ -433,8 +425,6 @@ const styles = StyleSheet.create({
   videoWrapper: { flex: 1 },
   video: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   controlsOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  bufferingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  bufferingText: { fontSize: 40, opacity: 0.6 },
   touchCatcher: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, backgroundColor: 'transparent' },
   logoTransition: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', zIndex: 60 },
   logoTransitionInner: { alignItems: 'center', gap: 16 },

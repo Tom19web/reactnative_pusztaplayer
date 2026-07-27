@@ -10,10 +10,11 @@ import DotPattern from '../components/DotPattern';
 import FilterBtn from '../components/FilterBtn';
 import FilterItem from '../components/FilterItem';
 import ShadowWrapper from '../components/ShadowWrapper';
-import { radioStations, RadioStation } from '../constants/radioStations';
+import { radioStations, RadioStation, USE_RADIO_API } from '../constants/radioStations';
 import { COLORS, FONT, SPACING } from '../constants';
 import { useCore } from '../store/AppContext';
 import { getRadioPlayCounts, incrementRadioPlay, loadRadioRecents, saveRadioRecents } from '../services/radioStorage';
+import { fetchRadioStations } from '../services/radioService';
 
 interface Props {
   onPlayContent: (key: string) => void;
@@ -35,13 +36,29 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
   const [recents, setRecents] = useState<RadioStation[]>([]);
   const [activeSort, setActiveSort] = useState('Név ↑');
   const [showSort, setShowSort] = useState(false);
+  const [stations, setStations] = useState<RadioStation[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       const counts = await getRadioPlayCounts();
       setPlayCounts(counts);
+
+      let list: RadioStation[] = [];
+      if (USE_RADIO_API) {
+        try {
+          list = await fetchRadioStations();
+        } catch {
+          list = radioStations; // fallback to hardcoded
+        }
+      } else {
+        list = radioStations;
+      }
+      setStations(list);
+      setLoading(false);
+
       const recentKeys = await loadRadioRecents();
-      const recentStations = recentKeys.map(k => radioStations.find(s => s.key === k)).filter(Boolean) as RadioStation[];
+      const recentStations = recentKeys.map(k => list.find(s => s.key === k)).filter(Boolean) as RadioStation[];
       if (recentStations.length > 0) setRecents(recentStations);
     })();
   }, []);
@@ -49,14 +66,14 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
   useEffect(() => { setPage(0); }, [searchTerm, activeSort]);
 
   const sorted = useMemo(() => {
-    const list = [...radioStations];
+    const list = [...stations];
     if (activeSort === 'Név ↑') {
       list.sort((a, b) => a.name.localeCompare(b.name));
     } else {
       list.sort((a, b) => b.name.localeCompare(a.name));
     }
     return list;
-  }, [activeSort]);
+  }, [activeSort, stations]);
 
   const filtered = useMemo(() => {
     if (!searchTerm) return sorted;
@@ -95,6 +112,16 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
 
   if (playing) {
     return <RadioPlayer station={playing} onBack={handlePlayerBack} />;
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>{'\u23F3'} Rádiócsatornák betöltése...</Text>
+        </View>
+      </View>
+    );
   }
 
   return (

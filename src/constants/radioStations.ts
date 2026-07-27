@@ -3,7 +3,10 @@ export interface RadioStation {
   name: string;
   streamUrl: string;
   logo: string;
+  metadataUrl?: string;
 }
+
+export const USE_RADIO_API = true;
 
 export const radioStations: RadioStation[] = [
   { key: 'radio_0', name: 'Aktív Rádió 92.2', streamUrl: 'http://aktivradio.hu:8000/aktiv.mp3', logo: 'http://www.popularis.hu/radio/aktiv.png' },
