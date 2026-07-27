@@ -15,7 +15,7 @@ import { useCore, useFavorites, useHistory, useClearHistory, useProfiles, useBac
 import { useRecommended, usePopular } from '../hooks/useRecommendations';
 import { useAIRecommend } from '../hooks/useAIRecommend';
 import { COLORS, FONT, SPACING, USER_STATUS_LOGGED_IN } from '../constants';
-import type { RouteName, Movie, Series } from '../types';
+import type { Movie, Series } from '../types';
 import { fetchSimilar, type EmbeddingRecommendation } from '../services/aiProxy';
 
 function sample<T>(arr: T[], n: number): T[] {
@@ -100,17 +100,15 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
   }, [playlist]);
 
   const [dailyPicks, setDailyPicks] = useState<EmbeddingRecommendation[]>([]);
-  const [dailyLoading, setDailyLoading] = useState(false);
 
   useEffect(() => {
     const movies = playlist?.movies;
     if (!movies || movies.length === 0 || dailyPicks.length > 0) return;
-    setDailyLoading(true);
     const seed = movies[Math.floor(Math.random() * movies.length)];
-    fetchSimilar(seed.streamId, 'movie', 5).then(items => {
-      setDailyPicks(items);
-      setDailyLoading(false);
-    });
+    fetchSimilar(seed.streamId, 'movie', 5)
+      .then(items => { setDailyPicks(items); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playlist]);
 
   useEffect(() => {
@@ -123,7 +121,7 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
       return true;
     });
     return () => handler.remove();
-  }, [selectedMovie, selectedSeries, showEpisodes]);
+  }, [selectedMovie, selectedSeries, showEpisodes, clearBgAudio]);
 
   if (showExit) {
     return (
@@ -277,14 +275,12 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
               <View style={styles.yellowHeader}>
                 <DotPattern dotColor="#000" dotOpacity={0.12} spacing={10} />
                 <Text style={styles.yellowHeaderText}>Utolj{String.fromCharCode(225)}ra megtekintett </Text>
-              {watchHistory.length > 0 && (
                 <ShadowWrapper offset={4} borderRadius={4}>
                   <TFPressable style={styles.clearBtn} focusedStyle={styles.clearBtnFocus} onPress={clearHistory}>
                     <Text style={styles.clearBtnText}>{'\u00D7'} törlés</Text>
                   </TFPressable>
                 </ShadowWrapper>
-              )}
-            </View>
+              </View>
           </View>
           </RuggedBorder>
           {liveHistory.length > 0 && (
@@ -292,7 +288,7 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
               <Text style={styles.subHeader}>{'\uD83D\uDCFA'} LIVE TV</Text>
               <View style={styles.gridWrap}>
                 {liveHistory.slice(0, 5).map(item => (
-                  <SimpleCard key={item.key} type="live" title={item.title} subtitle={item.group || ''} imageUrl={item.logo} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
+                  <SimpleCard key={item.key} type="live" title={item.title} subtitle={item.group || ''} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
                 ))}
               </View>
             </View>
@@ -304,7 +300,7 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
                 {mediaHistory.slice(0, 5).map(item => {
                   const prog = item.duration > 0 ? item.position / item.duration : undefined;
                   return (
-                    <SimpleCard key={item.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={item.group || ''} imageUrl={item.logo} onPress={() => onPlayContent(item.key)} progress={prog} isFav={favorites.some(f => f.key === item.key)} />
+                    <SimpleCard key={item.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={item.group || ''} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} progress={prog} isFav={favorites.some(f => f.key === item.key)} />
                   );
                 })}
               </View>
@@ -326,7 +322,7 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
           </RuggedBorder>
           <View style={[styles.gridWrap, { marginTop: SPACING.xs * 4 }]}>
             {liveCards.slice(0, 5).map(item => (
-              <SimpleCard key={item.key} type="live" title={item.title} subtitle={item.group || ''} imageUrl={item.logo} onPress={() => onPlayContent(item.key)} />
+              <SimpleCard key={item.key} type="live" title={item.title} subtitle={item.group || ''} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} />
             ))}
           </View>
         </View>

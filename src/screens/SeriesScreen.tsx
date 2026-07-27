@@ -11,13 +11,13 @@ import DotPattern from '../components/DotPattern';
 import FilterBtn from '../components/FilterBtn';
 import Pagination from '../components/Pagination';
 import FilterItem from '../components/FilterItem';
+import TFPressable from '../components/TFPressable';
 import { addSeriesEpisode } from '../services/playlistService';
 import { Series } from '../types';
 import { COLORS, FONT, SPACING } from '../constants';
 import { getAllMoods, matchesMood } from '../constants/moods';
 import { useAIMoods } from '../hooks/useAIMoods';
 import { semanticSearch } from '../services/aiProxy';
-import TFPressable from '../components/TFPressable';
 
 const CARD_W = 110;
 const CARD_GAP = 8;
@@ -187,7 +187,7 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
                 {filterOptions.map((opt:string) => {
                   const isActive = (showFilter==='group'&&opt===activeGroup)||(showFilter==='year'&&opt===activeYear)||(showFilter==='genre'&&opt===activeMood)||(showFilter==='sort'&&opt===activeSort);
                   return <FilterItem key={opt} label={opt} isActive={isActive}
-                    onPress={()=>{if(showFilter==='group')setActiveGroup(opt);if(showFilter==='year')setActiveYear(opt);if(showFilter==='genre')setActiveMood(opt);if(showFilter==='sort')setActiveSort(opt);setShowFilter(null);setPage(0);}} />;
+                    onPress={()=>{if(showFilter==='group')setActiveGroup(opt);if(showFilter==='year')setActiveYear(opt);if(showFilter==='genre')setActiveMood(opt);if(showFilter==='sort')setActiveSort(opt);setShowFilter(null);}} />;
                 })}
               </ScrollView>
             </ShadowWrapper>

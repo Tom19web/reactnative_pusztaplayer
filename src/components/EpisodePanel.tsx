@@ -3,7 +3,7 @@ import { View, Text, Image, ScrollView, StyleSheet } from 'react-native';
 import { XtreamEpisode, XtreamSeriesInfo } from '../types';
 import { xtreamGetSeriesInfo, buildEpisodeUrl } from '../services/xtreamApi';
 import { loadXtreamCredentials } from '../services/storage';
-import { COLORS, FONT, SPACING, SIZES } from '../constants';
+import { COLORS, FONT, SPACING } from '../constants';
 import TFPressable from './TFPressable';
 import { fetchEpisodePlot, EpisodePlot } from '../services/aiProxy';
 
@@ -51,14 +51,14 @@ export default function EpisodePanel({ seriesId, title, onPlayEpisode, onBack }:
     (async () => {
       const eps = seasons[expandedSeason];
       for (const ep of eps) {
-        const key = `${expandedSeason}_${ep.episode_num}`;
+        const key = `${seriesId}_${expandedSeason}_${ep.episode_num}`;
         if (epPlots[key] !== undefined) continue;
         const plotData = await fetchEpisodePlot(seriesId, parseInt(expandedSeason), ep.episode_num || 0);
         if (!cancelled) setEpPlots(prev => ({ ...prev, [key]: plotData }));
       }
     })();
     return () => { cancelled = true; };
-  }, [expandedSeason]);
+  }, [expandedSeason, seriesId]);
 
   if (loading) {
     return <Text style={styles.loading}>{'\u23F3'} Epizódok betöltése...</Text>;
@@ -148,7 +148,7 @@ export default function EpisodePanel({ seriesId, title, onPlayEpisode, onBack }:
                     <View style={{ flex: 1 }}>
                       <Text style={styles.epTitle} numberOfLines={2}>{ep.title || `Epizód ${ep.episode_num}`}</Text>
                       {(() => {
-                        const pk = `${seasonNum}_${ep.episode_num}`;
+                        const pk = `${seriesId}_${seasonNum}_${ep.episode_num}`;
                         const pd = epPlots[pk];
                         return pd?.plot ? <Text style={styles.epPlot} numberOfLines={3}>{pd.plot}</Text> : null;
                       })()}

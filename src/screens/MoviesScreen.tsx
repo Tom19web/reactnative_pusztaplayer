@@ -1,5 +1,5 @@
 ﻿import { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, BackHandler, Animated } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, BackHandler } from 'react-native';
 import { useCore, useToggleWatchLater, useWatchLater, useFavorites, useToggleFavorite } from '../store/AppContext';
 import SimpleCard from '../components/SimpleCard';
 import TFPressable from '../components/TFPressable';
@@ -15,7 +15,7 @@ import { Movie } from '../types';
 import { COLORS, FONT, SPACING } from '../constants';
 import { getAllMoods, matchesMood } from '../constants/moods';
 import { useAIMoods } from '../hooks/useAIMoods';
-import { semanticSearch, type SemanticResult } from '../services/aiProxy';
+import { semanticSearch } from '../services/aiProxy';
 
 const CARD_W = 110;
 const CARD_GAP = 8;
@@ -171,7 +171,7 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
               {filterOptions.map((opt:string) => {
                 const isActive = (showFilter==='group'&&opt===activeGroup)||(showFilter==='year'&&opt===activeYear)||(showFilter==='genre'&&opt===activeMood)||(showFilter==='sort'&&opt===activeSort);
                 return <FilterItem key={opt} label={opt} isActive={isActive}
-                  onPress={()=>{if(showFilter==='group')setActiveGroup(opt);if(showFilter==='year')setActiveYear(opt);if(showFilter==='genre')setActiveMood(opt);if(showFilter==='sort')setActiveSort(opt);setShowFilter(null);setPage(0);}} />;
+                  onPress={()=>{if(showFilter==='group')setActiveGroup(opt);if(showFilter==='year')setActiveYear(opt);if(showFilter==='genre')setActiveMood(opt);if(showFilter==='sort')setActiveSort(opt);setShowFilter(null);}} />;
               })}
             </ScrollView>
           </ShadowWrapper>

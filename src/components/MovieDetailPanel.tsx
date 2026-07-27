@@ -5,7 +5,7 @@ import RuggedBorder from './RuggedBorder';
 import SoundEffect from './SoundEffect';
 import { xtreamGetVodInfo } from '../services/xtreamApi';
 import { loadXtreamCredentials } from '../services/storage';
-import { COLORS, FONT, SPACING } from '../constants';
+import { COLORS } from '../constants';
 import { fetchSimilar, EmbeddingRecommendation } from '../services/aiProxy';
 
 interface MovieDetailPanelProps {
@@ -173,12 +173,13 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
                       focusedStyle={styles.similarCardFocus}
                       onPress={() => {
                         const isMovie = s.type === 'movie';
+                        const isSeries = s.type === 'series';
                         onOpenSimilar?.({
                           key: s.key,
                           title: s.title,
                           type: s.type,
                           streamId: isMovie ? parseInt(s.key, 10) : undefined,
-                          seriesId: !isMovie ? parseInt(s.key, 10) : undefined,
+                          seriesId: isSeries ? parseInt(s.key, 10) : undefined,
                         });
                       }}
                     >
