@@ -86,6 +86,18 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
     toggleWl({ key: selectedSeries.key, title: selectedSeries.title, type: 'series', group: selectedSeries.group || '', logo: selectedSeries.logo || '' });
   }, [selectedSeries, toggleWl]);
 
+  const handleOpenSimilar = useCallback((item: { key: string; title: string; type: string; streamId?: number; seriesId?: number }) => {
+    setSelectedMovie(null);
+    setSelectedSeries(null);
+    if (item.type === 'movie' && item.streamId) {
+      const m = playlist?.movies?.find(m => m.streamId === item.streamId);
+      if (m) setTimeout(() => setSelectedMovie(m), 100);
+    } else if (item.type === 'series' && item.seriesId) {
+      const s = playlist?.series?.find(s => s.seriesId === item.seriesId);
+      if (s) setTimeout(() => setSelectedSeries(s), 100);
+    }
+  }, [playlist]);
+
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (showEpisodes) { setShowEpisodes(null); return true; }
@@ -289,6 +301,7 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
           onToggleFav={handleMovieToggleFav}
           isWatchLater={isWl(selectedMovie.key)}
           onToggleWatchLater={handleMovieToggleWl}
+          onOpenSimilar={handleOpenSimilar}
         />
       )}
       {selectedSeries && (
@@ -301,6 +314,7 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
           onToggleFav={handleSeriesToggleFav}
           isWatchLater={isWl(selectedSeries.key)}
           onToggleWatchLater={handleSeriesToggleWl}
+          onOpenSimilar={handleOpenSimilar}
         />
       )}
       {showEpisodes && (

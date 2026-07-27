@@ -57,6 +57,14 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
     toggleWl({ key: selectedSeries.key, title: selectedSeries.title, type: 'series', group: selectedSeries.group || '', logo: selectedSeries.logo || '' });
   }, [selectedSeries, toggleWl]);
 
+  const handleOpenSimilar = useCallback((item: { key: string; title: string; type: string; streamId?: number; seriesId?: number }) => {
+    setSelectedSeries(null);
+    if (item.type === 'series' && item.seriesId) {
+      const s = playlist?.series?.find(s => s.seriesId === item.seriesId);
+      if (s) setTimeout(() => setSelectedSeries(s), 100);
+    }
+  }, [playlist]);
+
   useEffect(() => {
     const h = BackHandler.addEventListener('hardwareBackPress', () => {
       if (showFilter) { setShowFilter(null); return true; }
@@ -169,6 +177,7 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
         onToggleFav={handleToggleFav}
         isWatchLater={isWl(selectedSeries.key)}
         onToggleWatchLater={handleToggleWl}
+        onOpenSimilar={handleOpenSimilar}
       />
     )}
     </View>

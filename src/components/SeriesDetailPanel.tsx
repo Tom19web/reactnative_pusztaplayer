@@ -6,6 +6,7 @@ import SoundEffect from './SoundEffect';
 import { xtreamGetSeriesInfo } from '../services/xtreamApi';
 import { loadXtreamCredentials } from '../services/storage';
 import { COLORS, FONT, SPACING } from '../constants';
+import { fetchSimilar, EmbeddingRecommendation } from '../services/aiProxy';
 
 interface SeriesDetailPanelProps {
   seriesId?: number;
@@ -16,16 +17,18 @@ interface SeriesDetailPanelProps {
   onToggleFav?: () => void;
   isWatchLater?: boolean;
   onToggleWatchLater?: () => void;
+  onOpenSimilar?: (item: { key: string; title: string; type: string; streamId?: number; seriesId?: number }) => void;
 }
 
 interface SeriesInfo {
   plot: string; cast: string; genre: string; rating: string; director: string; year: string; cover: string; seasonCount: number;
 }
 
-export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpisodes, isFav, onToggleFav, isWatchLater, onToggleWatchLater }: SeriesDetailPanelProps) {
+export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpisodes, isFav, onToggleFav, isWatchLater, onToggleWatchLater, onOpenSimilar }: SeriesDetailPanelProps) {
   const [info, setInfo] = useState<SeriesInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [similar, setSimilar] = useState<EmbeddingRecommendation[]>([]);
   const epsBtnRef = useRef<View>(null);
 
   useEffect(() => {
@@ -59,6 +62,16 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
     const t = setTimeout(() => epsBtnRef.current?.focus(), 150);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (!seriesId || !onOpenSimilar) return;
+    let c = false;
+    (async () => {
+      const items = await fetchSimilar(seriesId, 'series', 5);
+      if (!c && items.length > 0) setSimilar(items);
+    })();
+    return () => { c = true; };
+  }, [seriesId, onOpenSimilar]);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const entryAnim = useRef(new Animated.Value(0)).current;
@@ -153,6 +166,35 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
                 </TFPressable>
               )}
             </View>
+
+            {similar.length > 0 && (
+              <View style={styles.similarSection}>
+                <View style={[styles.divider, { marginBottom: 4 }]} />
+                <Text style={styles.similarLabel}>Hasonl{String.fromCharCode(243)}k:</Text>
+                <View style={styles.similarRow}>
+                  {similar.map(s => (
+                    <TFPressable
+                      key={s.key}
+                      style={styles.similarCard}
+                      focusedStyle={styles.similarCardFocus}
+                      onPress={() => {
+                        const isMovie = s.type === 'movie';
+                        onOpenSimilar?.({
+                          key: s.key,
+                          title: s.title,
+                          type: s.type,
+                          streamId: isMovie ? parseInt(s.key, 10) : undefined,
+                          seriesId: !isMovie ? parseInt(s.key, 10) : undefined,
+                        });
+                      }}
+                    >
+                      <Text style={styles.similarTitle} numberOfLines={2}>{s.title}</Text>
+                      <Text style={styles.similarPct}>{Math.round(s.similarity * 100)}%</Text>
+                    </TFPressable>
+                  ))}
+                </View>
+              </View>
+            )}
           </ScrollView>
         </Animated.View>
         </RuggedBorder>
@@ -229,4 +271,15 @@ const styles = StyleSheet.create({
   btnWlActive: { borderColor: COLORS.cyan },
   btnWlFocus: { borderColor: COLORS.yellow, backgroundColor: COLORS.panel },
   btnWlText: { color: COLORS.text, fontSize: 10, fontWeight: '600', fontFamily: 'Poppins-Regular' },
+  similarSection: { marginTop: 8 },
+  similarLabel: { fontSize: 10, color: COLORS.yellow, fontFamily: 'Bangers-Regular', letterSpacing: 0.5, marginBottom: 4 },
+  similarRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  similarCard: {
+    flex: 1, minWidth: 80, maxWidth: '48%',
+    backgroundColor: COLORS.panel2, borderRadius: 6, padding: 6,
+    borderWidth: 1, borderColor: 'transparent',
+  },
+  similarCardFocus: { borderColor: COLORS.yellow, backgroundColor: COLORS.panel },
+  similarTitle: { fontSize: 8, color: COLORS.text, lineHeight: 10 },
+  similarPct: { fontSize: 9, color: COLORS.cyan, fontWeight: '700', marginTop: 2 },
 });

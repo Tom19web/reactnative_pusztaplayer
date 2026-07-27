@@ -77,6 +77,7 @@ export interface EmbeddingRecommendation {
   similarity: number;
   description: string;
   reason: string;
+  poster_url?: string;
 }
 
 export async function recommendByEmbedding(
@@ -118,5 +119,23 @@ export async function fetchEpisodePlot(
     return data.title || data.plot ? data : null;
   } catch {
     return null;
+  }
+}
+
+export async function fetchSimilar(
+  seedId: number,
+  seedType: 'movie' | 'series',
+  limit = 5,
+): Promise<EmbeddingRecommendation[]> {
+  try {
+    const res = await fetch(
+      `${SEMANTIC_API}/api/v1/recommend/similar?seed_id=${seedId}&seed_type=${seedType}&limit=${limit}`,
+      { headers: { 'User-Agent': 'PusztaPlayer v1.0' } },
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.recommendations || [];
+  } catch {
+    return [];
   }
 }

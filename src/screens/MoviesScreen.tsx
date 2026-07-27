@@ -53,6 +53,14 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
     toggleWl({ key: selectedMovie.key, title: selectedMovie.title, type: 'movie', group: selectedMovie.group || '', logo: selectedMovie.logo || '' });
   }, [selectedMovie, toggleWl]);
 
+  const handleOpenSimilar = useCallback((item: { key: string; title: string; type: string; streamId?: number; seriesId?: number }) => {
+    setSelectedMovie(null);
+    if (item.type === 'movie' && item.streamId) {
+      const m = playlist?.movies?.find(m => m.streamId === item.streamId);
+      if (m) setTimeout(() => setSelectedMovie(m), 100);
+    }
+  }, [playlist]);
+
   useEffect(() => { setPage(0); }, [activeGroup, activeYear, activeMood, activeSort, searchTerm]);
 
   useEffect(() => {
@@ -169,6 +177,7 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
         onToggleFav={handleToggleFav}
         isWatchLater={isWl(selectedMovie.key)}
         onToggleWatchLater={handleToggleWl}
+        onOpenSimilar={handleOpenSimilar}
       />
     )}
     </View>
