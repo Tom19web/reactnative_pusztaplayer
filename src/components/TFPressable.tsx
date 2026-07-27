@@ -1,5 +1,5 @@
 ﻿import { forwardRef, useRef } from 'react';
-import { Pressable, PressableProps, ViewStyle, StyleProp, View, Animated } from 'react-native';
+import { Pressable, PressableProps, ViewStyle, StyleProp, View, Animated, NativeSyntheticEvent, TargetedEvent } from 'react-native';
 import { useTVFocus } from '../hooks/useTVFocus';
 
 interface TFPressableProps extends PressableProps {
@@ -22,13 +22,13 @@ const TFPressable = forwardRef<View, TFPressableProps>(function TFPressable({
   const { isFocused, onFocus, onBlur } = useTVFocus();
   const animScale = useRef(new Animated.Value(1)).current;
 
-  const handleFocus = (e: any) => {
+  const handleFocus = (e: NativeSyntheticEvent<TargetedEvent>) => {
     Animated.spring(animScale, { toValue: scaleFactor, speed: 20, bounciness: 4, useNativeDriver: true }).start();
     onFocus(e);
     onFocusProp?.(e);
   };
 
-  const handleBlur = (e: any) => {
+  const handleBlur = (e: NativeSyntheticEvent<TargetedEvent>) => {
     Animated.spring(animScale, { toValue: 1.0, speed: 20, bounciness: 4, useNativeDriver: true }).start();
     onBlur(e);
     onBlurProp?.(e);

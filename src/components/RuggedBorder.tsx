@@ -1,5 +1,5 @@
 import { ReactNode, useState, useRef, useMemo, useCallback } from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, ViewStyle, LayoutChangeEvent } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 interface RuggedBorderProps {
@@ -103,7 +103,7 @@ export default function RuggedBorder({ children, color, style, width: staticW, h
     return buildPath(dims.w, dims.h, seed, wobbleFactor, minDimension);
   }, [dims.w, dims.h, seed, wobbleFactor, minDimension]);
 
-  const handleLayout = useCallback((e: any) => {
+  const handleLayout = useCallback((e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     if (width > 0 && height > 0) {
       if (width !== prevDims.current.w || height !== prevDims.current.h) {

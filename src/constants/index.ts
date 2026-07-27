@@ -27,15 +27,11 @@ function s(value: number): number {
 }
 
 // ─── Környezeti változók (.env fájlból) ─────────────
+import { getConfig } from '../services/config';
+
 // A react-native-config natív oldalról tölti be; ha nincs .env fájl,
 // a hardcoded alapértékek használódnak.
-// Windows: react-native-config nem elérhető → üres objektum fallback
-let Config: any = {};
-try {
-  Config = require('react-native-config');
-  if (Config.default) Config = Config.default;
-  if (Config.Config) Config = Config.Config;
-} catch {};
+const Config = getConfig();
 
 // ─── Xtream szerver ──────────────────────────────────
 export const XTREAM_SERVER = (Config && Config.XTREAM_SERVER) || 'https://live.pusztaplay.eu';

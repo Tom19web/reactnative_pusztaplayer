@@ -1,10 +1,9 @@
 import { fetchWithTimeout } from './fetchWithTimeout';
+import { getConfig } from './config';
 
-let Config: any = {};
-try { Config = require('react-native-config'); if (Config.default) Config = Config.default; if (Config.Config) Config = Config.Config; } catch {}
-
-const AI_PROXY_URL = (Config && Config.AI_PROXY_URL) || 'https://live.pusztaplay.eu/ai';
-const AI_PROXY_KEY = (Config && Config.AI_PROXY_KEY) || '';
+const Config = getConfig();
+const AI_PROXY_URL = Config.AI_PROXY_URL || 'https://live.pusztaplay.eu/ai';
+const AI_PROXY_KEY = Config.AI_PROXY_KEY || '';
 
 export async function aiSearchQuery(
   query: string,
