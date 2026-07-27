@@ -15,6 +15,7 @@ import { addSeriesEpisode } from '../services/playlistService';
 import { Series } from '../types';
 import { COLORS, FONT, SPACING } from '../constants';
 import { getAllMoods, matchesMood } from '../constants/moods';
+import { useAIMoods } from '../hooks/useAIMoods';
 
 const CARD_W = 110;
 const CARD_GAP = 8;
@@ -81,20 +82,35 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
   const series = playlist?.series || [];
   const seriesGroups = playlist?.seriesGroups || ['Összes sorozat'];
   const years = useMemo(() => ['Mind', ...([...new Set(series.map(s=>s.year).filter(Boolean))] as string[]).sort((a,b)=>Number(b)-Number(a))], [series]);
-  const moods = useMemo(() => getAllMoods(series), [series]);
+  const { aiMoods, loading: aiLoading, progress: aiProgress } = useAIMoods(playlist);
+  const moods = useMemo(() => {
+    const staticMoods = getAllMoods(series);
+    const aiMoodSet = new Set<string>();
+    for (const v of Object.values(aiMoods)) {
+      for (const m of v) aiMoodSet.add(m);
+    }
+    const merged = ['Mind'];
+    for (const m of staticMoods) if (m !== 'Mind') merged.push(m);
+    for (const m of aiMoodSet) if (!merged.includes(m)) merged.push(m);
+    return merged;
+  }, [series, aiMoods]);
 
   const filtered = useMemo(() => {
     let list = series;
     if (activeGroup !== 'Összes sorozat') list = list.filter(s => s.group === activeGroup);
     if (activeYear !== 'Mind') list = list.filter(s => s.year === activeYear);
-    if (activeMood !== 'Mind') list = list.filter(s => matchesMood(s.genre, activeMood));
+    if (activeMood !== 'Mind') list = list.filter(s => {
+      if (matchesMood(s.genre, activeMood)) return true;
+      const ai = aiMoods[s.key];
+      return ai ? ai.includes(activeMood) : false;
+    });
     if (searchTerm) list = list.filter(s => s.title.toLowerCase().includes(searchTerm.toLowerCase()));
     if (activeSort === 'A-Z') list = [...list].sort((a,b)=>a.title.localeCompare(b.title));
     if (activeSort === 'Z-A') list = [...list].sort((a,b)=>b.title.localeCompare(a.title));
     if (activeSort === 'Dátum \u2193') list = [...list].sort((a,b)=>Number(b.year)-Number(a.year));
     if (activeSort === 'Dátum \u2191') list = [...list].sort((a,b)=>Number(a.year)-Number(b.year));
     return list;
-  }, [series, activeGroup, activeYear, activeMood, activeSort, searchTerm]);
+  }, [series, activeGroup, activeYear, activeMood, activeSort, searchTerm, aiMoods]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -154,6 +170,11 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
           </View>
         </>
       )}
+      {aiLoading && (
+        <View style={styles.aiProgressWrap}>
+          <View style={[styles.aiProgressBar, { width: `${Math.round(aiProgress * 100)}%` }]} />
+        </View>
+      )}
       {pageItems.length===0 ? <View style={styles.empty}><Text style={styles.emptyText}>Nincs találat.</Text></View> : (
         <View style={styles.gridPanel}><View style={styles.gridWrap}>
           {pageItems.map((item)=><SimpleCard key={item.key} type="series" title={item.title} subtitle={item.group||''} imageUrl={item.logo} onPress={() => setSelectedSeries(item)} onLongPress={() => onPlayContent(item.key)} isWatchLater={isWl(item.key)}/>)}
@@ -195,4 +216,6 @@ const styles = StyleSheet.create({
   empty:{flex:1,alignItems:'center',justifyContent:'center',padding:SPACING.xl},emptyText:{color:COLORS.muted,fontSize:FONT.md},
   epOverlay:{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:COLORS.bg,zIndex:1000,elevation:30},
   epPanel:{flex:1,margin:SPACING.md},
+  aiProgressWrap:{height:4,backgroundColor:'rgba(0,255,255,0.15)',marginBottom:SPACING.sm,borderRadius:2,overflow:'hidden'},
+  aiProgressBar:{height:4,backgroundColor:COLORS.cyan,borderRadius:2},
 });
