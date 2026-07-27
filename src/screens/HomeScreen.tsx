@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, Image, ImageBackground, StyleSheet, BackHandler, Modal } from 'react-native';
 import TFPressable from '../components/TFPressable';
 import HomeHero from '../components/HomeHero';
@@ -7,12 +7,15 @@ import RuggedBorder from '../components/RuggedBorder';
 import SoundEffect from '../components/SoundEffect';
 import DotPattern from '../components/DotPattern';
 import SimpleCard from '../components/SimpleCard';
+import MovieDetailPanel from '../components/MovieDetailPanel';
+import SeriesDetailPanel from '../components/SeriesDetailPanel';
+import EpisodePanel from '../components/EpisodePanel';
 import ExitDialog from '../components/ExitDialog';
-import { useCore, useFavorites, useHistory, useClearHistory, useProfiles, useBackgroundAudio } from '../store/AppContext';
+import { useCore, useFavorites, useHistory, useClearHistory, useProfiles, useBackgroundAudio, useToggleWatchLater, useWatchLater, useToggleFavorite } from '../store/AppContext';
 import { useRecommended, usePopular } from '../hooks/useRecommendations';
 import { useAIRecommend } from '../hooks/useAIRecommend';
 import { COLORS, FONT, SPACING, USER_STATUS_LOGGED_IN } from '../constants';
-import type { RouteName } from '../types';
+import type { RouteName, Movie, Series } from '../types';
 
 function sample<T>(arr: T[], n: number): T[] {
   const copy = [...arr];
@@ -35,6 +38,9 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
   const clearHistory = useClearHistory();
   const isLoggedIn = user.status === USER_STATUS_LOGGED_IN;
   const [showExit, setShowExit] = useState(false);
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [selectedSeries, setSelectedSeries] = useState<Series | null>(null);
+  const [showEpisodes, setShowEpisodes] = useState<{ seriesId: number; title: string; group: string } | null>(null);
   const { clear: clearBgAudio } = useBackgroundAudio();
 
   const allLive = playlist ? (playlist.liveChannels || []) : [];
@@ -47,6 +53,38 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
   const reco = useRecommended(watchHistory, playlist, favorites);
   const popular = usePopular(profiles.length, playlist, allProfHistory, allProfFavorites);
   const aiRec = useAIRecommend(watchHistory, playlist);
+  const toggleWl = useToggleWatchLater();
+  const wlItems = useWatchLater();
+  const toggleFav = useToggleFavorite();
+  const isWl = (key: string) => wlItems.some(w => w.key === key);
+
+  const handleMoviePlay = useCallback(() => {
+    if (selectedMovie) { onPlayContent(selectedMovie.key); setSelectedMovie(null); }
+  }, [selectedMovie, onPlayContent]);
+  const handleMovieClose = useCallback(() => setSelectedMovie(null), []);
+  const handleMovieToggleFav = useCallback(() => {
+    if (!selectedMovie) return;
+    toggleFav({ key: selectedMovie.key, title: selectedMovie.title, type: 'movie', group: selectedMovie.group || '', logo: selectedMovie.logo || '', streamUrl: '', seriesId: '' });
+  }, [selectedMovie, toggleFav]);
+  const handleMovieToggleWl = useCallback(() => {
+    if (!selectedMovie) return;
+    toggleWl({ key: selectedMovie.key, title: selectedMovie.title, type: 'movie', group: selectedMovie.group || '', logo: selectedMovie.logo || '' });
+  }, [selectedMovie, toggleWl]);
+
+  const handleSeriesClose = useCallback(() => setSelectedSeries(null), []);
+  const handleShowEpisodes = useCallback(() => {
+    if (!selectedSeries) return;
+    setShowEpisodes({ seriesId: selectedSeries.seriesId, title: selectedSeries.title, group: selectedSeries.group || '' });
+    setSelectedSeries(null);
+  }, [selectedSeries]);
+  const handleSeriesToggleFav = useCallback(() => {
+    if (!selectedSeries) return;
+    toggleFav({ key: selectedSeries.key, title: selectedSeries.title, type: 'series', group: selectedSeries.group || '', logo: selectedSeries.logo || '', streamUrl: '', seriesId: selectedSeries.seriesId.toString() });
+  }, [selectedSeries, toggleFav]);
+  const handleSeriesToggleWl = useCallback(() => {
+    if (!selectedSeries) return;
+    toggleWl({ key: selectedSeries.key, title: selectedSeries.title, type: 'series', group: selectedSeries.group || '', logo: selectedSeries.logo || '' });
+  }, [selectedSeries, toggleWl]);
 
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -111,21 +149,47 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
         <HomeHero history={watchHistory} playlist={playlist} onPlayContent={onPlayContent} />
       </View>
 
-      {reco.items.length > 0 && (
+      {(aiRec.items.length > 0 || reco.items.length > 0) && (
         <View style={[styles.section, { marginBottom: SPACING.md + 8 }]}>
           <RuggedBorder color={COLORS.black} wobbleFactor={0.7} minDimension={80} strokeWidth={4}>
             <View style={{ paddingHorizontal: 3 }}>
               <View style={styles.yellowHeader}>
                 <DotPattern dotColor="#000" dotOpacity={0.12} spacing={10} />
-                <Text style={styles.yellowHeaderText}>{reco.title}</Text>
+                <Text style={styles.yellowHeaderText}>
+                  {aiRec.items.length > 0 ? 'Neked aj\u00E1nljuk' : reco.title}
+                </Text>
               </View>
             </View>
             <SoundEffect text="POP!" textColor="#FF6600" bgColor={COLORS.cyan} top={-10} right={30} rotate={-8} fontSize={36} />
           </RuggedBorder>
           <View style={[styles.gridWrap, { marginTop: SPACING.xs * 4 }]}>
-            {reco.items.slice(0, 5).map(item => (
-              <SimpleCard key={item.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={item.group || ''} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
-            ))}
+            {aiRec.items.length > 0 ? (
+              aiRec.items.slice(0, 5).map(rec => {
+                const movie = playlist?.movies?.find(m => m.key === rec.key);
+                const series = playlist?.series?.find(s => s.key === rec.key);
+                const item = movie || series;
+                if (!item) return null;
+                const sub = rec.similarity ? `${rec.similarity}% ${rec.reason}` : rec.reason;
+                return (
+                  <SimpleCard key={rec.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={sub} imageUrl={item.logo || ''} onPress={() => {
+                    if (movie) setSelectedMovie(movie);
+                    else if (series) setSelectedSeries(series);
+                  }} isFav={favorites.some(f => f.key === item.key)} />
+                );
+              })
+            ) : (
+              reco.items.slice(0, 5).map(item => (
+                <SimpleCard key={item.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={item.group || ''} imageUrl={item.logo || ''} onPress={() => {
+                  if (item.type === 'movie') {
+                    const m = playlist?.movies?.find(m => m.key === item.key);
+                    if (m) setSelectedMovie(m);
+                  } else {
+                    const s = playlist?.series?.find(s => s.key === item.key);
+                    if (s) setSelectedSeries(s);
+                  }
+                }} isFav={favorites.some(f => f.key === item.key)} />
+              ))
+            )}
           </View>
         </View>
       )}
@@ -145,29 +209,6 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
             {popular.items.slice(0, 5).map(item => (
               <SimpleCard key={item.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={item.group || ''} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
             ))}
-          </View>
-        </View>
-      )}
-
-      {aiRec.items.length > 0 && (
-        <View style={[styles.section, { marginBottom: SPACING.md + 4 }]}>
-          <RuggedBorder color={COLORS.black}>
-            <View style={styles.yellowHeader}>
-              <DotPattern dotColor="#000" dotOpacity={0.12} spacing={10} />
-              <Text style={styles.yellowHeaderText}>{'\uD83E\uDD16'} AI Aj{String.fromCharCode(225)}nlja</Text>
-            </View>
-          </RuggedBorder>
-          <View style={[styles.gridWrap, { marginTop: SPACING.xs * 2 }]}>
-            {aiRec.items.slice(0, 5).map(rec => {
-              const movie = playlist?.movies?.find(m => m.key === rec.key);
-              const series = playlist?.series?.find(s => s.key === rec.key);
-              const item = movie || series;
-              if (!item) return null;
-              const sub = rec.similarity ? `${rec.similarity}% ${rec.reason}` : rec.reason;
-              return (
-                <SimpleCard key={rec.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={sub} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
-              );
-            })}
           </View>
         </View>
       )}
@@ -234,6 +275,44 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
         </View>
       )}
     </ScrollView>
+
+      {selectedMovie && (
+        <MovieDetailPanel
+          streamId={selectedMovie.streamId}
+          title={selectedMovie.title}
+          onClose={handleMovieClose}
+          onPlay={handleMoviePlay}
+          isFav={favorites.some(f => f.key === selectedMovie.key)}
+          onToggleFav={handleMovieToggleFav}
+          isWatchLater={isWl(selectedMovie.key)}
+          onToggleWatchLater={handleMovieToggleWl}
+        />
+      )}
+      {selectedSeries && (
+        <SeriesDetailPanel
+          seriesId={selectedSeries.seriesId}
+          title={selectedSeries.title}
+          onClose={handleSeriesClose}
+          onShowEpisodes={handleShowEpisodes}
+          isFav={favorites.some(f => f.key === selectedSeries.key)}
+          onToggleFav={handleSeriesToggleFav}
+          isWatchLater={isWl(selectedSeries.key)}
+          onToggleWatchLater={handleSeriesToggleWl}
+        />
+      )}
+      {showEpisodes && (
+        <View style={styles.epOverlay}>
+          <EpisodePanel
+            seriesId={showEpisodes.seriesId}
+            title={showEpisodes.title}
+            onPlayEpisode={(ep) => {
+              setShowEpisodes(null);
+              onPlayContent(ep.key);
+            }}
+            onBack={() => setShowEpisodes(null)}
+          />
+        </View>
+      )}
     </>
   );
 }
@@ -263,4 +342,5 @@ const styles = StyleSheet.create({
   clearBtn: { backgroundColor: COLORS.red, borderRadius: 4, borderWidth: 1, borderColor: COLORS.black, paddingHorizontal: 10, paddingVertical: 3 },
   clearBtnFocus: { backgroundColor: COLORS.cyan, transform: [{ scale: 0.95 }] },
   clearBtnText: { color: COLORS.white, fontSize: 11, fontWeight: '700', fontFamily: 'Poppins-Bold' },
+  epOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: COLORS.bg },
 });
