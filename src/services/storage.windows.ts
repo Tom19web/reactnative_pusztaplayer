@@ -44,7 +44,7 @@ let windowsSecureModule: {
 } | null = null;
 
 function getWindowsSecureStore() {
-  if (windowsSecureModule !== undefined) return windowsSecureModule;
+  if (windowsSecureModule != null) return windowsSecureModule;
   if (Platform.OS !== 'windows') return null;
 
   try {

@@ -12,9 +12,6 @@ interface Props {
 }
 
 export default function EpgDetailPopup({ row, progIdx, onPlay, onClose }: Props) {
-  const prog = row.programs[progIdx];
-  if (!prog) return null;
-
   const playBtnRef = useRef<View>(null);
 
   useEffect(() => {
@@ -34,6 +31,9 @@ export default function EpgDetailPopup({ row, progIdx, onPlay, onClose }: Props)
   const handleTrapFocus = useCallback(() => {
     playBtnRef.current?.focus();
   }, []);
+
+  const prog = row.programs[progIdx];
+  if (!prog) return null;
 
   return (
     <>

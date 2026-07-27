@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xs + 2,
     gap: SPACING.md,
     height: 70,
-    overflow: 'hidden',
+    overflow: 'visible',
   },
   searchGroup: { position: 'relative', paddingBottom: 12 },
   speechTail: {

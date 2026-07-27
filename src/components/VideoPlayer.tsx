@@ -117,6 +117,14 @@ export default function VideoPlayer({
     if (ffInterval.current) { clearInterval(ffInterval.current); ffInterval.current = null; }
   }, []);
 
+  const resetTimer = useCallback(() => {
+    setFadeControls(false);
+    if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    if (!noVideo) {
+      controlsTimer.current = setTimeout(() => setFadeControls(true), 6000);
+    }
+  }, [noVideo]);
+
   const startScrub = useCallback((dir: 1 | -1) => {
     if (ffInterval.current) return;
     const p = progressRef.current;
@@ -233,14 +241,6 @@ export default function VideoPlayer({
     retryCountRef.current = 0;
     cancelReconnect();
   }, [url, cancelReconnect]);
-
-  const resetTimer = useCallback(() => {
-    setFadeControls(false);
-    if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    if (!noVideo) {
-      controlsTimer.current = setTimeout(() => setFadeControls(true), 6000);
-    }
-  }, [noVideo]);
 
   useEffect(() => {
     resetTimer();

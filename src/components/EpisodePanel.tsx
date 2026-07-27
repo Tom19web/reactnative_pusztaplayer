@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet } from 'react-native';
 import { XtreamEpisode, XtreamSeriesInfo } from '../types';
 import { xtreamGetSeriesInfo, buildEpisodeUrl } from '../services/xtreamApi';
@@ -21,6 +21,10 @@ export default function EpisodePanel({ seriesId, title, onPlayEpisode, onBack }:
   const [error, setError] = useState<string | null>(null);
   const [seriesInfo, setSeriesInfo] = useState<XtreamSeriesInfo | null>(null);
   const [epPlots, setEpPlots] = useState<Record<string, EpisodePlot | null>>({});
+  const epPlotsRef = useRef(epPlots);
+  epPlotsRef.current = epPlots;
+  const seasonsRef = useRef(seasons);
+  seasonsRef.current = seasons;
 
   useEffect(() => {
     let cancelled = false;
@@ -46,13 +50,15 @@ export default function EpisodePanel({ seriesId, title, onPlayEpisode, onBack }:
   }, [seriesId]);
 
   useEffect(() => {
-    if (!expandedSeason || !seasons[expandedSeason]) return;
+    const curSeasons = seasonsRef.current;
+    const curEpPlots = epPlotsRef.current;
+    if (!expandedSeason || !curSeasons[expandedSeason]) return;
     let cancelled = false;
     (async () => {
-      const eps = seasons[expandedSeason];
+      const eps = curSeasons[expandedSeason];
       for (const ep of eps) {
         const key = `${seriesId}_${expandedSeason}_${ep.episode_num}`;
-        if (epPlots[key] !== undefined) continue;
+        if (curEpPlots[key] !== undefined) continue;
         const plotData = await fetchEpisodePlot(seriesId, parseInt(expandedSeason), ep.episode_num || 0);
         if (!cancelled) setEpPlots(prev => ({ ...prev, [key]: plotData }));
       }
