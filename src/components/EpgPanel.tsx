@@ -22,7 +22,7 @@ export default function EpgPanel({ streamId, limit = 2 }: EpgPanelProps) {
       if (!cancelled) setEntries(rows);
     })();
     return () => { cancelled = true; };
-  }, [streamId]);
+  }, [streamId, limit]);
 
   if (!entries.length) {
     return <Text style={styles.empty}>Nincs EPG adat</Text>;

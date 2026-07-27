@@ -1,9 +1,8 @@
-﻿import { Dimensions, StyleSheet } from 'react-native';
+﻿import { useWindowDimensions, StyleSheet } from 'react-native';
 import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
 
-const { width, height } = Dimensions.get('window');
-
 export default function DotBackground() {
+  const { width, height } = useWindowDimensions();
   return (
     <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
       <Defs>

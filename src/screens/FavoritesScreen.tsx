@@ -2,7 +2,6 @@ import React, { useMemo, useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, BackHandler, Platform, DeviceEventEmitter } from 'react-native';
 import { useCore, useFavorites, useToggleFavorite, useToggleWatchLater, useWatchLater } from '../store/AppContext';
 import SimpleCard from '../components/SimpleCard';
-import ShadowWrapper from '../components/ShadowWrapper';
 import RuggedBorder from '../components/RuggedBorder';
 import SoundEffect from '../components/SoundEffect';
 import TFPressable from '../components/TFPressable';

@@ -33,6 +33,7 @@ export default function EpgScreen({ onPlayContent, onBack }: Props) {
 
   const totalPages = Math.ceil(channels.length / PAGE_SIZE);
   const pageNumbers = useMemo(() => {
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i);
     if (page < 3) return [0, 1, 2, 3, 4];
     if (page > totalPages - 4) return Array.from({ length: 5 }, (_, i) => totalPages - 5 + i);
     return [page - 2, page - 1, page, page + 1, page + 2];

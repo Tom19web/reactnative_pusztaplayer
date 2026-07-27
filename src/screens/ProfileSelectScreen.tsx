@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TextInput, StyleSheet, BackHandler, Dimensions, DeviceEventEmitter, ImageBackground } from 'react-native';
 import TFPressable from '../components/TFPressable';
 import PopArtCard from '../components/PopArtCard';

@@ -27,7 +27,6 @@ interface SeriesInfo {
 export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpisodes, isFav, onToggleFav, isWatchLater, onToggleWatchLater, onOpenSimilar }: SeriesDetailPanelProps) {
   const [info, setInfo] = useState<SeriesInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [similar, setSimilar] = useState<EmbeddingRecommendation[]>([]);
   const epsBtnRef = useRef<View>(null);
 
@@ -51,7 +50,6 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
         }
       } catch (e) {
         if (__DEV__) console.warn('[SeriesDetailPanel] load failed:', e);
-        if (!c) setError('Nem sikerült betölteni az adatokat.');
       }
       if (!c) setLoading(false);
     })();

@@ -8,8 +8,6 @@ import { useSetUser, useSetPlaylist } from '../store/AppContext';
 import { xtreamLogin } from '../services/playlistService';
 import { saveXtreamCredentials } from '../services/storage';
 import { requestQRCode, pollQRCode, stopPolling } from '../services/qrAuth';
-
-const QR_EXPIRY_MS = 300000;
 let isTV = false;
 try { isTV = Platform.isTV; } catch {}
 

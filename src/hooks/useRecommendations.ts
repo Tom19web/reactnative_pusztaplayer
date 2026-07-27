@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { HistoryItem, Favorite, PlaylistData, Movie, Series } from '../types';
-import { genresToMoods, getAllMoods } from '../constants/moods';
+import { genresToMoods } from '../constants/moods';
 
 function sample<T>(arr: T[], n: number): T[] {
   const copy = [...arr];

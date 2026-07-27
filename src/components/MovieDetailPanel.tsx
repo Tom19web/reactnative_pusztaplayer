@@ -27,7 +27,6 @@ interface VodInfo {
 export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isFav, onToggleFav, isWatchLater, onToggleWatchLater, onOpenSimilar }: MovieDetailPanelProps) {
   const [info, setInfo] = useState<VodInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [similar, setSimilar] = useState<EmbeddingRecommendation[]>([]);
   const playBtnRef = useRef<View>(null);
 
@@ -48,11 +47,10 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
             cover: data.info?.cover_big || '',
           });
         }
-      } catch (e) {
-        if (__DEV__) console.warn('[MovieDetailPanel] load failed:', e);
-        if (!c) setError('Nem sikerült betölteni az adatokat.');
-      }
-      if (!c) setLoading(false);
+        } catch (e) {
+          if (__DEV__) console.warn('[MovieDetailPanel] load failed:', e);
+        }
+        if (!c) setLoading(false);
     })();
     return () => { c = true; };
   }, [streamId]);

@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './fetchWithTimeout';
+
 let Config: any = {};
 try { Config = require('react-native-config'); if (Config.default) Config = Config.default; if (Config.Config) Config = Config.Config; } catch {}
 
@@ -45,7 +47,7 @@ export async function fetchAIMoods(
   for (let i = 0; i < items.length; i += BATCH_SIZE) {
     const batch = items.slice(i, i + BATCH_SIZE);
     try {
-      const res = await fetch(`${AI_PROXY_URL}/moods`, {
+      const res = await fetchWithTimeout(`${AI_PROXY_URL}/moods`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

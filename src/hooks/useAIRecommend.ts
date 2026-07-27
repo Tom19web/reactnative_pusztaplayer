@@ -44,6 +44,7 @@ export function useAIRecommend(
           const mapped = recs
             .map(r => {
               const id = parseInt(r.key, 10);
+              if (isNaN(id)) return null;
               const isEp = r.type === 'episode';
               const match =
                 playlist.movies?.find(m => m.streamId === id) ||

@@ -17,7 +17,7 @@ import ProfileSelectScreen from '../screens/ProfileSelectScreen';
 import WatchLaterScreen from '../screens/WatchLaterScreen';
 import EpgScreen from '../screens/EpgScreen';
 import RadioScreen from '../screens/RadioScreen';
-import { useCore, useAppDispatch, useSetSearch, useSetProfiles, useProfiles, useActiveProfile, useSetActiveProfile } from '../store/AppContext';
+import { useCore, useAppDispatch, useSetSearch, useSetProfiles, useActiveProfile, useSetActiveProfile } from '../store/AppContext';
 import { clearImportedPlaylist, refreshPlaylist as refreshPl } from '../services/playlistService';
 import { flush as syncFlush, fetchProfiles, setProfilesVersion } from '../services/wordpressSync';
 import { clearXtreamCredentials } from '../services/storage';
@@ -32,7 +32,6 @@ export default function AppNavigator() {
   const { state: { user, searchTerm, playlist } } = useCore();
   const dispatch = useAppDispatch();
   const setSearch = useSetSearch();
-  const profiles = useProfiles();
   const activeProfile = useActiveProfile();
   const [showProfileSelect, setShowProfileSelect] = useState(true);
   const setActive = useSetActiveProfile();

@@ -93,7 +93,7 @@ function PlayerControls({
       setSleepRemaining(left);
     }, 1000);
     return () => clearInterval(timer);
-  }, [sleepRemaining > 0]);
+  }, [sleepRemaining > 0, onBack]);
 
   const setSleep = (minutes: number) => {
     if (minutes <= 0) { setSleepRemaining(0); return; }

@@ -21,7 +21,7 @@ export function useAudioVisualizer() {
     if (!AudioVisualizer) return;
     try {
       if (Platform.OS === 'android') {
-        await PermissionsAndroid.request('android.permission.RECORD_AUDIO');
+        await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
       }
       await AudioVisualizer.startCapture();
       setActive(true);

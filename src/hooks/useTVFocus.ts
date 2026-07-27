@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { NativeSyntheticEvent, ViewProps } from 'react-native';
+import { NativeSyntheticEvent } from 'react-native';
 
 /**
  * Hook for tracking TV focus state on Pressable/View.

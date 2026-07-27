@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import SimpleCard from '../components/SimpleCard';
-import ShadowWrapper from '../components/ShadowWrapper';
 import RuggedBorder from '../components/RuggedBorder';
 import { useWatchLater, useToggleWatchLater } from '../store/AppContext';
 import { COLORS, FONT, SPACING } from '../constants';

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, Image, ImageBackground, StyleSheet, BackHandler, Modal } from 'react-native';
 import TFPressable from '../components/TFPressable';
 import HomeHero from '../components/HomeHero';
@@ -42,6 +42,7 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null);
   const [showEpisodes, setShowEpisodes] = useState<{ seriesId: number; title: string; group: string } | null>(null);
+  const similarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { clear: clearBgAudio } = useBackgroundAudio();
 
   const allLive = playlist ? (playlist.liveChannels || []) : [];
@@ -92,12 +93,16 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
     setSelectedSeries(null);
     if (item.type === 'movie' && item.streamId) {
       const m = playlist?.movies?.find(m => m.streamId === item.streamId);
-      if (m) setTimeout(() => setSelectedMovie(m), 100);
+      if (m) similarTimerRef.current = setTimeout(() => setSelectedMovie(m), 100);
     } else if (item.type === 'series' && item.seriesId) {
       const s = playlist?.series?.find(s => s.seriesId === item.seriesId);
-      if (s) setTimeout(() => setSelectedSeries(s), 100);
+      if (s) similarTimerRef.current = setTimeout(() => setSelectedSeries(s), 100);
     }
   }, [playlist]);
+
+  useEffect(() => {
+    return () => { if (similarTimerRef.current) clearTimeout(similarTimerRef.current); };
+  }, []);
 
   const [dailyPicks, setDailyPicks] = useState<EmbeddingRecommendation[]>([]);
 

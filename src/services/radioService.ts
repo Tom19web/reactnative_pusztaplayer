@@ -1,4 +1,5 @@
 import { RadioStation } from '../constants/radioStations';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 let AsyncStorage: any;
 try { AsyncStorage = require('@react-native-async-storage/async-storage').default || require('@react-native-async-storage/async-storage'); } catch { AsyncStorage = null; }
@@ -60,7 +61,7 @@ export async function fetchRadioStations(): Promise<RadioStation[]> {
 
   // Fetch from API
   try {
-    const res = await fetch(API_URL, { headers: { 'User-Agent': 'PusztaPlayer/1.0' } });
+    const res = await fetchWithTimeout(API_URL, { headers: { 'User-Agent': 'PusztaPlayer/1.0' } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const raw: RawStation[] = await res.json();
     const stations = transform(raw);

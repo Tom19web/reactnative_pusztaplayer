@@ -72,7 +72,7 @@ export default function SimpleCard({ type, title, subtitle, imageUrl, onPress, o
                 <FastImage source={{ uri: imageUrl, priority: FastImage.priority.normal }} style={s.thumbImg} resizeMode={FastImage.resizeMode.cover} />
               ) : (
                 <Text style={s.thumbFallback}>
-                  {isLive ? '\uD83D\uDCFA' : type === 'movie' ? '\uD83C\uDFAC' : '\uD83D\uDCE6'}
+                  {type === 'movie' ? '\uD83C\uDFAC' : '\uD83D\uDCE6'}
                 </Text>
               )}
               {badge ? (

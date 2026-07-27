@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './fetchWithTimeout';
+
 let Config: any = {};
 try { Config = require('react-native-config'); if (Config.default) Config = Config.default; if (Config.Config) Config = Config.Config; } catch {}
 
@@ -11,7 +13,7 @@ export async function aiSearchQuery(
 ): Promise<string[]> {
   if (!AI_PROXY_KEY || !query.trim()) return [];
   try {
-    const res = await fetch(`${AI_PROXY_URL}/search`, {
+    const res = await fetchWithTimeout(`${AI_PROXY_URL}/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': AI_PROXY_KEY },
       body: JSON.stringify({ query, items }),
@@ -31,7 +33,7 @@ export async function aiRecommendQuery(
 ): Promise<Array<{ key: string; reason: string }>> {
   if (!AI_PROXY_KEY) return [];
   try {
-    const res = await fetch(`${AI_PROXY_URL}/recommend`, {
+    const res = await fetchWithTimeout(`${AI_PROXY_URL}/recommend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': AI_PROXY_KEY },
       body: JSON.stringify({ history, items }),
@@ -59,7 +61,7 @@ export interface SemanticResult {
 export async function semanticSearch(query: string, limit = 5): Promise<SemanticResult[]> {
   if (!query.trim()) return [];
   try {
-    const res = await fetch(`${SEMANTIC_API}/api/v1/search/semantic?q=${encodeURIComponent(query)}&limit=${limit}`, {
+    const res = await fetchWithTimeout(`${SEMANTIC_API}/api/v1/search/semantic?q=${encodeURIComponent(query)}&limit=${limit}`, {
       headers: { 'User-Agent': 'PusztaPlayer v1.0' },
     });
     if (!res.ok) return [];
@@ -85,7 +87,7 @@ export async function recommendByEmbedding(
   limit = 10,
 ): Promise<EmbeddingRecommendation[]> {
   try {
-    const res = await fetch(`${SEMANTIC_API}/api/v1/recommend`, {
+    const res = await fetchWithTimeout(`${SEMANTIC_API}/api/v1/recommend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Agent': 'PusztaPlayer v1.0' },
       body: JSON.stringify({ history_items: historyItems, limit }),
@@ -110,7 +112,7 @@ export async function fetchEpisodePlot(
   episode: number,
 ): Promise<EpisodePlot | null> {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${SEMANTIC_API}/api/v1/episodes/plot?series_id=${seriesId}&season=${season}&episode=${episode}`,
       { headers: { 'User-Agent': 'PusztaPlayer v1.0' } },
     );
@@ -128,7 +130,7 @@ export async function fetchSimilar(
   limit = 5,
 ): Promise<EmbeddingRecommendation[]> {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${SEMANTIC_API}/api/v1/recommend/similar?seed_id=${seedId}&seed_type=${seedType}&limit=${limit}`,
       { headers: { 'User-Agent': 'PusztaPlayer v1.0' } },
     );
