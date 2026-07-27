@@ -88,12 +88,15 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
 
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showEpisodes) { setShowEpisodes(null); return true; }
+      if (selectedSeries) { setSelectedSeries(null); return true; }
+      if (selectedMovie) { setSelectedMovie(null); return true; }
       clearBgAudio();
       setShowExit(true);
       return true;
     });
     return () => handler.remove();
-  }, []);
+  }, [selectedMovie, selectedSeries, showEpisodes]);
 
   if (showExit) {
     return (
