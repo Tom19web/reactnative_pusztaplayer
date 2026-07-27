@@ -138,12 +138,16 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
       if (results.length >= 20) break;
       const sKey = `sem_${sr.title}_${results.length}`;
       if (addedKeys.has(sKey)) continue;
+      // Try matching against playlist for direct playback
+      const match = playlist.movies?.find(m => m.title.toLowerCase() === sr.title.toLowerCase()) ||
+                    playlist.series?.find(s => s.title.toLowerCase() === sr.title.toLowerCase()) ||
+                    playlist.liveChannels?.find(c => c.title.toLowerCase() === sr.title.toLowerCase());
       results.push({
-        key: sKey,
+        key: match ? match.key : sKey,
         title: sr.title,
-        type: 'semantic',
+        type: match ? (playlist.movies?.find(m => m.key === match.key) ? 'movie' : playlist.series?.find(s => s.key === match.key) ? 'series' : 'live') : 'semantic',
         group: sr.description?.slice(0, 40) || '',
-        logo: sr.poster_url || '',
+        logo: match ? (match.logo || sr.poster_url || '') : (sr.poster_url || ''),
         isAi: true,
         similarity: Math.round(sr.similarity * 100),
       } as any);
@@ -202,7 +206,7 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
                     style={styles.dropdownItem}
                     focusedStyle={styles.dropdownItemFocused}
                     onPress={() => {
-                      if (item.type === 'semantic' || (item as any).similarity) {
+                      if (item.type === 'semantic') {
                         setLocalSearch(item.title);
                         setShowInput(false);
                       } else {

@@ -8,6 +8,7 @@ import PanelBg from './PanelBg';
 import ComicStarburst from './ComicStarburst';
 import { COLORS, FONT, SPACING, SIZES, NAV_ITEMS, USER_STATUS_LOGGED_IN } from '../constants';
 import { useCore } from '../store/AppContext';
+import { registerInterests } from '../services/wordpressSync';
 
 const APP_VERSION = '0.7.0';
 let isTV = false;
@@ -42,6 +43,9 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
   const { state: { user, playlist } } = useCore();
   const hasCreds = user.status === USER_STATUS_LOGGED_IN;
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [interestDialog, setInterestDialog] = useState(false);
+  const [interests, setInterests] = useState<string[]>([]);
+  const PRESET_INTERESTS = ['Sport', 'Zene', 'Film', 'Hírek', 'Politika', 'Gasztronómia', 'Technológia', 'Természet', 'Történelem', 'Irodalom'];
   const liveCount = playlist?.liveChannels?.length ?? 0;
   const movieCount = playlist?.movies?.length ?? 0;
   const seriesCount = playlist?.series?.length ?? 0;
@@ -190,6 +194,10 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
                   <Text style={{ fontSize: 15, color: '#888' }}>{'\uD83D\uDCE1'}</Text>
                   <Text style={styles.settingsLabel}>Live: {liveFormat.toUpperCase()}</Text>
                 </TFPressable>
+                <TFPressable style={styles.settingsItem} focusedStyle={styles.settingsItemFocus} onPress={() => { setSettingsOpen(false); setInterestDialog(true); }}>
+                  <Text style={{ fontSize: 15, color: '#888' }}>{'\uD83D\uDD14'}</Text>
+                  <Text style={styles.settingsLabel}>Értesítések</Text>
+                </TFPressable>
               </View>
             )}
           </>
@@ -209,6 +217,47 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
       <SoundEffect text="BOOM" textColor={COLORS.yellow} bgColor={COLORS.red} bottom={-20} right={-9} rotate={-20} />
       <SoundEffect text="CRACK" textColor={COLORS.red} bgColor="#008888" bottom={-30} left={-19} rotate={0} />
       </RuggedBorder>
+      {interestDialog && (
+        <View style={{ marginTop: 12, paddingHorizontal: 4 }}>
+          <View style={{ backgroundColor: 'rgba(0,0,0,0.95)', borderRadius: 8, padding: 8, borderWidth: 2, borderColor: COLORS.cyan }}>
+            <Text style={{ color: COLORS.yellow, fontSize: 10, fontFamily: 'Bangers-Regular', marginBottom: 8 }}>{'\uD83D\uDD14'} Milyen témák érdekelnek?</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+              {PRESET_INTERESTS.map(int => {
+                const sel = interests.includes(int);
+                return (
+                  <TFPressable
+                    key={int}
+                    style={{
+                      backgroundColor: sel ? COLORS.cyan : '#222',
+                      borderRadius: 8,
+                      paddingVertical: 4,
+                      paddingHorizontal: 10,
+                      borderWidth: 1,
+                      borderColor: sel ? COLORS.black : '#444',
+                    }}
+                    focusedStyle={{ backgroundColor: COLORS.cyan, borderColor: COLORS.black }}
+                    onPress={() => setInterests(prev => sel ? prev.filter(i => i !== int) : [...prev, int])}
+                  >
+                    <Text style={{ color: sel ? COLORS.black : '#aaa', fontSize: 8, fontFamily: '007Toontime' }}>
+                      {sel ? '\u2713 ' : ''}{int}
+                    </Text>
+                  </TFPressable>
+                );
+              })}
+            </View>
+            <TFPressable
+              style={{ backgroundColor: COLORS.yellow, borderRadius: 6, paddingVertical: 6, alignItems: 'center', borderWidth: 2, borderColor: COLORS.black }}
+              focusedStyle={{ backgroundColor: COLORS.cyan }}
+              onPress={async () => {
+                if (user.apiKey && interests.length > 0) await registerInterests(user.apiKey, interests);
+                setInterestDialog(false);
+              }}
+            >
+              <Text style={{ color: COLORS.black, fontSize: 9, fontFamily: '007Toontime' }}>MENTÉS</Text>
+            </TFPressable>
+          </View>
+        </View>
+      )}
       </ScrollView>
       <SidebarStars />
     </View>

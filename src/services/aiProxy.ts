@@ -69,3 +69,30 @@ export async function semanticSearch(query: string, limit = 5): Promise<Semantic
     return [];
   }
 }
+
+export interface EmbeddingRecommendation {
+  key: string;
+  title: string;
+  type: string;
+  similarity: number;
+  description: string;
+  reason: string;
+}
+
+export async function recommendByEmbedding(
+  historyItems: Array<{ key: string; title: string; type: string }>,
+  limit = 10,
+): Promise<EmbeddingRecommendation[]> {
+  try {
+    const res = await fetch(`${SEMANTIC_API}/api/v1/recommend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'PusztaPlayer v1.0' },
+      body: JSON.stringify({ history_items: historyItems, limit }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.recommendations || [];
+  } catch {
+    return [];
+  }
+}

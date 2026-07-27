@@ -107,11 +107,11 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
             <View style={styles.divider} />
 
             <View style={styles.epgSection}>
-              <Text style={styles.epgHeader}>{'\uD83D\uDCE1'} M\u0171sor\u00FAjs\u00E1g</Text>
+              <Text style={styles.epgHeader}>{'\uD83D\uDCE1'} Műsorújság</Text>
               {loading ? (
-                <Text style={styles.loading}>{'\u23F3'} M\u0171sor\u00FAjs\u00E1g bet\u00F6lt\u00E9se...</Text>
+                <Text style={styles.loading}>{'\u23F3'} Műsorújság betöltése...</Text>
               ) : epg.length === 0 ? (
-                <Text style={styles.noEpg}>Nincs EPG adat ehhez a csatorn\u00E1hoz.</Text>
+                <Text style={styles.noEpg}>Nincs EPG adat ehhez a csatornához.</Text>
               ) : (
                 epg.slice(0, 2).map((entry, i) => {
                   const ai = enriched?.programs?.[i];
@@ -146,7 +146,7 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
             <View style={styles.buttons}>
               {onPlay && (
                 <TFPressable ref={playBtnRef} hasTVPreferredFocus style={styles.btnPlay} focusedStyle={styles.btnPlayFocus} onPress={onPlay}>
-                  <Text style={styles.btnPlayText}>{'\u25B6'} Lej\u00E1tsz\u00E1s</Text>
+                  <Text style={styles.btnPlayText}>{'\u25B6'} Lejátszás</Text>
                 </TFPressable>
               )}
               {channel.qualityVariants && channel.qualityVariants.length > 1 && (
@@ -157,7 +157,7 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
                       style={[styles.qualityBtn, i === selectedQualityIdx && styles.qualityBtnActive]}
                       focusedStyle={styles.qualityBtnFocused}
                       onPress={() => onQualityChange?.(i)}
-                      accessibilityLabel={`${qv.label} min\u0151s\u00E9g`}
+                      accessibilityLabel={`${qv.label} minőség`}
                       accessibilityRole="button"
                     >
                       <Text style={[styles.qualityBtnText, i === selectedQualityIdx && styles.qualityBtnTextActive]}>{qv.label}</Text>

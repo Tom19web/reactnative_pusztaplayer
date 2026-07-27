@@ -163,8 +163,9 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
               const series = playlist?.series?.find(s => s.key === rec.key);
               const item = movie || series;
               if (!item) return null;
+              const sub = rec.similarity ? `${rec.similarity}% ${rec.reason}` : rec.reason;
               return (
-                <SimpleCard key={rec.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={rec.reason} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
+                <SimpleCard key={rec.key} type={item.type === 'series' ? 'series' : 'movie'} title={item.title} subtitle={sub} imageUrl={item.logo || ''} onPress={() => onPlayContent(item.key)} isFav={favorites.some(f => f.key === item.key)} />
               );
             })}
           </View>

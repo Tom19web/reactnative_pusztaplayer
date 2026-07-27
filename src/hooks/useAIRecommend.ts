@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { HistoryItem, PlaylistData } from '../types';
-import { aiRecommendQuery } from '../services/aiProxy';
+import { recommendByEmbedding } from '../services/aiProxy';
 
 interface AIRecItem {
   key: string;
   reason: string;
+  similarity?: number;
 }
 
 export function useAIRecommend(
@@ -31,22 +32,30 @@ export function useAIRecommend(
 
     (async () => {
       setLoading(true);
-      const historyItems = history.filter(h => h.type !== 'live').slice(0, 10).map(h => ({
-        title: h.title,
-        type: h.type,
-        genre: (h as any).genre,
-      }));
-      const contentItems = allMedia.slice(0, 300).map(m => ({
-        key: m.key,
-        title: m.title,
-        type: m.type || 'movie',
-        genre: m.genre || '',
-        plot: (m as any).plot,
-      }));
+      const historyItems = history
+        .filter(h => h.type !== 'live')
+        .slice(0, 10)
+        .map(h => ({ key: h.key, title: h.title, type: h.type }));
 
       try {
-        const recs = await aiRecommendQuery(historyItems, contentItems);
-        if (recs.length > 0) setItems(recs);
+        const recs = await recommendByEmbedding(historyItems, 10);
+        if (recs.length > 0) {
+          // Map backend keys (streamId/seriesId) to playlist keys
+          const mapped = recs
+            .map(r => {
+              const id = parseInt(r.key, 10);
+              const match =
+                playlist.movies?.find(m => m.streamId === id) ||
+                playlist.series?.find(s => s.seriesId === id);
+              return match ? {
+                key: match.key,
+                reason: `${r.reason || r.description?.slice(0, 30) || 'AI'}`,
+                similarity: Math.round(r.similarity * 100),
+              } : null;
+            })
+            .filter(Boolean) as AIRecItem[];
+          if (mapped.length > 0) setItems(mapped);
+        }
       } catch {}
       setLoading(false);
       doneRef.current = true;
