@@ -161,7 +161,7 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
         )}
         {pageItems.length === 0 ? (
           <View style={styles.empty} testID="live-empty-noresults">
-            <Text style={styles.emptyText}>Nincs talĂˇlat.</Text>
+            <Text style={styles.emptyText}>Nincs találat.</Text>
           </View>
         ) : (
           <View style={styles.gridPanel} testID="live-grid">
