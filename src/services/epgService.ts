@@ -153,3 +153,30 @@ export function invalidateEpgCache(streamId: string | number): void {
 export function clearEpgCache(): void {
   _cache.clear();
 }
+
+// AI Enriched EPG data from backend
+export interface EpgEnrichedData {
+  streamId: number;
+  programs: Array<{
+    title: string;
+    clean_title?: string;
+    genres?: string[];
+    cast?: string[];
+    tropes?: string[];
+    pow_synopsis?: string;
+  }>;
+}
+
+const ENRICH_API = 'https://live.pusztaplay.eu';
+
+export async function fetchEnrichedEpg(streamId: number): Promise<EpgEnrichedData | null> {
+  try {
+    const res = await fetch(`${ENRICH_API}/api/v1/epg/${streamId}`, {
+      headers: { 'User-Agent': 'PusztaPlayer v1.0' },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}

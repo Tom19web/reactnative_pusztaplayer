@@ -5,7 +5,7 @@ import TFPressable from './TFPressable';
 import RuggedBorder from './RuggedBorder';
 import SoundEffect from './SoundEffect';
 import { Channel, EpgEntry } from '../types';
-import { fetchShortEpg } from '../services/epgService';
+import { fetchShortEpg, fetchEnrichedEpg, EpgEnrichedData } from '../services/epgService';
 import { loadXtreamCredentials } from '../services/storage';
 import { COLORS, FONT, SPACING, SIZES } from '../constants';
 
@@ -22,6 +22,7 @@ interface LiveDetailPanelProps {
 export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onToggleFav, selectedQualityIdx = 0, onQualityChange }: LiveDetailPanelProps) {
   const [epg, setEpg] = useState<EpgEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [enriched, setEnriched] = useState<EpgEnrichedData | null>(null);
   const playBtnRef = useRef<View>(null);
 
   useEffect(() => {
@@ -32,6 +33,10 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
       if (!creds || !channel.streamId) { setLoading(false); return; }
       const rows = await fetchShortEpg(creds, channel.streamId, 2);
       if (!c) { setEpg(rows); setLoading(false); }
+      if (channel.streamId) {
+        const enrichedData = await fetchEnrichedEpg(channel.streamId);
+        if (!c && enrichedData) setEnriched(enrichedData);
+      }
     })();
     return () => { c = true; };
   }, [channel.streamId]);
@@ -63,7 +68,6 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
       <View style={styles.panelWrap}>
         <RuggedBorder color={COLORS.yellow}>
           <Animated.View style={[styles.container, { opacity: entryAnim, transform: [{ translateX: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 320] }) }, { scale: entryAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]}>
-          {/* Close */}
           {onClose && (
             <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose}>
               <Text style={styles.closeBtnText}>{'\u2716'}</Text>
@@ -71,8 +75,6 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
           )}
 
           <ScrollView contentContainerStyle={styles.scroll} nestedScrollEnabled>
-
-            {/* Logo / Live thumbnail */}
             <View style={styles.header}>
               {channel.streamUrl ? (
                 <View style={styles.logoWrap}>
@@ -102,35 +104,49 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
               </View>
             </View>
 
-            {/* Divider */}
             <View style={styles.divider} />
 
-            {/* EPG */}
             <View style={styles.epgSection}>
-              <Text style={styles.epgHeader}>{'\uD83D\uDCE1'} Műsorújság</Text>
+              <Text style={styles.epgHeader}>{'\uD83D\uDCE1'} M\u0171sor\u00FAjs\u00E1g</Text>
               {loading ? (
-                <Text style={styles.loading}>{'\u23F3'} Műsorújság betöltése...</Text>
+                <Text style={styles.loading}>{'\u23F3'} M\u0171sor\u00FAjs\u00E1g bet\u00F6lt\u00E9se...</Text>
               ) : epg.length === 0 ? (
-                <Text style={styles.noEpg}>Nincs EPG adat ehhez a csatornához.</Text>
+                <Text style={styles.noEpg}>Nincs EPG adat ehhez a csatorn\u00E1hoz.</Text>
               ) : (
-                epg.slice(0, 2).map((entry, i) => (
+                epg.slice(0, 2).map((entry, i) => {
+                  const ai = enriched?.programs?.[i];
+                  return (
                   <View key={i} style={[styles.epgRow, i === 0 && styles.epgRowNow]}>
                     <View style={styles.epgTimeRow}>
                       <Text style={styles.epgTime}>{entry.time}{entry.endTime ? ` \u2013 ${entry.endTime}` : ''}</Text>
                       {i === 0 && <Text style={styles.epgNowBadge}>MOST</Text>}
                     </View>
                     <Text style={styles.epgTitle} numberOfLines={1}>{entry.title}</Text>
-                    {entry.description ? <Text style={styles.epgDesc} numberOfLines={5}>{entry.description}</Text> : null}
+                    {ai?.genres && ai.genres.length > 0 && (
+                      <View style={styles.genreRow}>
+                        {ai.genres.map((g, gi) => (
+                          <View key={gi} style={styles.genreBadge}><Text style={styles.genreBadgeText}>{g}</Text></View>
+                        ))}
+                      </View>
+                    )}
+                    {ai?.cast && ai.cast.length > 0 && (
+                      <Text style={styles.aiCast} numberOfLines={1}>{'\uD83C\uDFAD ' + ai.cast.join(', ')}</Text>
+                    )}
+                    {ai?.pow_synopsis ? (
+                      <Text style={styles.aiPow} numberOfLines={3}>{'POW! ' + ai.pow_synopsis}</Text>
+                    ) : entry.description ? (
+                      <Text style={styles.epgDesc} numberOfLines={5}>{entry.description}</Text>
+                    ) : null}
                   </View>
-                ))
+                  );
+                })
               )}
             </View>
 
-            {/* Buttons */}
             <View style={styles.buttons}>
               {onPlay && (
                 <TFPressable ref={playBtnRef} hasTVPreferredFocus style={styles.btnPlay} focusedStyle={styles.btnPlayFocus} onPress={onPlay}>
-                  <Text style={styles.btnPlayText}>{'\u25B6'} Lejátszás</Text>
+                  <Text style={styles.btnPlayText}>{'\u25B6'} Lej\u00E1tsz\u00E1s</Text>
                 </TFPressable>
               )}
               {channel.qualityVariants && channel.qualityVariants.length > 1 && (
@@ -141,7 +157,7 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
                       style={[styles.qualityBtn, i === selectedQualityIdx && styles.qualityBtnActive]}
                       focusedStyle={styles.qualityBtnFocused}
                       onPress={() => onQualityChange?.(i)}
-                      accessibilityLabel={`${qv.label} minőség`}
+                      accessibilityLabel={`${qv.label} min\u0151s\u00E9g`}
                       accessibilityRole="button"
                     >
                       <Text style={[styles.qualityBtnText, i === selectedQualityIdx && styles.qualityBtnTextActive]}>{qv.label}</Text>
@@ -230,6 +246,17 @@ const styles = StyleSheet.create({
   },
   epgTitle: { fontSize: 10, color: COLORS.text, fontWeight: '600' },
   epgDesc: { fontSize: 9, color: COLORS.muted, lineHeight: 13 },
+  genreRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 },
+  genreBadge: {
+    backgroundColor: COLORS.cyan,
+    borderRadius: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderWidth: 1, borderColor: '#000',
+  },
+  genreBadgeText: { color: COLORS.black, fontSize: 8, fontFamily: '007Toontime' },
+  aiCast: { color: COLORS.white, fontSize: 8, fontFamily: '007Toontime', marginTop: 4 },
+  aiPow: { color: '#ffcc00', fontSize: 9, fontFamily: '007Toontime', marginTop: 4, fontStyle: 'italic', lineHeight: 13 },
   buttons: { flexDirection: 'column', gap: 4, marginTop: 8 },
   qualityRow: { flexDirection: 'row', gap: 4, justifyContent: 'center' },
   qualityBtn: {

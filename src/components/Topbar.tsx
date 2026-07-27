@@ -13,7 +13,7 @@ import { useCore, useFavorites, useActiveProfile, useBackgroundAudio } from '../
 import { useTVFocus } from '../hooks/useTVFocus';
 import { useDebounce } from '../hooks/useDebounce';
 import { COLORS, FONT, SPACING, SIZES, USER_STATUS_LOGGED_IN } from '../constants';
-import { aiSearchQuery } from '../services/aiProxy';
+import { aiSearchQuery, semanticSearch, SemanticResult } from '../services/aiProxy';
 
 const RADIUS = SIZES.radiusSm;
 const SO = 6;
@@ -43,6 +43,8 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
   const prevSearch = useRef(searchTerm);
   const [aiResults, setAiResults] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [semanticResults, setSemanticResults] = useState<SemanticResult[]>([]);
+  const [semanticLoading, setSemanticLoading] = useState(false);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -69,6 +71,21 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
       setAiLoading(false);
     }, 600);
   };
+
+  // Semantic search (debounced, runs automatically)
+  useEffect(() => {
+    if (!showInput || !localSearch.trim() || localSearch.trim().length < 3) {
+      setSemanticResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSemanticLoading(true);
+      const results = await semanticSearch(localSearch, 5);
+      setSemanticResults(results);
+      setSemanticLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [localSearch, showInput]);
 
   // Sync debounced local value → global state
   useEffect(() => {
@@ -116,8 +133,24 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
       const ch = playlist.liveChannels?.find(c => c.key === aiKey);
       if (ch) { results.push({ key: ch.key, title: ch.title, type: 'live', group: ch.group, logo: ch.logo, isAi: true }); addedKeys.add(aiKey); }
     }
+    // Merge semantic results
+    for (const sr of semanticResults) {
+      if (results.length >= 20) break;
+      const sKey = `sem_${sr.title}_${results.length}`;
+      if (addedKeys.has(sKey)) continue;
+      results.push({
+        key: sKey,
+        title: sr.title,
+        type: 'semantic',
+        group: sr.description?.slice(0, 40) || '',
+        logo: sr.poster_url || '',
+        isAi: true,
+        similarity: Math.round(sr.similarity * 100),
+      } as any);
+      addedKeys.add(sKey);
+    }
     return results;
-  }, [searchTerm, showInput, playlist, aiResults]);
+  }, [searchTerm, showInput, playlist, aiResults, semanticResults]);
 
   return (
     <View style={styles.container}>
@@ -168,12 +201,19 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
                     key={item.key}
                     style={styles.dropdownItem}
                     focusedStyle={styles.dropdownItemFocused}
-                    onPress={() => { onPlayContent(item.key); setShowInput(false); }}
+                    onPress={() => {
+                      if (item.type === 'semantic' || (item as any).similarity) {
+                        setLocalSearch(item.title);
+                        setShowInput(false);
+                      } else {
+                        onPlayContent(item.key); setShowInput(false);
+                      }
+                    }}
                   >
                     <Text style={styles.dropdownIcon}>{item.type === 'live' ? '\uD83D\uDCFA' : item.type === 'movie' ? '\uD83C\uDFAC' : '\uD83D\uDCE6'}</Text>
                     <Text style={styles.dropdownTitle} numberOfLines={1}>{item.title}</Text>
                     <Text style={styles.dropdownSub} numberOfLines={1}>{item.group}</Text>
-                    {item.isAi ? <Text style={styles.dropdownAi}>{'\uD83E\uDD16'}</Text> : null}
+                    {item.isAi ? <Text style={styles.dropdownAi}>{item.similarity ? `\uD83E\uDD16 ${item.similarity}%` : '\uD83E\uDD16'}</Text> : null}
                     {fav ? <Text style={styles.dropdownFav}>{'\u2B50'}</Text> : null}
                   </TFPressable>
                 );

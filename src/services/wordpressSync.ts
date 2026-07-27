@@ -174,3 +174,24 @@ export async function saveSingleProfile(apiKey: string, profile: WpProfile): Pro
     return res.ok;
   } catch { return false; }
 }
+
+export async function registerInterests(apiKey: string, interests: string[]): Promise<boolean> {
+  try {
+    const res = await fetchWithTimeout(apiUrl('/profiles/register', apiKey), {
+      method: 'POST',
+      headers: authHeaders(apiKey),
+      body: JSON.stringify({ interests }),
+    }, 10000);
+    return res.ok;
+  } catch { return false; }
+}
+
+export async function triggerGolfCheck(apiKey: string): Promise<boolean> {
+  try {
+    const res = await fetchWithTimeout(apiUrl('/profiles/golf-check', apiKey), {
+      method: 'POST',
+      headers: authHeaders(apiKey),
+    }, 10000);
+    return res.ok;
+  } catch { return false; }
+}

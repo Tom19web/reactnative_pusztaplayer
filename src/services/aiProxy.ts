@@ -43,3 +43,29 @@ export async function aiRecommendQuery(
     return [];
   }
 }
+
+const SEMANTIC_API = 'https://live.pusztaplay.eu';
+
+export interface SemanticResult {
+  title: string;
+  year: string;
+  similarity: number;
+  description: string;
+  poster_url?: string;
+  id?: string;
+  type?: string;
+}
+
+export async function semanticSearch(query: string, limit = 5): Promise<SemanticResult[]> {
+  if (!query.trim()) return [];
+  try {
+    const res = await fetch(`${SEMANTIC_API}/api/v1/search/semantic?q=${encodeURIComponent(query)}&limit=${limit}`, {
+      headers: { 'User-Agent': 'PusztaPlayer v1.0' },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
