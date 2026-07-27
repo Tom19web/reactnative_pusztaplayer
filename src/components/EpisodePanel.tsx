@@ -45,14 +45,6 @@ export default function EpisodePanel({ seriesId, title, onPlayEpisode, onBack }:
     return () => { cancelled = true; };
   }, [seriesId]);
 
-  if (loading) {
-    return <Text style={styles.loading}>{'\u23F3'} Epizódok betöltése...</Text>;
-  }
-
-  const info = seriesInfo?.info;
-  const seasonKeys = Object.keys(seasons);
-  if (!seasonKeys.length) return <Text style={styles.muted}>Nincsenek epizódok.</Text>;
-
   useEffect(() => {
     if (!expandedSeason || !seasons[expandedSeason]) return;
     let cancelled = false;
@@ -67,6 +59,14 @@ export default function EpisodePanel({ seriesId, title, onPlayEpisode, onBack }:
     })();
     return () => { cancelled = true; };
   }, [expandedSeason]);
+
+  if (loading) {
+    return <Text style={styles.loading}>{'\u23F3'} Epizódok betöltése...</Text>;
+  }
+
+  const info = seriesInfo?.info;
+  const seasonKeys = Object.keys(seasons);
+  if (!seasonKeys.length) return <Text style={styles.muted}>Nincsenek epizódok.</Text>;
 
   const cover = info?.cover || info?.backdrop_path?.[0];
   const genre = info?.genre || '';
