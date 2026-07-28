@@ -81,9 +81,17 @@ _COUNTRY_NAME_TO_CODE: dict[str, str] = {
 API_TIMEOUT = 30.0
 
 
+def _gh_headers() -> dict[str, str]:
+    """Headers for GitHub API requests with optional token."""
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if settings.GITHUB_TOKEN:
+        headers["Authorization"] = f"Bearer {settings.GITHUB_TOKEN}"
+    return headers
+
+
 async def fetch_json(client: httpx.AsyncClient, url: str) -> list[dict]:
     try:
-        resp = await client.get(url, timeout=API_TIMEOUT)
+        resp = await client.get(url, timeout=API_TIMEOUT, headers=_gh_headers() if "github.com" in url else None)
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
@@ -93,7 +101,7 @@ async def fetch_json(client: httpx.AsyncClient, url: str) -> list[dict]:
 
 async def fetch_text(client: httpx.AsyncClient, url: str) -> str:
     try:
-        resp = await client.get(url, timeout=API_TIMEOUT)
+        resp = await client.get(url, timeout=API_TIMEOUT, headers=_gh_headers() if "github.com" in url else None)
         resp.raise_for_status()
         return resp.text
     except Exception as e:
@@ -364,7 +372,7 @@ async def main():
     try:
         redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
         session_keys = await redis.keys("session:*")
-        await redis.close()
+        await redis.aclose()
     except Exception as e:
         logger.error("Redis scan failed: %s", e)
         return
@@ -392,7 +400,7 @@ async def main():
                     cred_list.append((u, p))
             except Exception:
                 continue
-        await redis.close()
+        await redis.aclose()
     except Exception as e:
         logger.error("Redis credential scan failed: %s", e)
         return

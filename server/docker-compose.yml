@@ -43,6 +43,7 @@ services:
       TMDB_API_KEY: ${TMDB_API_KEY}
       OPENSUBTITLES_API_KEY: ${OPENSUBTITLES_API_KEY}
       XTREAM_API_BASE: ${XTREAM_API_BASE:-http://movaloget.cc:42310}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       FCM_CREDENTIALS_JSON: ${FCM_CREDENTIALS_JSON:-/run/secrets/fcm_credentials}
     depends_on:
       postgres:
