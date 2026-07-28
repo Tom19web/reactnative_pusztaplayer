@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from app.database import get_db_readonly
 from app.redis import cache_get, cache_set
 from app.models.models import RadioStationModel
-from app.core.icy_meta import fetch_icy_metadata
+from app.core.icy_meta import fetch_metadata_with_fallback
 
 router = APIRouter(tags=["radio"])
 
@@ -58,7 +58,7 @@ async def get_radio_metadata(
     if cached is not None:
         return RadioMetadataResponse(title=cached)
 
-    result = await fetch_icy_metadata(stream_url)
+    result = await fetch_metadata_with_fallback(stream_url)
     title = result.get("title", "")
 
     # Cache successful results 30s, empty results 10s (to allow recovery)

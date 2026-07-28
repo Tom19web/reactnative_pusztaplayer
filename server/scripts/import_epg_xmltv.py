@@ -112,22 +112,40 @@ async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
     except Exception:
         pass
 
-    repo_files = await fetch_json(client, f"{IPTV_SITES_INDEX}?ref=master")
-    for item in (repo_files or []):
-        name = (item.get("name", "") or "").lower()
-        if item.get("type") != "file" or not name.endswith(".channels.xml"):
+    # Fetch sites/ directory listing (directories, not files!)
+    site_dirs = await fetch_json(client, f"{IPTV_SITES_INDEX}?ref=master")
+    matching_dirs = []
+
+    for item in (site_dirs or []):
+        if item.get("type") != "dir":
             continue
-        prefix_match = any(
-            name.startswith(p + ".") or name.startswith(p + "-")
-            or f"-{p}." in name or f".{p}." in name
+        dir_name = (item.get("name", "") or "").lower()
+        dir_url = item.get("url", "")
+        if not dir_name or not dir_url:
+            continue
+        if any(
+            dir_name.startswith(p + ".") or dir_name.startswith(p + "-")
+            or f"-{p}." in dir_name or f".{p}." in dir_name
+            or dir_name == p
             for p in COUNTRY_SITE_PREFIXES
-        )
-        if not prefix_match:
+        ):
+            matching_dirs.append((dir_name, dir_url))
+
+    logger.info("Matched %d site directories (of %d total)", len(matching_dirs), len(site_dirs or []))
+
+    # Step 2: For each directory, fetch its files + .channels.xml
+    for dir_name, dir_url in matching_dirs:
+        files = await fetch_json(client, f"{dir_url}?ref=master")
+        if not files:
             continue
-        download_url = item.get("download_url", "")
-        site_id = name.replace(".channels.xml", "")
-        if download_url and site_id:
-            site_map[site_id] = download_url
+        for f in files:
+            fname = (f.get("name", "") or "").lower()
+            if fname.endswith(".channels.xml"):
+                download_url = f.get("download_url", "")
+                if download_url:
+                    site_map[dir_name] = download_url
+                    break
+        await asyncio.sleep(0.1)
 
     try:
         with open(cache_file, "w") as f:

@@ -14,6 +14,8 @@ import ssl
 import struct
 from urllib.parse import urlparse
 
+import httpx
+
 logger = logging.getLogger(__name__)
 
 CONNECT_TIMEOUT = 10.0  # seconds for TCP/TLS connection
@@ -60,6 +62,32 @@ def _parse_redirect(header_data: bytes) -> tuple[int, str | None, str | None]:
     loc_match = LOCATION_RE.search(header_data)
     location = loc_match.group(1).decode("utf-8", errors="replace").strip() if loc_match else None
     return status, location
+
+
+async def _fetch_icecast_metadata(stream_url: str) -> str:
+    """Try Icecast status-json.xsl as fallback."""
+    try:
+        url = urlparse(stream_url)
+        host = url.hostname or ""
+        port = url.port or 80
+        scheme = url.scheme or "http"
+        json_url = f"{scheme}://{host}:{port}/status-json.xsl"
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(json_url, headers={"User-Agent": "PusztaPlayer/1.0"})
+            if resp.status_code == 200:
+                data = resp.json()
+                title = data.get("icestats", {}).get("source", {}).get("title", "")
+                if title:
+                    return title
+                # Some Icecast servers wrap differently
+                if isinstance(data.get("icestats", {}).get("source"), list):
+                    for src in data["icestats"]["source"]:
+                        t = src.get("title", "")
+                        if t:
+                            return t
+    except Exception:
+        pass
+    return ""
 
 
 async def fetch_icy_metadata(stream_url: str) -> dict:
@@ -164,3 +192,12 @@ async def fetch_icy_metadata(stream_url: str) -> dict:
             return {"title": ""}
 
     return {"title": ""}
+
+
+async def fetch_metadata_with_fallback(stream_url: str) -> dict:
+    """Fetch metadata via ICY first, then Icecast fallback."""
+    result = await fetch_icy_metadata(stream_url)
+    if result.get("title", ""):
+        return result
+    icecast_title = await _fetch_icecast_metadata(stream_url)
+    return {"title": icecast_title}
