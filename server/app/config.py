@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://puszta:puszta_secret@localhost:5432/pusztaplayer"
     REDIS_URL: str = "redis://localhost:6379/0"
     SERVER_DOMAIN: str = "live.pusztaplay.eu"
-    XTREAM_BASE: str = "https://movaloget.cc:42310"
+    XTREAM_API_BASE: str = "http://movaloget.cc:42310"
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
     OPENAI_API_KEY: str = ""

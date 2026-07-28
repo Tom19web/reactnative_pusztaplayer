@@ -13,7 +13,7 @@ async def _api_get(
     action: str = "",
     extra: str = "",
 ) -> list[dict[str, Any]]:
-    url = f"{settings.XTREAM_BASE}/player_api.php?username={username}&password={password}"
+    url = f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}"
     if action:
         url += f"&action={action}"
     url += extra

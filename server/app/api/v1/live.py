@@ -64,7 +64,7 @@ async def get_live_streams(
             "title": clean_title,
             "group": group,
             "logo": s.get("stream_icon", ""),
-            "stream_url": f"{settings.XTREAM_BASE}/live/{xtream_user}/{xtream_pass}/{stream_id}.ts",
+            "stream_url": f"https://{settings.SERVER_DOMAIN}/live/{xtream_user}/{xtream_pass}/{stream_id}.ts",
         })
 
     merged = merge_and_sort(channels)
