@@ -72,6 +72,7 @@ interface VideoPlayerProps {
   vodGenre?: string;
   vodRating?: string;
   vodDirector?: string;
+  epPlot?: string;
   noVideo?: boolean;
   onBack?: () => void;
   selectedTextTrack?: SelectedTrack;
@@ -95,7 +96,7 @@ export default function VideoPlayer({
   onPrevChannel, onNextChannel,
   seriesEps, currentEpIdx, seasonNum, onPlayEpisode,
   logoUrl, prevChanName, nextChanName, resolution,
-  vodPlot, vodCast, vodGenre, vodRating, vodDirector,
+  vodPlot, vodCast, vodGenre, vodRating, vodDirector, epPlot,
   noVideo, onBack,
   selectedTextTrack, selectedAudioTrack, downmixToStereo, onTrackInfo,
   audioTracks, textTracks, selectedTextTrackIdx, selectedAudioTrackIdx,
@@ -390,6 +391,7 @@ export default function VideoPlayer({
           vodGenre={vodGenre}
           vodRating={vodRating}
           vodDirector={vodDirector}
+          epPlot={epPlot}
           onBack={onBack}
           audioTracks={audioTracks}
           textTracks={textTracks}

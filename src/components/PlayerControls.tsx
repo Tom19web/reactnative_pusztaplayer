@@ -44,6 +44,7 @@ interface PlayerControlsProps {
   vodGenre?: string;
   vodRating?: string;
   vodDirector?: string;
+  epPlot?: string;
   onBack?: () => void;
   audioTracks?: { index: number; title: string; language?: string }[];
   textTracks?: { index: number; title: string; language?: string }[];
@@ -74,7 +75,7 @@ function PlayerControls({
   nowTitle, nowTime, nowEndTime, nowDesc, nextTitle, nextTime, nextEndTime, nextDesc,
   seriesEps, currentEpIdx, seasonNum, onPlayEpisode, logoUrl,
   prevChanName, nextChanName, resolution,
-  vodPlot, vodCast, vodGenre, vodRating, vodDirector,
+  vodPlot, vodCast, vodGenre, vodRating, vodDirector, epPlot,
   onBack, audioTracks, textTracks, selectedTextTrackIdx, selectedAudioTrackIdx, onSelectTextTrack, onSelectAudioTrack, downmixToStereo, onToggleDownmix,
 }: PlayerControlsProps) {
   const [focusedCtrl, setFocusedCtrl] = useState('');
@@ -250,6 +251,7 @@ function PlayerControls({
               <View style={styles.moviePlotCol}>
                 <Text style={[styles.vodSectionLabel, sF(styles.vodSectionLabel.fontSize)]}>Tartalom:</Text>
                 <Text style={[styles.vodPlot, sF(styles.vodPlot.fontSize)]} numberOfLines={5}>{vodPlot || 'Nincs leírás.'}</Text>
+                {epPlot ? <Text style={[styles.epPlot, sF(styles.epPlot.fontSize)]} numberOfLines={3}>{'\uD83D\uDCFA'} {epPlot}</Text> : null}
               </View>
               <View style={styles.movieMetaCol}>
                 {vodDirector ? <View style={styles.metaItem}><Text style={[styles.vodMetaLabel, sF(styles.vodMetaLabel.fontSize)]}>Rendező:</Text><Text style={[styles.vodMeta, sF(styles.vodMeta.fontSize)]} numberOfLines={2}>{vodDirector}</Text></View> : null}
@@ -438,6 +440,7 @@ const styles = StyleSheet.create({
   movieMetaCol: { flex: 2, gap: 6 },
   vodSectionLabel: { color: COLORS.cyan, fontSize: Math.round(FONT.sm * 1.2), fontWeight: '700' },
   vodPlot: { color: COLORS.text, fontSize: Math.round(FONT.sm * 1.1) - 2, lineHeight: Math.round(FONT.sm * 1.6), fontFamily: 'Poppins-Regular' },
+  epPlot: { color: COLORS.muted, fontSize: Math.round(FONT.sm * 1.1) - 4, lineHeight: Math.round(FONT.sm * 1.4), fontFamily: 'Poppins-Regular', marginTop: 8 },
   metaRow: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
   metaItem: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
   vodMetaLabel: { color: COLORS.cyan, fontSize: Math.round(FONT.sm * 1.1) - 2, fontWeight: '700' },

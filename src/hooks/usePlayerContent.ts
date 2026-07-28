@@ -4,6 +4,7 @@ import { loadXtreamCredentials } from '../services/storage';
 import { fetchShortEpg } from '../services/epgService';
 import { xtreamGetSeriesInfo, xtreamGetVodInfo, buildEpisodeUrl } from '../services/xtreamApi';
 import { saveEpisodeUrl } from '../services/playbackSession';
+import { fetchEpisodePlot } from '../services/aiProxy';
 
 interface EP {
   key: string; title: string; episodeNum: number; id: number; ext: string;
@@ -19,6 +20,7 @@ export function usePlayerContent(
   contentId: string,
 ) {
   const [vodInfo, setVodInfo] = useState<VodInfo | null>(null);
+  const [epPlot, setEpPlot] = useState('');
   const [epgEntries, setEpgEntries] = useState<EpgEntry[]>([]);
   const [seriesEps, setSeriesEps] = useState<EP[]>([]);
   const [currentEpIdx, setCurrentEpIdx] = useState(-1);
@@ -102,6 +104,13 @@ export function usePlayerContent(
           allEps.forEach(ep => {
             saveEpisodeUrl(ep.key, buildEpisodeUrl(creds.username, creds.password, ep.id, ep.ext), ep.title);
           });
+
+          // Fetch current episode's plot from backend
+          const curEp = (eps[foundSeason] || []).find(ep => `ep_${ep.id}` === contentId);
+          if (curEp && meta?.seriesId) {
+            const plotData = await fetchEpisodePlot(meta.seriesId, parseInt(foundSeason), curEp.episode_num || 0);
+            if (!c && plotData?.plot) setEpPlot(plotData.plot);
+          }
         }
       } catch { if (__DEV__) console.warn('[usePlayerContent] series info failed'); }
     })();
@@ -109,7 +118,7 @@ export function usePlayerContent(
   }, [contentId, session?.isLive, meta?.seriesId]);
 
   return {
-    vodInfo, epgEntries, seriesEps, allSeasonsFlat, currentEpIdx, seasonNum,
+    vodInfo, epPlot, epgEntries, seriesEps, allSeasonsFlat, currentEpIdx, seasonNum,
     setSeriesEps, setCurrentEpIdx,
   };
 }

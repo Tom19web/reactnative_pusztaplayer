@@ -57,7 +57,7 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
     setVideoUrl, setVideoTitle, setVideoKey, setMeta,
   } = usePlayerSession(actualContentId);
 
-  const { vodInfo, epgEntries, seriesEps, allSeasonsFlat, currentEpIdx, seasonNum, setCurrentEpIdx } =
+  const { vodInfo, epPlot, epgEntries, seriesEps, allSeasonsFlat, currentEpIdx, seasonNum, setCurrentEpIdx } =
     usePlayerContent(session, meta, actualContentId);
 
   const { trackProgress, resumePosition, resumeEpisodeKey, savedSeriesId } = usePlayerHistory(playingContentId, session, meta);
@@ -228,6 +228,7 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
           vodGenre={vodInfo?.genre}
           vodRating={vodInfo?.rating}
           vodDirector={vodInfo?.director}
+          epPlot={epPlot || undefined}
           noVideo={showLogo}
           onBack={onBack}
           selectedTextTrack={(() => {
