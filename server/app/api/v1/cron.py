@@ -10,7 +10,7 @@ router = APIRouter(tags=["cron"])
 
 def _run_epg_import_sync():
     import asyncio
-    from app.scripts.import_epg_xmltv import main as epg_main
+    from scripts.import_epg_xmltv import main as epg_main
     try:
         asyncio.get_event_loop()
     except RuntimeError:

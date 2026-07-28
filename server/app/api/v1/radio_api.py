@@ -55,13 +55,14 @@ async def get_radio_metadata(
     """Fetch current song title from an ICY/Shoutcast radio stream."""
     cache_key = f"icy:meta:{stream_url}"
     cached = await cache_get(cache_key)
-    if cached:
+    if cached is not None:
         return RadioMetadataResponse(title=cached)
 
     result = await fetch_icy_metadata(stream_url)
     title = result.get("title", "")
 
-    if title:
-        await cache_set(cache_key, title, ttl_seconds=30)
+    # Cache successful results 30s, empty results 10s (to allow recovery)
+    ttl = 30 if title else 10
+    await cache_set(cache_key, title, ttl_seconds=ttl)
 
     return RadioMetadataResponse(title=title)

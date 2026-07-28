@@ -98,7 +98,7 @@ def extract_channel_names_from_xml(xml_text: str) -> list[str]:
 
 
 async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
-    """Download all XMLTV site files from iptv-org and build a site_id→URL cache."""
+    """Build a site_id→download_url map from iptv-org/epg flat file structure."""
     site_map: dict[str, str] = {}
     logger.info("Building XMLTV site index from iptv-org/epg...")
 
@@ -115,22 +115,26 @@ async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
     except Exception:
         pass
 
-    # Fetch all country folders from the repo contents API
-    for prefix in COUNTRY_SITE_PREFIXES:
-        sites = await fetch_json(client, f"{IPTV_SITES_INDEX}?ref=master")
-        site_list: list[dict] = []
-        for item in sites:
-            name = item.get("name", "").lower()
-            if item.get("type") == "dir" and any(name.startswith(p + ".") or name.startswith(p + "-") or name == p for p in [prefix]):
-                # Fetch files inside this directory
-                files = await fetch_json(client, item["url"] + "?ref=master")
-                for f in (files or []):
-                    fname = f.get("name", "").lower()
-                    if fname.endswith(".xml") and fname != "guide.xml":
-                        download_url = f.get("download_url", "")
-                        site_id = item["name"]
-                        if download_url and site_id:
-                            site_map[site_id] = download_url
+    # Fetch sites/ directory listing (flat — all .channels.xml files)
+    repo_files = await fetch_json(client, f"{IPTV_SITES_INDEX}?ref=master")
+    for item in (repo_files or []):
+        name = (item.get("name", "") or "").lower()
+        if item.get("type") != "file":
+            continue
+        if not name.endswith(".channels.xml"):
+            continue
+        # Check if filename matches any of our target country prefixes
+        prefix_match = any(
+            name.startswith(p + ".") or name.startswith(p + "-") or f"-{p}." in name or f".{p}." in name
+            for p in COUNTRY_SITE_PREFIXES
+        )
+        if not prefix_match:
+            continue
+        download_url = item.get("download_url", "")
+        # Use filename without .channels.xml as site_id
+        site_id = name.replace(".channels.xml", "")
+        if download_url and site_id:
+            site_map[site_id] = download_url
 
     # Cache locally
     try:
@@ -146,6 +150,10 @@ async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
 async def main():
     logger.info("=== EPG Import: Xtream check + XMLTV fallback ===")
     start_time = time.time()
+
+    if not settings.XTREAM_USERNAME or not settings.XTREAM_PASSWORD:
+        logger.error("XTREAM_USERNAME/XTREAM_PASSWORD not set — cannot fetch live streams.")
+        return
 
     channels_xtream: list[dict] = []
     channels_xmltv: list[dict] = []
@@ -295,8 +303,9 @@ async def _check_xtream_epg(client: httpx.AsyncClient, stream_id: int) -> bool:
         if not resp.ok:
             return False
         data = resp.json()
-        if isinstance(data, dict) and data.get("epg_listings"):
-            return len(data["epg_listings"]) > 0
+        if isinstance(data, dict):
+            listings = data.get("epg_listings") or data.get("EPG_Listings")
+            return isinstance(listings, list) and len(listings) > 0
         return isinstance(data, list) and len(data) > 0
     except Exception:
         return False

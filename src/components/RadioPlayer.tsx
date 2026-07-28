@@ -17,7 +17,7 @@ interface Props {
 export default function RadioPlayer({ station, onBack, isFav, onToggleFav }: Props) {
   const { audio, isPlaying, start, stop } = useBackgroundAudio();
   const { active: vizActive, start: vizStart, stop: vizStop, animValues } = useAudioVisualizer();
-  const [metadata, setMetadata] = useState('');
+  const [metadata, setMetadata] = useState<string | null>(null);
   const [streamError, setStreamError] = useState(false);
   const [showTitle, setShowTitle] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -92,21 +92,11 @@ export default function RadioPlayer({ station, onBack, isFav, onToggleFav }: Pro
         );
         if (icyRes.ok) {
           const icyData = await icyRes.json();
-          if (icyData.title) title = icyData.title;
+          title = icyData.title || '';
         }
       } catch {}
-      // Fallback to Icecast status-json.xsl
-      if (!title && station.metadataUrl) {
-        try {
-          const res = await fetch(station.metadataUrl!, { headers: { 'User-Agent': 'PusztaPlayer v1.0' } });
-          if (res.ok) {
-            const data = await res.json();
-            title = data?.icestats?.source?.title || data?.current_song || '';
-          }
-        } catch {}
-      }
+      setMetadata(title || '');
       if (title) {
-        setMetadata(title);
         setShowTitle(true);
         Animated.timing(titleAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
       }
