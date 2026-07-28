@@ -2,6 +2,7 @@ import secrets
 import json
 import logging
 
+import redis.asyncio as aioredis
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -16,16 +17,23 @@ SESSION_TTL = 86400  # 24 hours
 async def create_session(xtream_user: str, xtream_pass: str) -> str:
     """Store credentials in Redis, return session token."""
     token = secrets.token_hex(32)
-    redis = await get_redis()
     data = json.dumps({"xtream_user": xtream_user, "xtream_pass": xtream_pass})
-    await redis.setex(f"session:{token}", SESSION_TTL, data)
+    try:
+        redis = await get_redis()
+        await redis.setex(f"session:{token}", SESSION_TTL, data)
+    except aioredis.RedisError as e:
+        logger.error("Redis error creating session: %s", e)
+        raise HTTPException(status_code=503, detail="Session service unavailable")
     logger.info("Session created for user %s (ttl=%ds)", xtream_user, SESSION_TTL)
     return token
 
 
 async def delete_session(token: str) -> None:
-    redis = await get_redis()
-    await redis.delete(f"session:{token}")
+    try:
+        redis = await get_redis()
+        await redis.delete(f"session:{token}")
+    except aioredis.RedisError as e:
+        logger.error("Redis error deleting session: %s", e)
 
 
 async def require_session(
@@ -38,14 +46,20 @@ async def require_session(
             detail="Missing Bearer token",
         )
     token = credentials.credentials
-    redis = await get_redis()
-    data = await redis.get(f"session:{token}")
+    try:
+        redis = await get_redis()
+        data = await redis.get(f"session:{token}")
+    except aioredis.RedisError as e:
+        logger.error("Redis error validating session: %s", e)
+        raise HTTPException(status_code=503, detail="Session service unavailable")
     if not data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired session",
         )
     session = json.loads(data)
-    # Refresh TTL on each use
-    await redis.expire(f"session:{token}", SESSION_TTL)
+    try:
+        await redis.expire(f"session:{token}", SESSION_TTL)
+    except aioredis.RedisError as e:
+        logger.warning("Redis error refreshing session TTL: %s", e)
     return session

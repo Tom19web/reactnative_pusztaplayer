@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from app.config import settings
 from app.core.auth import require_session
 from app.core.xtream_client import fetch_live_streams
 from app.core.channel_merger import clean_channel_title, merge_and_sort
@@ -50,18 +51,20 @@ async def get_live_streams(
     channels: list[dict] = []
 
     for i, s in enumerate(raw_streams):
-        group = cat_by_id.get(int(s.get("category_id", 0)), s.get("category_name", "Egyéb"))
+        raw_cat_id = s.get("category_id")
+        group = cat_by_id.get(int(raw_cat_id) if raw_cat_id is not None else 0, s.get("category_name", "Egyéb"))
         groups.add(group)
         raw_title = s.get("name", "Ismeretlen csatorna")
         clean_title = clean_channel_title(str(raw_title))
-        key = f"live_{s.get('stream_id', i)}"
+        stream_id = s.get("stream_id", i)
+        key = f"live_{stream_id}"
         channels.append({
             "key": key,
-            "stream_id": s.get("stream_id", 0),
+            "stream_id": stream_id,
             "title": clean_title,
             "group": group,
             "logo": s.get("stream_icon", ""),
-            "stream_url": f"{xtream_user}/{xtream_pass}/{s.get('stream_id', 0)}.ts",
+            "stream_url": f"{settings.XTREAM_BASE}/live/{xtream_user}/{xtream_pass}/{stream_id}.ts",
         })
 
     merged = merge_and_sort(channels)

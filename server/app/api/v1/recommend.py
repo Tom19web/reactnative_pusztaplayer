@@ -103,7 +103,7 @@ async def recommend_similar(
         row = (await session.execute(
             select(model.embedding, model.genre).where(id_col == seed_id).limit(1)
         )).one_or_none()
-        if not row:
+        if not row or row[0] is None:
             return RecommendResponse(recommendations=[])
 
         seed_embedding = list(row[0])

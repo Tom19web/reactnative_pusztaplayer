@@ -2,10 +2,9 @@ import logging
 from typing import Any
 
 import httpx
+from app.config import settings
 
 logger = logging.getLogger(__name__)
-
-XTREAM_BASE = "https://movaloget.cc:42310"
 
 
 async def _api_get(
@@ -14,7 +13,7 @@ async def _api_get(
     action: str = "",
     extra: str = "",
 ) -> list[dict[str, Any]]:
-    url = f"{XTREAM_BASE}/player_api.php?username={username}&password={password}"
+    url = f"{settings.XTREAM_BASE}/player_api.php?username={username}&password={password}"
     if action:
         url += f"&action={action}"
     url += extra
