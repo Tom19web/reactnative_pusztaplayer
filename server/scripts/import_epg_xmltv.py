@@ -238,8 +238,9 @@ async def import_logos(stream_id: int, icons: dict[str, str], site_id: str):
                 await sess.execute(text(stmt), {"sid": stream_id, "url": logo_url, "src": f"xmltv:{site_id}"})
                 await sess.commit()
                 break  # one logo per channel
-            except Exception:
+            except Exception as e:
                 await sess.rollback()
+                logger.debug("Logo insert failed for stream_id %d: %s", stream_id, e)
                 break
 
 
@@ -286,7 +287,8 @@ async def process_user(client: httpx.AsyncClient, site_map: dict[str, str], user
     if not isinstance(streams, list):
         return result
 
-    site_icons_cache: dict[str, dict[str, str]] = {}  # site_id→{xml_ch→icon_url}
+    site_xml_cache: dict[str, str] = {}                 # site_id→xml_text
+    site_icons_cache: dict[str, dict[str, str]] = {}     # site_id→{xml_ch→icon_url}
     needs_xmltv: list[tuple[str, int, str]] = []
 
     for s in streams:
@@ -310,50 +312,58 @@ async def process_user(client: httpx.AsyncClient, site_map: dict[str, str], user
 
     for name, stream_id, group in needs_xmltv:
         norm_ch = normalize(name)
-        country_code = _guess_country_code(name, "", group)
         best_site_id = ""
         best_site_url = ""
+        best_result = None
 
         for site_id, site_url in site_map.items():
             norm_site = normalize(site_id)
-            # Quick pre-filter: site domain must end with guessed country TLD
-            if not site_id.endswith("." + country_code):
-                if not any(c in norm_site for c in norm_ch[:4]):
-                    continue
-
-            if site_id in site_icons_cache:
+            # Quick pre-filter
+            if not any(c in norm_site for c in norm_ch[:4]):
                 continue
 
-            result_match = None
-            xml_text = await fetch_text(client, site_url)
-            if xml_text:
-                site_icons_cache[site_id] = extract_channel_icons_from_xml(xml_text)
-                display_names = extract_channel_names_from_xml(xml_text)
+            # Use cache if already downloaded
+            if site_id in site_icons_cache:
+                display_names = extract_channel_names_from_xml(site_xml_cache.get(site_id, ""))
                 if display_names:
-                    result_match = match_best(display_names, name)
-                    if result_match and result_match[1] > 0.5:
+                    result_cached = match_best(display_names, name)
+                    if result_cached and result_cached[1] > 0.5 and result_cached[1] > (best_result[1] if best_result else 0):
                         best_site_id = site_id
                         best_site_url = site_url
-                await asyncio.sleep(0.2)
-
-            if not best_site_url:
+                        best_result = result_cached
                 continue
+
+            # Download + cache
+            xml_text = await fetch_text(client, site_url)
+            if not xml_text:
+                continue
+            site_xml_cache[site_id] = xml_text
+            site_icons_cache[site_id] = extract_channel_icons_from_xml(xml_text)
+            display_names = extract_channel_names_from_xml(xml_text)
+            if not display_names:
+                continue
+            result_match = match_best(display_names, name)
+            if result_match and result_match[1] > 0.5:
+                if not best_result or result_match[1] > best_result[1]:
+                    best_site_id = site_id
+                    best_site_url = site_url
+                    best_result = result_match
+            await asyncio.sleep(0.15)
 
         if not best_site_url:
             continue
 
-        logger.info("  %s → %s (score=%.2f)", name, best_site_id, result_match[1])
-        xml_text = await fetch_text(client, best_site_url)
+        logger.info("  %s → %s (score=%.2f)", name, best_site_id, best_result[1])
+        xml_text = site_xml_cache.get(best_site_id) or await fetch_text(client, best_site_url)
         if not xml_text:
             continue
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(0.1)
 
         # Import programs
         programs = parse_xmltv(xml_text)
         if programs:
             inserted = await import_programs(stream_id, name, programs, best_site_id)
             result["imported"] += inserted
-            result["xmltv"] += 1
 
         # Import logo
         icons = site_icons_cache.get(best_site_id, {})
