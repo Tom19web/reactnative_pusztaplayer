@@ -1,9 +1,25 @@
 import { Channel } from '../types';
 import { xtreamGetLive } from './xtreamApi';
 
+let AsyncStorage: any;
+try { AsyncStorage = require('@react-native-async-storage/async-storage').default || require('@react-native-async-storage/async-storage'); } catch { AsyncStorage = null; }
+
 const SEMANTIC_API = 'https://live.pusztaplay.eu';
+const SESSION_TOKEN_KEY = 'pusztaplay_session_token';
 
 let _sessionToken: string | null = null;
+
+async function loadStoredToken(): Promise<string | null> {
+  try {
+    if (AsyncStorage) {
+      const stored = await AsyncStorage.getItem(SESSION_TOKEN_KEY);
+      if (stored) { _sessionToken = stored; return stored; }
+    }
+  } catch {}
+  return null;
+}
+
+loadStoredToken();
 
 export async function registerSession(
   xtreamUser: string,
@@ -19,6 +35,9 @@ export async function registerSession(
     if (!res.ok) return null;
     const data = await res.json();
     _sessionToken = data.session_token;
+    try {
+      if (AsyncStorage) await AsyncStorage.setItem(SESSION_TOKEN_KEY, _sessionToken);
+    } catch {}
     return _sessionToken;
   } catch {
     return null;
@@ -80,6 +99,6 @@ export async function fetchLiveStreams(
   }
 
   // Fallback to direct Xtream API
-  const result = await xTreamGetLive(username, password);
+  const result = await xtreamGetLive(username, password);
   return { ...result, fromBackend: false };
 }

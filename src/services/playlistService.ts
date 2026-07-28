@@ -18,6 +18,7 @@ import {
   saveXtreamCredentials,
   clearXtreamCredentials,
 } from './storage';
+import { fetchLiveStreams } from './liveProxy';
 import { saveEpisodeUrl } from './playbackSession';
 import { PlaylistData, LoginResult } from '../types';
 
@@ -99,6 +100,15 @@ export async function xtreamLogin(
 ): Promise<PlaylistData> {
   const result = await xtreamFullLogin(username, password);
   const playlist = loginResultToPlaylistData(result);
+
+  // Try backend for merged/deduped live channels
+  try {
+    const backendLive = await fetchLiveStreams(username, password);
+    if (backendLive.fromBackend && backendLive.channels.length > 0) {
+      playlist.liveChannels = backendLive.channels;
+      playlist.channels = backendLive.channels;
+    }
+  } catch {}
 
   currentPlaylist = playlist;
   await savePlaylistToCache(playlist);
