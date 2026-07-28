@@ -146,3 +146,13 @@ class QrSessionModel(Base):
     api_key = Column(String(200))
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class ChannelLogoModel(Base):
+    __tablename__ = "channel_logos"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    stream_id = Column(Integer, unique=True, nullable=False, index=True)
+    logo_url = Column(Text, nullable=False)
+    source = Column(String(100), default="xmltv")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

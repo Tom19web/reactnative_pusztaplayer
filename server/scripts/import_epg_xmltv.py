@@ -1,14 +1,17 @@
-"""EPG import script: Xtream-first, XMLTV fallback for foreign channels.
+"""EPG import script: per-user Redis session scan, Xtream-first, XMLTV fallback.
 
 Usage:
   docker compose exec fastapi python /app/scripts/import_epg_xmltv.py
 
 Strategy:
-  1. Fetch all live channels from Xtream API.
-  2. For each channel, check if Xtream already has EPG (get_short_epg, limit=1).
-  3. If Xtream has EPG → skip.
-  4. If Xtream has NO EPG → try XMLTV from iptv-org/epg.
-  5. Match channel name → XMLTV source, download XML, parse, import.
+  1. Scan Redis "session:*" keys for active user credentials.
+  2. Dedup by (username, password) pair.
+  3. For each unique credential pair:
+     a. Fetch live channels from Xtream API.
+     b. For each channel, check if Xtream already has EPG.
+     c. If Xtream has EPG → skip.
+     d. If Xtream has NO EPG → try XMLTV from iptv-org/epg.
+     e. Match channel → XMLTV source, download, parse, import programs + logos.
 """
 import asyncio
 import json
@@ -19,8 +22,8 @@ import sys
 import time
 
 import httpx
+import redis.asyncio as aioredis
 
-# Add app to path for standalone script execution
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.channel_matcher import normalize, match_best
@@ -30,33 +33,12 @@ from app.config import settings
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("epg_import")
 
-IPTV_EPG_BASE = "https://raw.githubusercontent.com/iptv-org/epg/master/sites"
 IPTV_SITES_INDEX = "https://api.github.com/repos/iptv-org/epg/contents/sites"
 
-# Countries to look up XMLTV sources for (mapped to common site prefixes)
 COUNTRY_SITE_PREFIXES = [
-    "hu",    # Hungary
-    "de",    # Germany
-    "at",    # Austria
-    "ch",    # Switzerland
-    "fr",    # France
-    "it",    # Italy
-    "es",    # Spain
-    "uk", "gb",  # United Kingdom
-    "ro",    # Romania
-    "cz",    # Czech
-    "sk",    # Slovakia
-    "pl",    # Poland
-    "nl",    # Netherlands
-    "be",    # Belgium
-    "pt",    # Portugal
-    "se",    # Sweden
-    "no",    # Norway
-    "dk",    # Denmark
-    "fi",    # Finland
-    "gr",    # Greece
-    "tr",    # Turkey
-    "rs", "hr", "si", "bg",  # Balkan
+    "hu", "de", "at", "ch", "fr", "it", "es", "uk", "gb",
+    "ro", "cz", "sk", "pl", "nl", "be", "pt",
+    "se", "no", "dk", "fi", "gr", "tr", "rs", "hr", "si", "bg",
 ]
 
 API_TIMEOUT = 30.0
@@ -82,8 +64,25 @@ async def fetch_text(client: httpx.AsyncClient, url: str) -> str:
         return ""
 
 
+def extract_channel_icons_from_xml(xml_text: str) -> dict[str, str]:
+    """Extract channel_id→icon_url from XMLTV <channel> elements."""
+    icons: dict[str, str] = {}
+    try:
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(xml_text)
+        for ch in root.findall("channel"):
+            ch_id = ch.get("id", "")
+            for icon_elem in ch.findall("icon"):
+                src = icon_elem.get("src", "")
+                if src and ch_id:
+                    icons[ch_id] = src
+                    break
+    except Exception:
+        pass
+    return icons
+
+
 def extract_channel_names_from_xml(xml_text: str) -> list[str]:
-    """Extract display names from XMLTV to build channel→source mapping."""
     names: list[str] = []
     try:
         import xml.etree.ElementTree as ET
@@ -98,11 +97,9 @@ def extract_channel_names_from_xml(xml_text: str) -> list[str]:
 
 
 async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
-    """Build a site_id→download_url map from iptv-org/epg flat file structure."""
     site_map: dict[str, str] = {}
     logger.info("Building XMLTV site index from iptv-org/epg...")
 
-    # Try local file first
     import json as _json
     cache_file = "/tmp/epg_site_cache.json"
     try:
@@ -115,28 +112,23 @@ async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
     except Exception:
         pass
 
-    # Fetch sites/ directory listing (flat — all .channels.xml files)
     repo_files = await fetch_json(client, f"{IPTV_SITES_INDEX}?ref=master")
     for item in (repo_files or []):
         name = (item.get("name", "") or "").lower()
-        if item.get("type") != "file":
+        if item.get("type") != "file" or not name.endswith(".channels.xml"):
             continue
-        if not name.endswith(".channels.xml"):
-            continue
-        # Check if filename matches any of our target country prefixes
         prefix_match = any(
-            name.startswith(p + ".") or name.startswith(p + "-") or f"-{p}." in name or f".{p}." in name
+            name.startswith(p + ".") or name.startswith(p + "-")
+            or f"-{p}." in name or f".{p}." in name
             for p in COUNTRY_SITE_PREFIXES
         )
         if not prefix_match:
             continue
         download_url = item.get("download_url", "")
-        # Use filename without .channels.xml as site_id
         site_id = name.replace(".channels.xml", "")
         if download_url and site_id:
             site_map[site_id] = download_url
 
-    # Cache locally
     try:
         with open(cache_file, "w") as f:
             _json.dump(site_map, f)
@@ -147,146 +139,36 @@ async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
     return site_map
 
 
-async def main():
-    logger.info("=== EPG Import: Xtream check + XMLTV fallback ===")
-    start_time = time.time()
-
-    if not settings.XTREAM_USERNAME or not settings.XTREAM_PASSWORD:
-        logger.error("XTREAM_USERNAME/XTREAM_PASSWORD not set — cannot fetch live streams.")
+async def import_logos(stream_id: int, icons: dict[str, str], site_id: str):
+    """Store channel logo URLs from XMLTV icons."""
+    if not icons:
         return
-
-    channels_xtream: list[dict] = []
-    channels_xmltv: list[dict] = []
-    imported = 0
-
-    async with httpx.AsyncClient(verify=False) as client:
-        # 1. Get all live channels from Xtream
-        logger.info("Fetching live channels from Xtream...")
-        try:
-            streams, cat_by_id = await _fetch_live_streams(client)
-            logger.info("Got %d live streams", len(streams) if isinstance(streams, list) else 0)
-        except Exception as e:
-            logger.error("Failed to fetch live streams: %s", e)
-            return
-
-        if not isinstance(streams, list):
-            logger.error("Unexpected streams response type: %s", type(streams))
-            return
-
-        # 2. Check each channel for Xtream EPG coverage
-        logger.info("Checking Xtream EPG coverage for %d channels...", len(streams))
-        needs_xmltv: list[tuple[str, int, str]] = []  # (name, stream_id, group)
-
-        for i, s in enumerate(streams):
-            if not isinstance(s, dict):
+    from app.database import async_session_factory
+    async with async_session_factory() as sess:
+        for xml_ch_id, logo_url in icons.items():
+            if not logo_url:
                 continue
-            stream_id = s.get("stream_id", 0)
-            name = s.get("name", "Unknown")
-            if not stream_id:
-                continue
-
-            # Check if Xtream has EPG
-            has_epg = await _check_xtream_epg(client, stream_id)
-            if has_epg:
-                channels_xtream.append({"name": name, "stream_id": stream_id})
-            else:
-                group = cat_by_id.get(int(s.get("category_id", 0)), s.get("category_name", ""))
-                needs_xmltv.append((name, stream_id, group))
-
-        logger.info(
-            "Xtream EPG: %d channels | Needs XMLTV: %d channels",
-            len(channels_xtream), len(needs_xmltv),
-        )
-
-        if not needs_xmltv:
-            logger.info("All channels have Xtream EPG — nothing to import.")
-            elapsed = time.time() - start_time
-            logger.info("=== Done in %.1fs ===", elapsed)
-            return
-
-        # 3. Build XMLTV site index
-        site_map = await build_site_index(client)
-        if not site_map:
-            logger.error("No XMLTV sites found — aborting.")
-            return
-
-        # 4. For each channel needing EPG, try matching XMLTV sources
-        logger.info("Matching %d channels to XMLTV sources...", len(needs_xmltv))
-
-        # Track which sites we've already downloaded
-        site_display_names: dict[str, list[str]] = {}  # site_id → display names
-
-        for name, stream_id, group in needs_xmltv:
-            norm_ch = normalize(name)
-            best_site_id = ""
-            best_site_url = ""
-
-            for site_id, site_url in site_map.items():
-                norm_site = normalize(site_id)
-                # Quick pre-filter: site name should share some characters with channel name
-                if not any(c in norm_site for c in norm_ch[:4]):
-                    continue
-
-                # Fetch display names for this site (if not already cached)
-                if site_id not in site_display_names:
-                    xml_text = await fetch_text(client, site_url)
-                    if xml_text:
-                        site_display_names[site_id] = extract_channel_names_from_xml(xml_text)
-                    else:
-                        site_display_names[site_id] = []
-                    # Rate limit
-                    await asyncio.sleep(0.2)
-
-                display_names = site_display_names.get(site_id, [])
-                if not display_names:
-                    continue
-
-                result = match_best(display_names, name)
-                if result and result[1] > 0.5:
-                    best_site_id = site_id
-                    best_site_url = site_url
-                    break
-
-            if not best_site_url:
-                continue
-
-            # 5. Download full XMLTV for this site
-            logger.info(
-                "  %s → %s (score=%.2f)",
-                name, best_site_id, result[1] if result else 0,
-            )
-            xml_text = await fetch_text(client, best_site_url)
-            if not xml_text:
-                continue
-
-            await asyncio.sleep(0.3)
-
-            # Parse + import
-            programs = parse_xmltv(xml_text)
-            if not programs:
-                continue
-
-            inserted = await import_programs(stream_id, name, programs, best_site_id)
-            imported += inserted
-            channels_xmltv.append({"name": name, "stream_id": stream_id, "site": best_site_id})
-            logger.info("    → %d programs imported", inserted)
-
-    elapsed = time.time() - start_time
-    logger.info("=== EPG Import Complete ===")
-    logger.info("Channels with Xtream EPG: %d", len(channels_xtream))
-    logger.info("Channels with XMLTV EPG: %d", len(channels_xmltv))
-    logger.info("Total programs imported:  %d", imported)
-    logger.info("Elapsed: %.1f seconds", elapsed)
+            try:
+                stmt = """
+                    INSERT INTO channel_logos (stream_id, logo_url, source)
+                    VALUES (:sid, :url, :src)
+                    ON CONFLICT (stream_id) DO UPDATE SET logo_url = EXCLUDED.logo_url
+                """
+                from sqlalchemy import text
+                await sess.execute(text(stmt), {"sid": stream_id, "url": logo_url, "src": f"xmltv:{site_id}"})
+                await sess.commit()
+                break  # one logo per channel
+            except Exception:
+                await sess.rollback()
+                break
 
 
-async def _fetch_live_streams(client: httpx.AsyncClient) -> tuple[list, dict]:
-    url = f"{settings.XTREAM_API_BASE}/player_api.php?username={settings.XTREAM_USERNAME}&password={settings.XTREAM_PASSWORD}&action=get_live_streams"
+async def _fetch_live_streams(client: httpx.AsyncClient, username: str, password: str) -> tuple[list, dict]:
+    url = f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_live_streams"
     resp = await client.get(url, timeout=API_TIMEOUT)
     resp.raise_for_status()
     streams = resp.json()
-
-    # Also fetch categories
-    cat_url = f"{settings.XTREAM_API_BASE}/player_api.php?username={settings.XTREAM_USERNAME}&password={settings.XTREAM_PASSWORD}&action=get_live_categories"
+    cat_url = f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_live_categories"
     cat_resp = await client.get(cat_url, timeout=API_TIMEOUT)
     cat_resp.raise_for_status()
     cats = cat_resp.json()
@@ -296,8 +178,8 @@ async def _fetch_live_streams(client: httpx.AsyncClient) -> tuple[list, dict]:
     return streams, cat_by_id
 
 
-async def _check_xtream_epg(client: httpx.AsyncClient, stream_id: int) -> bool:
-    url = f"{settings.XTREAM_API_BASE}/player_api.php?username={settings.XTREAM_USERNAME}&password={settings.XTREAM_PASSWORD}&action=get_short_epg&stream_id={stream_id}&limit=1"
+async def _check_xtream_epg(client: httpx.AsyncClient, username: str, password: str, stream_id: int) -> bool:
+    url = f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_short_epg&stream_id={stream_id}&limit=1"
     try:
         resp = await client.get(url, timeout=10.0)
         if not resp.ok:
@@ -309,6 +191,175 @@ async def _check_xtream_epg(client: httpx.AsyncClient, stream_id: int) -> bool:
         return isinstance(data, list) and len(data) > 0
     except Exception:
         return False
+
+
+async def process_user(client: httpx.AsyncClient, site_map: dict[str, str], username: str, password: str, user_label: str) -> dict:
+    """Process EPG + logo import for a single user's channels."""
+    result = {"xtream": 0, "xmltv": 0, "imported": 0, "logos": 0}
+    logger.info("[%s] Fetching live channels...", user_label)
+    try:
+        streams, cat_by_id = await _fetch_live_streams(client, username, password)
+    except Exception as e:
+        logger.error("[%s] Failed: %s", user_label, e)
+        return result
+
+    if not isinstance(streams, list):
+        return result
+
+    site_icons_cache: dict[str, dict[str, str]] = {}  # site_id→{xml_ch→icon_url}
+    needs_xmltv: list[tuple[str, int, str]] = []
+
+    for s in streams:
+        if not isinstance(s, dict):
+            continue
+        stream_id = s.get("stream_id", 0)
+        name = s.get("name", "Unknown")
+        if not stream_id:
+            continue
+        has_epg = await _check_xtream_epg(client, username, password, stream_id)
+        if has_epg:
+            result["xtream"] += 1
+        else:
+            group = cat_by_id.get(int(s.get("category_id", 0) or 0), s.get("category_name", ""))
+            needs_xmltv.append((name, stream_id, group))
+
+    logger.info("[%s] Xtream EPG: %d | Needs XMLTV: %d", user_label, result["xtream"], len(needs_xmltv))
+
+    if not needs_xmltv:
+        return result
+
+    for name, stream_id, group in needs_xmltv:
+        norm_ch = normalize(name)
+        best_site_id = ""
+        best_site_url = ""
+
+        for site_id, site_url in site_map.items():
+            norm_site = normalize(site_id)
+            if not any(c in norm_site for c in norm_ch[:4]):
+                continue
+            # Check cached icons first — if we already downloaded, check names match
+            if site_id in site_icons_cache:
+                display_names = []
+                for icons_dict in [site_icons_cache.get(site_id, {})]:
+                    pass
+                continue
+
+            result_match = None
+            for stid, sturl in [(site_id, site_url)]:
+                xml_text = await fetch_text(client, sturl)
+                if not xml_text:
+                    continue
+                # Cache icons
+                if site_id not in site_icons_cache:
+                    site_icons_cache[site_id] = extract_channel_icons_from_xml(xml_text)
+                display_names = extract_channel_names_from_xml(xml_text)
+                if not display_names:
+                    continue
+                result_match = match_best(display_names, name)
+                if result_match and result_match[1] > 0.5:
+                    best_site_id = site_id
+                    best_site_url = site_url
+                    break
+                await asyncio.sleep(0.2)
+
+            if not best_site_url:
+                continue
+
+        if not best_site_url:
+            continue
+
+        logger.info("  %s → %s (score=%.2f)", name, best_site_id, result_match[1])
+        xml_text = await fetch_text(client, best_site_url)
+        if not xml_text:
+            continue
+        await asyncio.sleep(0.3)
+
+        # Import programs
+        programs = parse_xmltv(xml_text)
+        if programs:
+            inserted = await import_programs(stream_id, name, programs, best_site_id)
+            result["imported"] += inserted
+            result["xmltv"] += 1
+
+        # Import logo
+        icons = site_icons_cache.get(best_site_id, {})
+        if icons:
+            await import_logos(stream_id, icons, best_site_id)
+            result["logos"] += 1
+
+    return result
+
+
+async def main():
+    logger.info("=== EPG Import: per-user Redis session scan + XMLTV fallback ===")
+    start_time = time.time()
+
+    # 1. Scan Redis for active sessions
+    try:
+        redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        session_keys = await redis.keys("session:*")
+        await redis.close()
+    except Exception as e:
+        logger.error("Redis scan failed: %s", e)
+        return
+
+    if not session_keys:
+        logger.warning("No active sessions found — nothing to import.")
+        return
+
+    # 2. Dedup credentials
+    seen_creds: set[tuple[str, str]] = set()
+    cred_list: list[tuple[str, str]] = []
+
+    try:
+        redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        for key in session_keys:
+            try:
+                data = await redis.get(key)
+                if not data:
+                    continue
+                session = json.loads(data)
+                u = session.get("xtream_user", "")
+                p = session.get("xtream_pass", "")
+                if u and p and (u, p) not in seen_creds:
+                    seen_creds.add((u, p))
+                    cred_list.append((u, p))
+            except Exception:
+                continue
+        await redis.close()
+    except Exception as e:
+        logger.error("Redis credential scan failed: %s", e)
+        return
+
+    logger.info("Found %d active sessions → %d unique credentials", len(session_keys), len(cred_list))
+
+    # 3. Build XMLTV site index (shared across users)
+    async with httpx.AsyncClient(verify=False) as client:
+        site_map = await build_site_index(client)
+        if not site_map:
+            logger.error("No XMLTV sites found — aborting.")
+            return
+
+        total = {"xtream": 0, "xmltv": 0, "imported": 0, "logos": 0}
+
+        for i, (username, password) in enumerate(cred_list):
+            label = f"User {i + 1}/{len(cred_list)}"
+            logger.info("--- %s ---", label)
+            res = await process_user(client, site_map, username, password, label)
+            for k in total:
+                total[k] += res[k]
+            # Rate limit between users
+            if i < len(cred_list) - 1:
+                await asyncio.sleep(1)
+
+    elapsed = time.time() - start_time
+    logger.info("=== EPG Import Complete ===")
+    logger.info("Users processed:    %d", len(cred_list))
+    logger.info("Xtream EPG covers:  %d", total["xtream"])
+    logger.info("XMLTV EPG added:    %d", total["xmltv"])
+    logger.info("Programs imported:  %d", total["imported"])
+    logger.info("Logos imported:     %d", total["logos"])
+    logger.info("Elapsed: %.1f seconds", elapsed)
 
 
 if __name__ == "__main__":

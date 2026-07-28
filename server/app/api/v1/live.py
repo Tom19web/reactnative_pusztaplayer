@@ -7,6 +7,8 @@ from app.config import settings
 from app.core.auth import require_session
 from app.core.xtream_client import fetch_live_streams
 from app.core.channel_merger import clean_channel_title, merge_and_sort
+from app.models.models import ChannelLogoModel
+from app.database import async_session_factory
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["live"])
@@ -68,6 +70,23 @@ async def get_live_streams(
         })
 
     merged = merge_and_sort(channels)
+
+    # Logo fallback: fill missing logos from channel_logos table
+    missing_logo_ids = [ch["stream_id"] for ch in merged if not ch.get("logo")]
+    if missing_logo_ids:
+        try:
+            async with async_session_factory() as sess:
+                from sqlalchemy import select
+                result = await sess.execute(
+                    select(ChannelLogoModel.stream_id, ChannelLogoModel.logo_url)
+                    .where(ChannelLogoModel.stream_id.in_(missing_logo_ids))
+                )
+                logo_map = {row.stream_id: row.logo_url for row in result}
+            for ch in merged:
+                if not ch.get("logo") and ch["stream_id"] in logo_map:
+                    ch["logo"] = logo_map[ch["stream_id"]]
+        except Exception as e:
+            logger.debug("Logo fallback lookup failed: %s", e)
 
     return LiveStreamsResponse(
         channels=[ChannelItem(**ch) for ch in merged],

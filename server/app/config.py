@@ -6,8 +6,6 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     SERVER_DOMAIN: str = "live.pusztaplay.eu"
     XTREAM_API_BASE: str = "http://movaloget.cc:42310"
-    XTREAM_USERNAME: str = ""
-    XTREAM_PASSWORD: str = ""
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
     OPENAI_API_KEY: str = ""
