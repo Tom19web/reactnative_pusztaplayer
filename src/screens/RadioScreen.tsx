@@ -12,7 +12,7 @@ import FilterItem from '../components/FilterItem';
 import ShadowWrapper from '../components/ShadowWrapper';
 import { radioStations, RadioStation, USE_RADIO_API } from '../constants/radioStations';
 import { COLORS, FONT, SPACING } from '../constants';
-import { useCore } from '../store/AppContext';
+import { useCore, useFavorites, useToggleFavorite } from '../store/AppContext';
 import { getRadioPlayCounts, incrementRadioPlay, loadRadioRecents, saveRadioRecents } from '../services/radioStorage';
 import { fetchRadioStations } from '../services/radioService';
 
@@ -30,12 +30,16 @@ const sortOptions = ['Név ↑', 'Név ↓'];
 
 export default function RadioScreen({ onPlayContent, onBack }: Props) {
   const { state: { searchTerm } } = useCore();
+  const favorites = useFavorites();
+  const toggleFav = useToggleFavorite();
   const [page, setPage] = useState(0);
   const [playing, setPlaying] = useState<RadioStation | null>(null);
   const [playCounts, setPlayCounts] = useState<Record<string, number>>({});
   const [recents, setRecents] = useState<RadioStation[]>([]);
   const [activeSort, setActiveSort] = useState('Név ↑');
+  const [activeTag, setActiveTag] = useState('Mind');
   const [showSort, setShowSort] = useState(false);
+  const [showTag, setShowTag] = useState(false);
   const [stations, setStations] = useState<RadioStation[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -49,7 +53,7 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
         try {
           list = await fetchRadioStations();
         } catch {
-          list = radioStations; // fallback to hardcoded
+          list = radioStations;
         }
       } else {
         list = radioStations;
@@ -63,27 +67,36 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
     })();
   }, []);
 
-  useEffect(() => { setPage(0); }, [searchTerm, activeSort]);
+  useEffect(() => { setPage(0); }, [searchTerm, activeSort, activeTag]);
 
-  const sorted = useMemo(() => {
-    const list = [...stations];
+  const tags = useMemo(() => {
+    const tagSet = new Set<string>();
+    for (const s of stations) {
+      for (const t of s.tags) tagSet.add(t);
+    }
+    return ['Mind', ...Array.from(tagSet).sort()];
+  }, [stations]);
+
+  const favKeys = useMemo(() => new Set(favorites.map(f => f.key)), [favorites]);
+
+  const filtered = useMemo(() => {
+    let list = [...stations];
+    if (activeTag !== 'Mind') list = list.filter(s => s.tags.includes(activeTag));
     if (activeSort === 'Név ↑') {
       list.sort((a, b) => a.name.localeCompare(b.name));
     } else {
       list.sort((a, b) => b.name.localeCompare(a.name));
     }
+    if (searchTerm) {
+      const t = searchTerm.toLowerCase();
+      list = list.filter(s => s.name.toLowerCase().includes(t) || s.tags.some(tg => tg.toLowerCase().includes(t)));
+    }
     return list;
-  }, [activeSort, stations]);
+  }, [stations, activeSort, activeTag, searchTerm]);
 
-  const filtered = useMemo(() => {
-    if (!searchTerm) return sorted;
-    const t = searchTerm.toLowerCase();
-    return sorted.filter(s => s.name.toLowerCase().includes(t));
-  }, [searchTerm, sorted]);
+  const favStations = useMemo(() => filtered.filter(s => favKeys.has(s.key)), [filtered, favKeys]);
 
-  const pageItems = useMemo(() => {
-    return filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  }, [filtered, page]);
+  const pageItems = useMemo(() => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filtered, page]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
 
@@ -94,10 +107,23 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
     return [page - 2, page - 1, page, page + 1, page + 2];
   }, [page, totalPages]);
 
+  const isFav = useCallback((key: string) => favKeys.has(key), [favKeys]);
+
+  const handleToggleFav = useCallback((station: RadioStation) => {
+    toggleFav({
+      key: station.key,
+      title: station.name,
+      type: 'radio',
+      group: 'Rádió',
+      logo: station.logo || '',
+      streamUrl: station.streamUrl,
+      seriesId: '',
+    });
+  }, [toggleFav]);
+
   const handlePress = useCallback(async (station: RadioStation) => {
     await incrementRadioPlay(station.key);
     setPlayCounts(prev => ({ ...prev, [station.key]: (prev[station.key] || 0) + 1 }));
-
     const newRecents = [station, ...recents.filter(r => r.key !== station.key)].slice(0, MAX_RECENTS);
     setRecents(newRecents);
     await saveRadioRecents(newRecents.map(r => r.key));
@@ -108,10 +134,15 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
     setPlaying(null);
   }, []);
 
-  const filterTop = SPACING.sm + SPACING.sm + SPACING.md + SPACING.md;
-
   if (playing) {
-    return <RadioPlayer station={playing} onBack={handlePlayerBack} />;
+    return (
+      <RadioPlayer
+        station={playing}
+        onBack={handlePlayerBack}
+        isFav={isFav(playing.key)}
+        onToggleFav={() => handleToggleFav(playing)}
+      />
+    );
   }
 
   if (loading) {
@@ -129,7 +160,7 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} nestedScrollEnabled>
 
         {/* Recents section */}
-        {!searchTerm && recents.length > 0 && (
+        {!searchTerm && activeTag === 'Mind' && recents.length > 0 && (
           <View style={{ marginBottom: SPACING.md }}>
             <RuggedBorder color={COLORS.cyan} wobbleFactor={0.7}>
               <View style={styles.recentsWrap}>
@@ -143,7 +174,7 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
                 <Text style={styles.recentsTitle}>Legutóbb hallgatott</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentsRow}>
                   {recents.map(s => (
-                    <RadioCard key={s.key} station={s} onPress={() => handlePress(s)} />
+                    <RadioCard key={s.key} station={s} onPress={() => handlePress(s)} isFav={isFav(s.key)} />
                   ))}
                 </ScrollView>
               </View>
@@ -152,15 +183,58 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
           </View>
         )}
 
+        {/* Favorites section */}
+        {activeTag === 'Mind' && favStations.length > 0 && (
+          <View style={{ marginBottom: SPACING.md }}>
+            <RuggedBorder color={COLORS.black} wobbleFactor={0.7}>
+              <View style={styles.recentsWrap}>
+                <LinearGradient
+                  colors={['#1a0e0e', '#100a0a', '#080505']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.recentsGradient}
+                />
+                <DotPattern dotColor="#fff" dotOpacity={0.04} spacing={14} />
+                <Text style={[styles.recentsTitle, { color: COLORS.red }]}>{'\u2B50'} Kedvenc rádiók</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentsRow}>
+                  {favStations.map(s => (
+                    <RadioCard key={s.key} station={s} onPress={() => handlePress(s)} isFav={isFav(s.key)} />
+                  ))}
+                </ScrollView>
+              </View>
+              <SoundEffect text="LOVE!" textColor={COLORS.white} bgColor={COLORS.red} top={-10} right={-8} rotate={-6} fontSize={18} />
+            </RuggedBorder>
+          </View>
+        )}
+
         {/* Filter bar */}
         <RuggedBorder color={COLORS.black} wobbleFactor={0.7} style={{ marginBottom: SPACING.md }}>
           <View style={styles.filterBox}>
             <DotPattern dotColor="#000" dotOpacity={0.15} spacing={6} dotRadius={1.5} />
-            <Text style={styles.filterLabel}>Rendezés: </Text>
-            <FilterBtn label={activeSort} onPress={() => setShowSort(!showSort)} />
+            <Text style={styles.filterLabel}>Kategória: </Text>
+            <FilterBtn label={activeTag} onPress={() => { setShowTag(!showTag); setShowSort(false); }} />
+            <Text style={styles.filterLabel}> | Rendezés: </Text>
+            <FilterBtn label={activeSort} onPress={() => { setShowSort(!showSort); setShowTag(false); }} />
           </View>
           <SoundEffect text="SORT!" textColor={COLORS.red} bgColor={COLORS.cyan} top={-2} right={-8} rotate={5} />
         </RuggedBorder>
+
+        {showTag && (
+          <View style={styles.filterOverlay}>
+            <ShadowWrapper offset={6} borderRadius={6}>
+              <ScrollView style={[styles.filterOverlayScroll, { maxHeight: 300 }]} nestedScrollEnabled>
+                {tags.map(opt => (
+                  <FilterItem
+                    key={opt}
+                    label={opt}
+                    isActive={opt === activeTag}
+                    onPress={() => { setActiveTag(opt); setShowTag(false); }}
+                  />
+                ))}
+              </ScrollView>
+            </ShadowWrapper>
+          </View>
+        )}
 
         {showSort && (
           <View style={styles.filterOverlay}>
@@ -185,7 +259,7 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
         ) : (
           <View style={styles.gridWrap}>
             {pageItems.map(s => (
-              <RadioCard key={s.key} station={s} onPress={() => handlePress(s)} />
+              <RadioCard key={s.key} station={s} onPress={() => handlePress(s)} isFav={isFav(s.key)} />
             ))}
             {Array.from({ length: PAGE_SIZE - pageItems.length }).map((_, i) => (
               <View key={`e-${i}`} style={{ width: CARD_W, height: CARD_H }} />
@@ -223,7 +297,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
+    gap: SPACING.xs + 2,
     overflow: 'hidden',
   },
   filterLabel: { color: COLORS.black, fontFamily: 'Bangers-Regular', fontSize: 14 },

@@ -4,20 +4,24 @@ export interface RadioStation {
   streamUrl: string;
   logo: string;
   metadataUrl?: string;
+  tags: string[];
+  country: string;
+  language: string;
+  votes: number;
 }
 
 export const USE_RADIO_API = true;
 
 export const radioStations: RadioStation[] = [
-  { key: 'radio_0', name: 'Aktív Rádió 92.2', streamUrl: 'http://aktivradio.hu:8000/aktiv.mp3', logo: 'http://www.popularis.hu/radio/aktiv.png' },
-  { key: 'radio_1', name: 'Balaton Rádió 88.7', streamUrl: 'http://91.82.85.41:8200/listen.pls', logo: 'http://www.balatonfm.hu///templates/br14/favicon.ico' },
-  { key: 'radio_2', name: 'Balatonica Radio', streamUrl: 'http://balatonica.hu:8000/stream_high', logo: 'http://www.balatonica.hu//themes/2017/assets/ico/favicon.ico' },
-  { key: 'radio_3', name: 'Bartók Rádió', streamUrl: 'http://mr-stream.mediaconnect.hu/4742/mr3hq.mp3', logo: 'http://operavilag.net/wp-content/uploads/hirmondo-kaleidoszkop/2013/09/24/11921/bartok_radio_thumb.png' },
-  { key: 'radio_4', name: 'BDPST ROCK', streamUrl: 'http://stream.bdpstrock.hu/bdpstrock_192k', logo: 'https://bdpstrock.hu/assets/img/front/favicon.ico' },
-  { key: 'radio_5', name: 'Best FM', streamUrl: 'http://stream.webthings.hu:8000/fm95-x-128.mp3', logo: 'http://www.popularis.hu/radio/radio-fm-95.png' },
-  { key: 'radio_6', name: 'Bithang Yoo Rádió', streamUrl: 'http://stream.diazol.hu:35160/live.mp3', logo: 'https://cdn.onlineradiobox.com/img/l/2/78492.v6.png' },
-  { key: 'radio_7', name: 'Buddha FM', streamUrl: 'http://libretime.buddhafm.hu:4000/buddhafm', logo: 'https://www.buddhafm.hu/wp-content/uploads/2021/07/cropped-android-chrome-512x512-1-180x180.png' },
-  { key: 'radio_8', name: 'Callisto', streamUrl: 'http://188.165.11.30:4500/live.mp3', logo: 'https://www.radio.net/images/broadcasts/02/45/1467/c300.png' },
+  { key: 'radio_0', name: 'Aktív Rádió 92.2', streamUrl: 'http://aktivradio.hu:8000/aktiv.mp3', logo: 'http://www.popularis.hu/radio/aktiv.png', tags: [], country: '', language: '', votes: 0 },
+  { key: 'radio_1', name: 'Balaton Rádió 88.7', streamUrl: 'http://91.82.85.41:8200/listen.pls', logo: 'http://www.balatonfm.hu///templates/br14/favicon.ico', tags: [], country: '', language: '', votes: 0 },
+  { key: 'radio_2', name: 'Balatonica Radio', streamUrl: 'http://balatonica.hu:8000/stream_high', logo: 'http://www.balatonica.hu//themes/2017/assets/ico/favicon.ico', tags: [], country: '', language: '', votes: 0 },
+  { key: 'radio_3', name: 'Bartók Rádió', streamUrl: 'http://mr-stream.mediaconnect.hu/4742/mr3hq.mp3', logo: 'http://operavilag.net/wp-content/uploads/hirmondo-kaleidoszkop/2013/09/24/11921/bartok_radio_thumb.png', tags: [], country: '', language: '', votes: 0 },
+  { key: 'radio_4', name: 'BDPST ROCK', streamUrl: 'http://stream.bdpstrock.hu/bdpstrock_192k', logo: 'https://bdpstrock.hu/assets/img/front/favicon.ico', tags: [], country: '', language: '', votes: 0 },
+  { key: 'radio_5', name: 'Best FM', streamUrl: 'http://stream.webthings.hu:8000/fm95-x-128.mp3', logo: 'http://www.popularis.hu/radio/radio-fm-95.png', tags: [], country: '', language: '', votes: 0 },
+  { key: 'radio_6', name: 'Bithang Yoo Rádió', streamUrl: 'http://stream.diazol.hu:35160/live.mp3', logo: 'https://cdn.onlineradiobox.com/img/l/2/78492.v6.png', tags: [], country: '', language: '', votes: 0 },
+  { key: 'radio_7', name: 'Buddha FM', streamUrl: 'http://libretime.buddhafm.hu:4000/buddhafm', logo: 'https://www.buddhafm.hu/wp-content/uploads/2021/07/cropped-android-chrome-512x512-1-180x180.png', tags: [], country: '', language: '', votes: 0 },
+  { key: 'radio_8', name: 'Callisto', streamUrl: 'http://188.165.11.30:4500/live.mp3', logo: 'https://www.radio.net/images/broadcasts/02/45/1467/c300.png', tags: [], country: '', language: '', votes: 0 },
   { key: 'radio_9', name: 'Civil Rádió', streamUrl: 'http://civilradio.hu:8000/;stream', logo: 'http://sos.civilradio.hu/wp-content/uploads/dynamik-gen/theme/images/civil-foot.png' },
   { key: 'radio_10', name: 'Club Dance Online', streamUrl: 'https://stream.clubdance.online:8000/live.mp3', logo: 'https://clubdance.online/wp-content/uploads/2015/08/Clubdanceonlinelogo2-300x139.png' },
   { key: 'radio_11', name: 'Cool FM', streamUrl: 'http://mediagw.e-tiger.net/stream/cfmhq', logo: 'https://onlinestream.live/logos/5386.png' },

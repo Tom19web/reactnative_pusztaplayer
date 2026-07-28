@@ -17,6 +17,9 @@ interface RawStation {
   votes: number;
   codec: string;
   bitrate: number;
+  tags?: string;
+  country?: string;
+  language?: string;
 }
 
 interface CacheEntry {
@@ -24,7 +27,7 @@ interface CacheEntry {
   stations: RadioStation[];
 }
 
-function guessMetadataUrl(streamUrl: string): string | undefined {
+function guessMetadataUrl(streamUrl: string, raw: RawStation): string | undefined {
   try {
     const u = new URL(streamUrl);
     return `${u.protocol}//${u.host}/status-json.xsl`;
@@ -41,7 +44,11 @@ function transform(raw: RawStation[]): RadioStation[] {
       name: s.name,
       streamUrl: s.url_resolved || s.url,
       logo: s.favicon || '',
-      metadataUrl: guessMetadataUrl(s.url_resolved || s.url),
+      metadataUrl: guessMetadataUrl(s.url_resolved || s.url, s),
+      tags: s.tags ? s.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      country: s.country || '',
+      language: s.language || '',
+      votes: s.votes || 0,
     }));
 }
 

@@ -12,9 +12,10 @@ const CARD_H = 80;
 interface Props {
   station: RadioStation;
   onPress: () => void;
+  isFav?: boolean;
 }
 
-export default function RadioCard({ station, onPress }: Props) {
+export default function RadioCard({ station, onPress, isFav }: Props) {
   return (
     <RuggedBorder color={COLORS.cyan} width={CARD_W} height={CARD_H} wobbleFactor={0.4}>
       <View style={{ overflow: 'hidden' }}>
@@ -37,7 +38,7 @@ export default function RadioCard({ station, onPress }: Props) {
             )}
           </View>
           <View style={styles.nameWrap}>
-            <Text style={styles.name} numberOfLines={1}>{station.name}</Text>
+            <Text style={styles.name} numberOfLines={1}>{isFav ? '\u2B50 ' : ''}{station.name}</Text>
           </View>
         </TFPressable>
       </View>
