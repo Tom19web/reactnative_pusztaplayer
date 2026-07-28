@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
@@ -27,7 +27,7 @@ class MovieModel(Base):
     stream_id = Column(Integer, unique=True, index=True)
     embedding = Column(Vector(1536))
     meta = Column(JSONB)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class ChannelModel(Base):
@@ -40,7 +40,7 @@ class ChannelModel(Base):
     category = Column(String(200))
     stream_id = Column(Integer, index=True)
     meta = Column(JSONB)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class EpgProgramModel(Base):
@@ -60,7 +60,7 @@ class EpgProgramModel(Base):
     genre = Column(String(500))
     cast = Column(Text)
     ai_enriched = Column(JSONB)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class UserProfileModel(Base):
@@ -72,7 +72,7 @@ class UserProfileModel(Base):
     interests = Column(JSONB)
     fcm_token = Column(String(500))
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class RadioStationModel(Base):
@@ -92,7 +92,7 @@ class RadioStationModel(Base):
     bitrate = Column(Integer)
     votes = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class SeriesModel(Base):
@@ -111,7 +111,7 @@ class SeriesModel(Base):
     cover = Column(String(1000))
     embedding = Column(Vector(1536))
     meta = Column(JSONB)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class EpisodeModel(Base):
@@ -125,7 +125,7 @@ class EpisodeModel(Base):
     plot = Column(Text)
     air_date = Column(String(20))
     embedding = Column(Vector(1536))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         UniqueConstraint("series_id", "season", "episode", name="uq_series_season_episode"),
@@ -145,4 +145,4 @@ class QrSessionModel(Base):
     phone = Column(String(50))
     api_key = Column(String(200))
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

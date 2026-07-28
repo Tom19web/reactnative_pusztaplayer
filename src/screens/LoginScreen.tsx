@@ -76,10 +76,10 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         if (xtreamUser && xtreamPass) {
           setStep('loggingIn');
           try {
+            saveXtreamCredentials(xtreamUser, xtreamPass, { email: userEmail, nickname, phone, apiKey });
+            await registerSession(xtreamUser, xtreamPass, apiKey || '');
             const playlist = await xtreamLogin(xtreamUser, xtreamPass);
             if (!mountedRef.current) return;
-            saveXtreamCredentials(xtreamUser, xtreamPass, { email: userEmail, nickname, phone, apiKey });
-            registerSession(xtreamUser, xtreamPass, apiKey || '');
             setUser(xtreamUser, USER_STATUS_LOGGED_IN, userEmail || '', nickname || '', phone || '', apiKey || '');
             setPlaylist(playlist);
             if (timerRef.current) clearInterval(timerRef.current);

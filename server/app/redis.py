@@ -1,5 +1,3 @@
-from datetime import datetime, UTC
-
 import redis.asyncio as aioredis
 from app.config import settings
 

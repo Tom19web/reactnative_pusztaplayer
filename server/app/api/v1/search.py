@@ -6,7 +6,6 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database import get_db_readonly
 from app.core.vector_engine import VectorEngine
 
 logger = logging.getLogger(__name__)

@@ -49,7 +49,7 @@ def merge_and_sort(channels: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not raw_title:
             continue
         group_name = ch.get("group", "Egyéb")
-        if group_name == "Hungarian Radio":
+        if group_name.lower() == "hungarian radio":
             continue
         key = (base_title(raw_title), group_name)
         if key not in groups:

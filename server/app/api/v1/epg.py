@@ -3,9 +3,8 @@ import logging
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql import func
 
 from app.database import get_db_readonly
 from app.redis import cache_get, cache_set

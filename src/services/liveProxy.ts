@@ -70,6 +70,10 @@ export async function fetchLiveStreams(
           'User-Agent': 'PusztaPlayer v1.0',
         },
       });
+      if (res.status === 401) {
+        _sessionToken = null;
+        try { if (AsyncStorage) await AsyncStorage.removeItem(SESSION_TOKEN_KEY); } catch {}
+      }
       if (res.ok) {
         const data = await res.json();
         const channels: Channel[] = (data.channels || []).map((c: any) => ({
