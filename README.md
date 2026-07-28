@@ -20,6 +20,9 @@ Xtream Codes API kompatibilis — élő TV, filmek, sorozatok, EPG műsorújság
 | **AGP** | 8.9.1 |
 | **compileSdk / targetSdk** | 36 |
 | **minSdk** | 26 |
+| **Backend API** | Python FastAPI + PostgreSQL (pgvector) + Redis |
+| **AI / ML** | OpenAI embeddings (text-embedding-3-small, 1536-dim) + DeepSeek |
+| **Deploy** | Docker Compose (FastAPI, Postgres+pgvector, Redis, Nginx) |
 
 ## Funkciók
 
@@ -60,10 +63,60 @@ Xtream Codes API kompatibilis — élő TV, filmek, sorozatok, EPG műsorújság
 - Sentry DSN kizárólag környezeti változóból
 - ProGuard szabályok előkészítve
 
+### AI Features
+- Vektoros ajánló (`/api/v1/recommend`) — nézési előzmények centroid embedding-je alapján
+- Szemantikus keresés (`/api/v1/search/semantic`) — OpenAI embedding alapú
+- EPG AI dúsítás (`/api/v1/epg/{id}`) — műsorok AI genre, cast, bővített leírás
+- "Hasonlók" a detail paneleken — bármely film/sorozat embedding alapú hasonló találatok
+- Per-epizód plot (`/api/v1/episodes/plot`) — TMDB + OpenAI embedding-gel feltöltött epizód leírások
+- AI hangulat szűrő film/sorozat böngészőben
+- Napi AI válogatás a főoldalon
+- Golf-Riaszto értesítési beállítások
+
+### Backend Server (Python FastAPI)
+A `server/` mappában található a Python backend, ami a következő szolgáltatásokat nyújtja:
+- AI / ML endpointok (pgvector similarity search, OpenAI embeddings)
+- Session-alapú Xtream proxy (Redis session store, 24h TTL)
+- Élő TV csatornalista proxy — országkód prefix tisztítás, minőség merge (SD/HD/FHD), dedup
+- EPG enrichment, felirat kezelés, rádió API, cron job-ok
+- Profilok, QR auth
+
+**Backend indítása:**
+```bash
+cd server
+cp .env.example .env  # majd töltsd ki a kulcsokat
+docker compose up -d
+```
+
 ## Projekt struktúra
 
 ```
 PusztaPlayer/
+├── server/                          # Python FastAPI backend
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── pyproject.toml
+│   ├── .env.example
+│   ├── app/
+│   │   ├── main.py                  # FastAPI app + router registration
+│   │   ├── config.py                # Settings (pydantic)
+│   │   ├── database.py              # AsyncSession factory
+│   │   ├── redis.py                 # Redis client (session store)
+│   │   ├── api/v1/                  # API route-ok
+│   │   │   ├── search.py            # Szemantikus keresés
+│   │   │   ├── recommend.py         # Vektoros ajánló + hasonlók
+│   │   │   ├── session.py           # Session kezelés (Redis)
+│   │   │   ├── live.py              # Élő TV proxy (csatornalista)
+│   │   │   ├── epg.py               # EPG enrichment
+│   │   │   └── ...
+│   │   ├── core/                    # Alapszolgáltatások
+│   │   │   ├── vector_engine.py     # pgvector cosine similarity
+│   │   │   ├── auth.py              # Bearer token session auth
+│   │   │   ├── xtream_client.py     # Xtream API HTTP kliens
+│   │   │   └── channel_merger.py    # Csatornanév tisztítás + merge
+│   │   └── models/                  # SQLAlchemy modellek
+│   ├── scripts/                     # Import szkriptek
+│   └── migrations/                  # Alembic migrációk
 ├── App.tsx                         # Alkalmazás beléptető pont
 ├── index.js                        # RN regisztráció
 ├── package.json

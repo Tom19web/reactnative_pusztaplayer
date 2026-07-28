@@ -19,3 +19,9 @@ yarn-error.log*
 ios/Pods/
 ios/build/
 .bundle/
+
+# Server (Python)
+server/__pycache__/
+server/.pytest_cache/
+server/*.egg-info/
+server/.env
