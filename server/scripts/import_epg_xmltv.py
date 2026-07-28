@@ -126,7 +126,7 @@ async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
         if any(
             dir_name.startswith(p + ".") or dir_name.startswith(p + "-")
             or f"-{p}." in dir_name or f".{p}." in dir_name
-            or dir_name == p
+            or dir_name == p or dir_name.endswith("." + p)
             for p in COUNTRY_SITE_PREFIXES
         ):
             matching_dirs.append((dir_name, dir_url))
