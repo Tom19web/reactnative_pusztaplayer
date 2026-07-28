@@ -35,6 +35,8 @@ interface PlayerControlsProps {
   currentEpIdx?: number;
   seasonNum?: string;
   onPlayEpisode?: (key: string) => void;
+  onPrevEpisode?: () => void;
+  onNextEpisode?: () => void;
   logoUrl?: string;
   prevChanName?: string;
   nextChanName?: string;
@@ -73,7 +75,7 @@ function PlayerControls({
   onPlayPause, onSeek, onRew, onFwd, onRestart, onPrevChannel, onNextChannel,
   isFav, onToggleFav,
   nowTitle, nowTime, nowEndTime, nowDesc, nextTitle, nextTime, nextEndTime, nextDesc,
-  seriesEps, currentEpIdx, seasonNum, onPlayEpisode, logoUrl,
+  seriesEps, currentEpIdx, seasonNum, onPlayEpisode, onPrevEpisode, onNextEpisode, logoUrl,
   prevChanName, nextChanName, resolution,
   vodPlot, vodCast, vodGenre, vodRating, vodDirector, epPlot,
   onBack, audioTracks, textTracks, selectedTextTrackIdx, selectedAudioTrackIdx, onSelectTextTrack, onSelectAudioTrack, downmixToStereo, onToggleDownmix,
@@ -105,6 +107,12 @@ function PlayerControls({
   const renderControls = () => (
     <View>
       <View style={styles.controlsRow}>
+        {onPrevEpisode && (
+          <TFPressable style={[styles.ctrlBtn, styles.ctrlBtnWide]} focusedStyle={styles.ctrlBtnFocus} onPress={onPrevEpisode}
+            onFocus={() => setFocusedCtrl('Előző epizód')} onBlur={() => setFocusedCtrl('')}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.black }}>{'\u25C0'}</Text>
+          </TFPressable>
+        )}
         {isVod && (
           <TFPressable style={styles.ctrlBtn} focusedStyle={styles.ctrlBtnFocus} onPress={onRew}
             onFocus={() => setFocusedCtrl('Visszatekerés')} onBlur={() => setFocusedCtrl('')}>
@@ -155,6 +163,18 @@ function PlayerControls({
           <TFPressable style={styles.ctrlBtn} focusedStyle={styles.ctrlBtnFocus} onPress={onToggleFav}
             onFocus={() => setFocusedCtrl(isFav ? 'Eltávolítás a kedvencekből' : 'Hozzáadás a kedvencekhez')} onBlur={() => setFocusedCtrl('')}>
             {isFav ? <HeartIcon size={16} color={COLORS.red} /> : <HeartOutlineIcon size={16} color={COLORS.black} />}
+          </TFPressable>
+        )}
+        {onNextEpisode && (
+          <TFPressable style={[styles.ctrlBtn, styles.ctrlBtnWide]} focusedStyle={styles.ctrlBtnFocus} onPress={onNextEpisode}
+            onFocus={() => setFocusedCtrl('Következő epizód')} onBlur={() => setFocusedCtrl('')}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.black }}>{'\u25B6'}</Text>
+          </TFPressable>
+        )}
+        {onNextEpisode && duration > 300 && duration - currentTime < 15 && (
+          <TFPressable style={[styles.skipBtn]} focusedStyle={styles.skipBtnFocus} onPress={onNextEpisode} hasTVPreferredFocus
+            accessibilityLabel="Stáblista átugrása">
+            <Text style={styles.skipBtnText}>{'\u23ED\uFE0F'}</Text>
           </TFPressable>
         )}
       </View>
@@ -246,12 +266,11 @@ function PlayerControls({
               ))}
             </View>
           </ScrollView>
-          {(vodPlot || vodDirector || vodCast) && (
+          {(vodPlot || epPlot || vodDirector || vodCast) && (
             <View style={styles.movieDetailRow}>
               <View style={styles.moviePlotCol}>
                 <Text style={[styles.vodSectionLabel, sF(styles.vodSectionLabel.fontSize)]}>Tartalom:</Text>
-                <Text style={[styles.vodPlot, sF(styles.vodPlot.fontSize)]} numberOfLines={5}>{vodPlot || 'Nincs leírás.'}</Text>
-                {epPlot ? <Text style={[styles.epPlot, sF(styles.epPlot.fontSize)]} numberOfLines={3}>{'\uD83D\uDCFA'} {epPlot}</Text> : null}
+                <Text style={[styles.vodPlot, sF(styles.vodPlot.fontSize)]} numberOfLines={5}>{epPlot || vodPlot || 'Nincs leírás.'}</Text>
               </View>
               <View style={styles.movieMetaCol}>
                 {vodDirector ? <View style={styles.metaItem}><Text style={[styles.vodMetaLabel, sF(styles.vodMetaLabel.fontSize)]}>Rendező:</Text><Text style={[styles.vodMeta, sF(styles.vodMeta.fontSize)]} numberOfLines={2}>{vodDirector}</Text></View> : null}
@@ -403,8 +422,12 @@ const styles = StyleSheet.create({
   tooltipRow: { alignItems: 'center', marginBottom: 2 },
   tooltipText: { color: COLORS.yellow, fontSize: FONT.xs - 2, fontFamily: 'Poppins-Bold' },
   ctrlBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: COLORS.yellow, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.black },
+  ctrlBtnWide: { width: 44 },
   ctrlBtnFocus: { backgroundColor: COLORS.cyan, transform: [{ scale: 1.06 }] },
   ctrlBtnActive: { borderColor: COLORS.yellow, backgroundColor: 'rgba(255,204,0,0.3)' },
+  skipBtn: { width: 44, height: 32, borderRadius: 8, backgroundColor: COLORS.yellow, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.black, marginLeft: 8 },
+  skipBtnFocus: { backgroundColor: COLORS.cyan, transform: [{ scale: 1.06 }] },
+  skipBtnText: { fontSize: 16, fontWeight: '700', color: COLORS.black },
   // Info panel
   channelInfo: { marginTop: SPACING.xs, gap: 4, backgroundColor: 'rgba(0,0,0,0.95)', padding: SPACING.sm, borderRadius: 10 },
   infoTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

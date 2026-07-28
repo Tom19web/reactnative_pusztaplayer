@@ -138,6 +138,16 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
     }
   }, [allSeasonsFlat, playingContentId, onNextChannel, switchToEpisode]);
 
+  const handlePrevEpisode = useCallback(() => {
+    if (!seriesEps || currentEpIdx <= 0) return;
+    switchToEpisode(seriesEps[currentEpIdx - 1]);
+  }, [seriesEps, currentEpIdx, switchToEpisode]);
+
+  const handleNextEpisode = useCallback(() => {
+    if (!seriesEps || currentEpIdx < 0 || currentEpIdx >= seriesEps.length - 1) return;
+    switchToEpisode(seriesEps[currentEpIdx + 1]);
+  }, [seriesEps, currentEpIdx, switchToEpisode]);
+
   const handleToggleFav = useCallback(() => {
     dispatch({ type: 'TOGGLE_FAVORITE', payload: {
       key: contentId, title: meta?.title || '',
@@ -219,6 +229,8 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
             const ep = seriesEps.find(e => e.key === key);
             if (ep) navigateToEp(ep);
           }}
+          onPrevEpisode={seriesEps && currentEpIdx > 0 ? handlePrevEpisode : undefined}
+          onNextEpisode={seriesEps && currentEpIdx >= 0 && currentEpIdx < (seriesEps?.length || 0) - 1 ? handleNextEpisode : undefined}
           logoUrl={meta?.logo}
           prevChanName={prevChanName}
           nextChanName={nextChanName}

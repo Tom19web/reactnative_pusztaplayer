@@ -63,6 +63,8 @@ interface VideoPlayerProps {
   currentEpIdx?: number;
   seasonNum?: string;
   onPlayEpisode?: (key: string) => void;
+  onPrevEpisode?: () => void;
+  onNextEpisode?: () => void;
   logoUrl?: string;
   prevChanName?: string;
   nextChanName?: string;
@@ -94,7 +96,7 @@ export default function VideoPlayer({
   isFav, onToggleFav,
   nowTitle, nowTime, nowEndTime, nowDesc, nextTitle, nextTime, nextEndTime, nextDesc,
   onPrevChannel, onNextChannel,
-  seriesEps, currentEpIdx, seasonNum, onPlayEpisode,
+  seriesEps, currentEpIdx, seasonNum, onPlayEpisode, onPrevEpisode, onNextEpisode,
   logoUrl, prevChanName, nextChanName, resolution,
   vodPlot, vodCast, vodGenre, vodRating, vodDirector, epPlot,
   noVideo, onBack,
@@ -382,6 +384,8 @@ export default function VideoPlayer({
           currentEpIdx={currentEpIdx}
           seasonNum={seasonNum}
           onPlayEpisode={onPlayEpisode}
+          onPrevEpisode={onPrevEpisode}
+          onNextEpisode={onNextEpisode}
           logoUrl={logoUrl}
           prevChanName={prevChanName}
           nextChanName={nextChanName}

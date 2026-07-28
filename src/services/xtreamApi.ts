@@ -85,12 +85,14 @@ export async function xtreamCheckLogin(
 
 // ─── Live csatornák ─────────────────────────────────
 
-const CC_PATTERN = /\s*\|?(?:HU|RO|DE|FR|IT|ES|CA|UK|CZ|SK|PL|NL|BG|RS|GR|AT|HR|SI|TR)\|?(?:\s+|:)/gi;
+const _CODES = '(?:hu|ro|de|fr|it|es|ca|uk|cz|sk|pl|nl|bg|rs|gr|at|hr|si|tr)';
+const _RE_PREFIX = new RegExp(`^\\|?${_CODES}\\|?\\s*`, 'i');
+const _RE_SUFFIX = new RegExp(`\\s*\\|?${_CODES}\\|?\\s*$`, 'i');
 
 function cleanChannelTitle(raw: string): string {
   let t = raw;
-  t = t.replace(/^\|?(?:HU|RO|DE|FR|IT|ES|CA|UK|CZ|SK|PL|NL|BG|RS|GR|AT|HR|SI|TR)\|?(?:\s+|:)/gi, '');
-  t = t.replace(/\s*\|?(?:HU|RO|DE|FR|IT|ES|CA|UK|CZ|SK|PL|NL|BG|RS|GR|AT|HR|SI|TR)\|?\s*$/gi, '');
+  t = t.replace(_RE_PREFIX, '');
+  t = t.replace(_RE_SUFFIX, '');
   return t.trim() || raw;
 }
 
