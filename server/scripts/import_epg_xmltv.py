@@ -299,10 +299,12 @@ async def process_user(client: httpx.AsyncClient, site_map: dict[str, str], user
         if not stream_id:
             continue
         has_epg = await _check_xtream_epg(client, username, password, stream_id)
-        if has_epg:
+        group = cat_by_id.get(int(s.get("category_id", 0) or 0), s.get("category_name", ""))
+        group_lower = (group or "").lower()
+        is_hu = any(w in group_lower for w in ["hungary", "magyar", "hungarian"])
+        if has_epg or is_hu:
             result["xtream"] += 1
         else:
-            group = cat_by_id.get(int(s.get("category_id", 0) or 0), s.get("category_name", ""))
             needs_xmltv.append((name, stream_id, group))
 
     logger.info("[%s] Xtream EPG: %d | Needs XMLTV: %d", user_label, result["xtream"], len(needs_xmltv))
