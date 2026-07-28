@@ -80,27 +80,41 @@ export default function RadioPlayer({ station, onBack, isFav, onToggleFav }: Pro
     return () => loop.stop();
   }, [pulseAnim]);
 
-  // Metadata polling
+  // Metadata polling — backend ICY first, metadataUrl fallback
   useEffect(() => {
-    if (!station.metadataUrl) return;
     const fetchMeta = async () => {
+      let title = '';
+      // Try backend ICY metadata parser first (works for Shoutcast + Icecast)
       try {
-        const res = await fetch(station.metadataUrl!, { headers: { 'User-Agent': 'PusztaPlayer v1.0' } });
-        if (res.ok) {
-          const data = await res.json();
-          const title = data?.icestats?.source?.title || data?.current_song || '';
-          if (title) {
-            setMetadata(title);
-            setShowTitle(true);
-            Animated.timing(titleAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-          }
+        const icyRes = await fetch(
+          `https://live.pusztaplay.eu/api/v1/radio/metadata?stream_url=${encodeURIComponent(station.streamUrl)}`,
+          { headers: { 'User-Agent': 'PusztaPlayer v1.0' } },
+        );
+        if (icyRes.ok) {
+          const icyData = await icyRes.json();
+          if (icyData.title) title = icyData.title;
         }
       } catch {}
+      // Fallback to Icecast status-json.xsl
+      if (!title && station.metadataUrl) {
+        try {
+          const res = await fetch(station.metadataUrl!, { headers: { 'User-Agent': 'PusztaPlayer v1.0' } });
+          if (res.ok) {
+            const data = await res.json();
+            title = data?.icestats?.source?.title || data?.current_song || '';
+          }
+        } catch {}
+      }
+      if (title) {
+        setMetadata(title);
+        setShowTitle(true);
+        Animated.timing(titleAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+      }
     };
     fetchMeta();
     metadataTimer.current = setInterval(fetchMeta, 30000);
     return () => { if (metadataTimer.current) clearInterval(metadataTimer.current); };
-  }, [station.metadataUrl, titleAnim]);
+  }, [station.streamUrl, station.metadataUrl, titleAnim]);
 
   // Back handler
   useEffect(() => {

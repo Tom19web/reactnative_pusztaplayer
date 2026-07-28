@@ -4,7 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
 from app.database import get_db_readonly
+from app.redis import cache_get, cache_set
 from app.models.models import RadioStationModel
+from app.core.icy_meta import fetch_icy_metadata
 
 router = APIRouter(tags=["radio"])
 
@@ -40,3 +42,26 @@ async def get_radio_stations(
     result = await db.execute(stmt)
     stations = result.scalars().all()
     return stations
+
+
+class RadioMetadataResponse(BaseModel):
+    title: str = ""
+
+
+@router.get("/radio/metadata", response_model=RadioMetadataResponse)
+async def get_radio_metadata(
+    stream_url: str = Query(..., min_length=1),
+):
+    """Fetch current song title from an ICY/Shoutcast radio stream."""
+    cache_key = f"icy:meta:{stream_url}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return RadioMetadataResponse(title=cached)
+
+    result = await fetch_icy_metadata(stream_url)
+    title = result.get("title", "")
+
+    if title:
+        await cache_set(cache_key, title, ttl_seconds=30)
+
+    return RadioMetadataResponse(title=title)
