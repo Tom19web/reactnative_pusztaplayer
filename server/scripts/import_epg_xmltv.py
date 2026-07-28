@@ -41,6 +41,43 @@ COUNTRY_SITE_PREFIXES = [
     "se", "no", "dk", "fi", "gr", "tr", "rs", "hr", "si", "bg",
 ]
 
+# Country name → ISO code for Xtream category matching
+_COUNTRY_NAME_TO_CODE: dict[str, str] = {
+    "hungary": "hu", "magyar": "hu", "magyarország": "hu",
+    "germany": "de", "deutschland": "de", "német": "de",
+    "austria": "at", "österreich": "at", "osztrák": "at",
+    "switzerland": "ch", "schweiz": "ch", "suisse": "ch", "svájc": "ch",
+    "france": "fr", "francia": "fr",
+    "italy": "it", "italia": "it", "olasz": "it",
+    "spain": "es", "españa": "es", "spanyol": "es",
+    "united kingdom": "gb", "uk": "gb", "great britain": "gb", "britain": "gb",
+    "england": "gb", "angol": "gb",
+    "romania": "ro", "románia": "ro", "román": "ro",
+    "czech": "cz", "czechia": "cz", "cseh": "cz",
+    "slovakia": "sk", "szlovák": "sk",
+    "poland": "pl", "lengyel": "pl",
+    "netherlands": "nl", "holland": "nl",
+    "belgium": "be", "belga": "be",
+    "portugal": "pt", "portugál": "pt",
+    "sweden": "se", "svéd": "se",
+    "norway": "no", "norvég": "no",
+    "denmark": "dk", "dán": "dk",
+    "finland": "fi", "finn": "fi",
+    "greece": "gr", "görög": "gr",
+    "turkey": "tr", "török": "tr",
+    "serbia": "rs", "szerb": "rs",
+    "croatia": "hr", "horvát": "hr",
+    "slovenia": "si", "szlovén": "si",
+    "bulgaria": "bg", "bolgár": "bg",
+    "albania": "al", "albán": "al",
+    "ireland": "ie", "ír": "ie",
+    "usa": "us", "america": "us", "amerikai": "us",
+    "canada": "ca", "kanada": "ca",
+    "australia": "au", "ausztrál": "au",
+    "russia": "ru", "orosz": "ru",
+    "brasil": "br", "brazil": "br",
+}
+
 API_TIMEOUT = 30.0
 
 
@@ -96,6 +133,22 @@ def extract_channel_names_from_xml(xml_text: str) -> list[str]:
     return names
 
 
+def _guess_country_code(channel_name: str, group: str, cat_name: str) -> str:
+    """Guess country ISO code from channel metadata. Returns 'hu' as fallback."""
+    # 1. Check category name
+    cat_lower = (cat_name or "").lower()
+    for key, code in _COUNTRY_NAME_TO_CODE.items():
+        if key in cat_lower:
+            return code
+    # 2. Check group name
+    group_lower = (group or "").lower()
+    for key, code in _COUNTRY_NAME_TO_CODE.items():
+        if key in group_lower:
+            return code
+    # 3. Default
+    return "hu"
+
+
 async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
     site_map: dict[str, str] = {}
     logger.info("Building XMLTV site index from iptv-org/epg...")
@@ -135,7 +188,8 @@ async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
 
     # Step 2: For each directory, fetch its files + .channels.xml
     for dir_name, dir_url in matching_dirs:
-        files = await fetch_json(client, f"{dir_url}?ref=master")
+        clean_url = dir_url.split("?")[0]
+        files = await fetch_json(client, f"{clean_url}?ref=master")
         if not files:
             continue
         for f in files:
@@ -248,36 +302,30 @@ async def process_user(client: httpx.AsyncClient, site_map: dict[str, str], user
 
     for name, stream_id, group in needs_xmltv:
         norm_ch = normalize(name)
+        country_code = _guess_country_code(name, "", group)
         best_site_id = ""
         best_site_url = ""
 
         for site_id, site_url in site_map.items():
             norm_site = normalize(site_id)
-            if not any(c in norm_site for c in norm_ch[:4]):
-                continue
-            # Check cached icons first — if we already downloaded, check names match
+            # Quick pre-filter: site domain must end with guessed country TLD
+            if not site_id.endswith("." + country_code):
+                if not any(c in norm_site for c in norm_ch[:4]):
+                    continue
+
             if site_id in site_icons_cache:
-                display_names = []
-                for icons_dict in [site_icons_cache.get(site_id, {})]:
-                    pass
                 continue
 
             result_match = None
-            for stid, sturl in [(site_id, site_url)]:
-                xml_text = await fetch_text(client, sturl)
-                if not xml_text:
-                    continue
-                # Cache icons
-                if site_id not in site_icons_cache:
-                    site_icons_cache[site_id] = extract_channel_icons_from_xml(xml_text)
+            xml_text = await fetch_text(client, site_url)
+            if xml_text:
+                site_icons_cache[site_id] = extract_channel_icons_from_xml(xml_text)
                 display_names = extract_channel_names_from_xml(xml_text)
-                if not display_names:
-                    continue
-                result_match = match_best(display_names, name)
-                if result_match and result_match[1] > 0.5:
-                    best_site_id = site_id
-                    best_site_url = site_url
-                    break
+                if display_names:
+                    result_match = match_best(display_names, name)
+                    if result_match and result_match[1] > 0.5:
+                        best_site_id = site_id
+                        best_site_url = site_url
                 await asyncio.sleep(0.2)
 
             if not best_site_url:
