@@ -1,17 +1,9 @@
-"""EPG import script: per-user Redis session scan, Xtream-first, XMLTV fallback.
+"""
+EPG import script: Per-user Redis session scan, Non-Hungarian category identification,
+country-targeted XMLTV matching, program & logo import.
 
 Usage:
   docker compose exec fastapi python /app/scripts/import_epg_xmltv.py
-
-Strategy:
-  1. Scan Redis "session:*" keys for active user credentials.
-  2. Dedup by (username, password) pair.
-  3. For each unique credential pair:
-     a. Fetch live channels from Xtream API.
-     b. For each channel, check if Xtream already has EPG.
-     c. If Xtream has EPG → skip.
-     d. If Xtream has NO EPG → try XMLTV from iptv-org/epg.
-     e. Match channel → XMLTV source, download, parse, import programs + logos.
 """
 import asyncio
 import json
@@ -39,9 +31,9 @@ COUNTRY_SITE_PREFIXES = [
     "hu", "de", "at", "ch", "fr", "it", "es", "uk", "gb",
     "ro", "cz", "sk", "pl", "nl", "be", "pt",
     "se", "no", "dk", "fi", "gr", "tr", "rs", "hr", "si", "bg",
+    "al", "ie", "us", "ca", "au", "ru", "br"
 ]
 
-# Country name → ISO code for Xtream category matching
 _COUNTRY_NAME_TO_CODE: dict[str, str] = {
     "hungary": "hu", "magyar": "hu", "magyarország": "hu",
     "germany": "de", "deutschland": "de", "német": "de",
@@ -82,7 +74,6 @@ API_TIMEOUT = 30.0
 
 
 def _gh_headers() -> dict[str, str]:
-    """Headers for GitHub API requests with optional token."""
     headers = {"Accept": "application/vnd.github.v3+json"}
     if settings.GITHUB_TOKEN:
         headers["Authorization"] = f"Bearer {settings.GITHUB_TOKEN}"
@@ -95,7 +86,7 @@ async def fetch_json(client: httpx.AsyncClient, url: str) -> list[dict]:
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
-        logger.warning("Failed to fetch %s: %s", url, e)
+        logger.warning("Failed to fetch JSON %s: %s", url, e)
         return []
 
 
@@ -105,12 +96,17 @@ async def fetch_text(client: httpx.AsyncClient, url: str) -> str:
         resp.raise_for_status()
         return resp.text
     except Exception as e:
-        logger.warning("Failed to fetch %s: %s", url, e)
+        logger.warning("Failed to fetch text %s: %s", url, e)
         return ""
 
 
+def clean_channel_prefix(name: str) -> str:
+    """Lefejti a csatornanév elejéről az ország/minőség előtagokat (pl: 'AT: ATV 2' -> 'ATV 2')."""
+    cleaned = re.sub(r'^(?:[A-Z]{2,3}[-:\s|]+)+', '', name, flags=re.IGNORECASE).strip()
+    return cleaned if cleaned else name
+
+
 def extract_channel_icons_from_xml(xml_text: str) -> dict[str, str]:
-    """Extract channel_id→icon_url from XMLTV <channel> elements."""
     icons: dict[str, str] = {}
     try:
         import xml.etree.ElementTree as ET
@@ -141,25 +137,32 @@ def extract_channel_names_from_xml(xml_text: str) -> list[str]:
     return names
 
 
+def _is_hungarian_category(cat_name: str) -> bool:
+    name_lower = (cat_name or "").lower()
+    return any(keyword in name_lower for keyword in ["hungary", "magyar", "hungarian", "hu|", "[hu]"])
+
+
 def _guess_country_code(channel_name: str, group: str, cat_name: str) -> str:
-    """Guess country ISO code from channel metadata. Returns 'hu' as fallback."""
-    # 1. Check category name
     cat_lower = (cat_name or "").lower()
     for key, code in _COUNTRY_NAME_TO_CODE.items():
         if key in cat_lower:
             return code
-    # 2. Check group name
     group_lower = (group or "").lower()
     for key, code in _COUNTRY_NAME_TO_CODE.items():
         if key in group_lower:
             return code
-    # 3. Default
-    return "hu"
+    # Ha a csatornanév elején van országjelzés (pl. "AT: ...")
+    prefix_match = re.match(r'^([A-Z]{2})[:\s|-]', channel_name, re.IGNORECASE)
+    if prefix_match:
+        code = prefix_match.group(1).lower()
+        if code in COUNTRY_SITE_PREFIXES:
+            return code
+    return "de"  # Európai alapértelmezett fallback
 
 
 async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
     site_map: dict[str, str] = {}
-    logger.info("Building XMLTV site index from iptv-org/epg...")
+    logger.info("XMLTV index építése az iptv-org/epg repository-ból...")
 
     import json as _json
     cache_file = "/tmp/epg_site_cache.json"
@@ -168,12 +171,11 @@ async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
             with open(cache_file) as f:
                 site_map = _json.load(f)
             if site_map:
-                logger.info("Loaded %d sites from cache", len(site_map))
+                logger.info("Gyorsítótárazott %d XMLTV oldal betöltve.", len(site_map))
                 return site_map
     except Exception:
         pass
 
-    # Fetch sites/ directory listing (directories, not files!)
     site_dirs = await fetch_json(client, f"{IPTV_SITES_INDEX}?ref=master")
     matching_dirs = []
 
@@ -192,9 +194,8 @@ async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
         ):
             matching_dirs.append((dir_name, dir_url))
 
-    logger.info("Matched %d site directories (of %d total)", len(matching_dirs), len(site_dirs or []))
+    logger.info("%d országspecifikus oldalmappa kiválasztva.", len(matching_dirs))
 
-    # Step 2: For each directory, fetch its files + .channels.xml
     for dir_name, dir_url in matching_dirs:
         clean_url = dir_url.split("?")[0]
         files = await fetch_json(client, f"{clean_url}?ref=master")
@@ -207,7 +208,7 @@ async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
                 if download_url:
                     site_map[dir_name] = download_url
                     break
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.05)
 
     try:
         with open(cache_file, "w") as f:
@@ -215,15 +216,15 @@ async def build_site_index(client: httpx.AsyncClient) -> dict[str, str]:
     except Exception:
         pass
 
-    logger.info("Built index: %d sites", len(site_map))
+    logger.info("Index sikeresen felépítve: %d oldal.", len(site_map))
     return site_map
 
 
 async def import_logos(stream_id: int, icons: dict[str, str], site_id: str):
-    """Store channel logo URLs from XMLTV icons."""
     if not icons:
         return
     from app.database import async_session_factory
+    from sqlalchemy import text
     async with async_session_factory() as sess:
         for xml_ch_id, logo_url in icons.items():
             if not logo_url:
@@ -234,13 +235,12 @@ async def import_logos(stream_id: int, icons: dict[str, str], site_id: str):
                     VALUES (:sid, :url, :src)
                     ON CONFLICT (stream_id) DO UPDATE SET logo_url = EXCLUDED.logo_url
                 """
-                from sqlalchemy import text
                 await sess.execute(text(stmt), {"sid": stream_id, "url": logo_url, "src": f"xmltv:{site_id}"})
                 await sess.commit()
-                break  # one logo per channel
+                break
             except Exception as e:
                 await sess.rollback()
-                logger.debug("Logo insert failed for stream_id %d: %s", stream_id, e)
+                logger.debug("Logó mentési hiba (stream_id %d): %s", stream_id, e)
                 break
 
 
@@ -249,10 +249,12 @@ async def _fetch_live_streams(client: httpx.AsyncClient, username: str, password
     resp = await client.get(url, timeout=API_TIMEOUT)
     resp.raise_for_status()
     streams = resp.json()
+
     cat_url = f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_live_categories"
     cat_resp = await client.get(cat_url, timeout=API_TIMEOUT)
     cat_resp.raise_for_status()
     cats = cat_resp.json()
+
     cat_by_id = {}
     for c in (cats if isinstance(cats, list) else []):
         cat_by_id[int(c.get("category_id", 0))] = c.get("category_name", "")
@@ -262,7 +264,7 @@ async def _fetch_live_streams(client: httpx.AsyncClient, username: str, password
 async def _check_xtream_epg(client: httpx.AsyncClient, username: str, password: str, stream_id: int) -> bool:
     url = f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_short_epg&stream_id={stream_id}&limit=1"
     try:
-        resp = await client.get(url, timeout=10.0)
+        resp = await client.get(url, timeout=8.0)
         if not resp.ok:
             return False
         data = resp.json()
@@ -275,125 +277,141 @@ async def _check_xtream_epg(client: httpx.AsyncClient, username: str, password: 
 
 
 async def process_user(client: httpx.AsyncClient, site_map: dict[str, str], username: str, password: str, user_label: str) -> dict:
-    """Process EPG + logo import for a single user's channels."""
-    result = {"xtream": 0, "xmltv": 0, "imported": 0, "logos": 0}
-    logger.info("[%s] Fetching live channels...", user_label)
+    result = {"total_non_hu": 0, "identified": 0, "imported": 0, "logos": 0}
+    logger.info("[%s] Kategóriák és élő adások lekérése...", user_label)
+
     try:
         streams, cat_by_id = await _fetch_live_streams(client, username, password)
     except Exception as e:
-        logger.error("[%s] Failed: %s", user_label, e)
+        logger.error("[%s] Sikertelen lekérés: %s", user_label, e)
         return result
 
     if not isinstance(streams, list):
         return result
 
-    site_xml_cache: dict[str, str] = {}                 # site_id→xml_text
-    site_icons_cache: dict[str, dict[str, str]] = {}     # site_id→{xml_ch→icon_url}
-    needs_xmltv: list[tuple[str, int, str]] = []
+    # 1. Kategóriák szűrése — Csak a NEM-MAGYAR kategóriák megtartása
+    non_hu_categories: dict[int, tuple[str, str]] = {}
+    for cat_id, cat_name in cat_by_id.items():
+        if not _is_hungarian_category(cat_name):
+            country_code = _guess_country_code("", "", cat_name)
+            non_hu_categories[cat_id] = (cat_name, country_code)
 
+    logger.info("[%s] Összes kategória: %d | Nem-magyar kategóriák: %d", user_label, len(cat_by_id), len(non_hu_categories))
+
+    # 2. Célcsatornák begyűjtése
+    target_streams = []
     for s in streams:
         if not isinstance(s, dict):
             continue
         stream_id = s.get("stream_id", 0)
-        name = s.get("name", "Unknown")
-        if not stream_id:
-            continue
-        has_epg = await _check_xtream_epg(client, username, password, stream_id)
-        group = cat_by_id.get(int(s.get("category_id", 0) or 0), s.get("category_name", ""))
-        group_lower = (group or "").lower()
-        is_hu = any(w in group_lower for w in ["hungary", "magyar", "hungarian"])
-        if has_epg or is_hu:
-            result["xtream"] += 1
-        else:
-            needs_xmltv.append((name, stream_id, group))
+        raw_name = s.get("name", "Unknown")
+        cat_id = int(s.get("category_id", 0) or 0)
 
-    logger.info("[%s] Xtream EPG: %d | Needs XMLTV: %d", user_label, result["xtream"], len(needs_xmltv))
+        if stream_id and cat_id in non_hu_categories:
+            # Megnézzük, van-e már gyári Xtream EPG
+            has_epg = await _check_xtream_epg(client, username, password, stream_id)
+            if not has_epg:
+                cat_name, country_code = non_hu_categories[cat_id]
+                clean_name = clean_channel_prefix(raw_name)
+                target_streams.append({
+                    "stream_id": stream_id,
+                    "raw_name": raw_name,
+                    "clean_name": clean_name,
+                    "category_name": cat_name,
+                    "country_code": country_code
+                })
 
-    if not needs_xmltv:
+    result["total_non_hu"] = len(target_streams)
+    logger.info("[%s] Azonosításra és EPG-re váró külföldi streamek: %d", user_label, len(target_streams))
+
+    if not target_streams:
         return result
 
-    for name, stream_id, group in needs_xmltv:
-        norm_ch = normalize(name)
+    # 3. Célzott matchelés és importálás
+    site_xml_cache: dict[str, str] = {}
+    site_icons_cache: dict[str, dict[str, str]] = {}
+
+    for item in target_streams:
+        stream_id = item["stream_id"]
+        raw_name = item["raw_name"]
+        clean_name = item["clean_name"]
+        country_code = item["country_code"]
+        cat_name = item["category_name"]
+
         best_site_id = ""
         best_site_url = ""
-        best_result = None
+        best_match = None
 
-        for site_id, site_url in site_map.items():
-            norm_site = normalize(site_id)
-            # Quick pre-filter
-            if not any(c in norm_site for c in norm_ch[:4]):
-                continue
+        # Csak az adott országkóddal rendelkező XMLTV forrásokat vizsgáljuk!
+        relevant_sites = {
+            s_id: s_url for s_id, s_url in site_map.items()
+            if s_id.startswith(country_code + ".") or s_id.startswith(country_code + "-") or f"-{country_code}." in s_id
+        }
+        search_sites = relevant_sites if relevant_sites else site_map
 
-            # Use cache if already downloaded
-            if site_id in site_icons_cache:
-                display_names = extract_channel_names_from_xml(site_xml_cache.get(site_id, ""))
-                if display_names:
-                    result_cached = match_best(display_names, name)
-                    if result_cached and result_cached[1] > 0.5 and result_cached[1] > (best_result[1] if best_result else 0):
-                        best_site_id = site_id
-                        best_site_url = site_url
-                        best_result = result_cached
-                continue
+        for site_id, site_url in search_sites.items():
+            if site_id not in site_xml_cache:
+                xml_text = await fetch_text(client, site_url)
+                if not xml_text:
+                    continue
+                site_xml_cache[site_id] = xml_text
+                site_icons_cache[site_id] = extract_channel_icons_from_xml(xml_text)
 
-            # Download + cache
-            xml_text = await fetch_text(client, site_url)
-            if not xml_text:
-                continue
-            site_xml_cache[site_id] = xml_text
-            site_icons_cache[site_id] = extract_channel_icons_from_xml(xml_text)
+            xml_text = site_xml_cache[site_id]
             display_names = extract_channel_names_from_xml(xml_text)
             if not display_names:
                 continue
-            result_match = match_best(display_names, name)
-            if result_match and result_match[1] > 0.5:
-                if not best_result or result_match[1] > best_result[1]:
+
+            match_res = match_best(display_names, clean_name)
+            if match_res and match_res[1] > 0.5:
+                if not best_match or match_res[1] > best_match[1]:
                     best_site_id = site_id
                     best_site_url = site_url
-                    best_result = result_match
-            await asyncio.sleep(0.15)
+                    best_match = match_res
 
-        if not best_site_url:
-            continue
+        if best_match and best_site_url:
+            result["identified"] += 1
+            matched_xml_name = best_match[0]
+            confidence = best_match[1] * 100
 
-        logger.info("  %s → %s (score=%.2f)", name, best_site_id, best_result[1])
-        xml_text = site_xml_cache.get(best_site_id) or await fetch_text(client, best_site_url)
-        if not xml_text:
-            continue
-        await asyncio.sleep(0.1)
+            logger.info("  [BEAZONOSÍTVA] [%s] '%s' -> '%s' (%s, egyezés: %.1f%%)",
+                        cat_name, raw_name, matched_xml_name, best_site_id, confidence)
 
-        # Import programs
-        programs = parse_xmltv(xml_text)
-        if programs:
-            inserted = await import_programs(stream_id, name, programs, best_site_id)
-            result["imported"] += inserted
+            xml_text = site_xml_cache.get(best_site_id, "")
+            if xml_text:
+                programs = parse_xmltv(xml_text)
+                if programs:
+                    inserted = await import_programs(stream_id, raw_name, programs, best_site_id)
+                    result["imported"] += inserted
 
-        # Import logo
-        icons = site_icons_cache.get(best_site_id, {})
-        if icons:
-            await import_logos(stream_id, icons, best_site_id)
-            result["logos"] += 1
+                icons = site_icons_cache.get(best_site_id, {})
+                if icons:
+                    await import_logos(stream_id, icons, best_site_id)
+                    result["logos"] += 1
+        else:
+            logger.warning("  [ISMERETLEN] [%s] '%s' (Ország: %s)", cat_name, raw_name, country_code)
 
     return result
 
 
 async def main():
-    logger.info("=== EPG Import: per-user Redis session scan + XMLTV fallback ===")
+    logger.info("=== PusztaPlayer: Külföldi Csatornák Automata EPG & Logó Importőre ===")
     start_time = time.time()
 
-    # 1. Scan Redis for active sessions
+    # 1. Redis munkamenetek beolvasása
     try:
         redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
         session_keys = await redis.keys("session:*")
         await redis.aclose()
     except Exception as e:
-        logger.error("Redis scan failed: %s", e)
+        logger.error("Redis kapcsolódási hiba: %s", e)
         return
 
     if not session_keys:
-        logger.warning("No active sessions found — nothing to import.")
+        logger.warning("Nincs aktív Redis munkamenet — az importálás leáll.")
         return
 
-    # 2. Dedup credentials
+    # 2. Felhasználói adatok deduplikálása
     seen_creds: set[tuple[str, str]] = set()
     cred_list: list[tuple[str, str]] = []
 
@@ -414,38 +432,40 @@ async def main():
                 continue
         await redis.aclose()
     except Exception as e:
-        logger.error("Redis credential scan failed: %s", e)
+        logger.error("Hiba a hálózati adatok feldolgozásakor: %s", e)
         return
 
-    logger.info("Found %d active sessions → %d unique credentials", len(session_keys), len(cred_list))
+    logger.info("Talált munkamenetek: %d -> Egyedi előfizetések: %d", len(session_keys), len(cred_list))
 
-    # 3. Build XMLTV site index (shared across users)
+    # 3. Globális XMLTV index felépítése és feldolgozás
     async with httpx.AsyncClient(verify=False) as client:
         site_map = await build_site_index(client)
         if not site_map:
-            logger.error("No XMLTV sites found — aborting.")
+            logger.error("XMLTV index üres — az importálás megszakadt.")
             return
 
-        total = {"xtream": 0, "xmltv": 0, "imported": 0, "logos": 0}
+        total = {"total_non_hu": 0, "identified": 0, "imported": 0, "logos": 0}
 
         for i, (username, password) in enumerate(cred_list):
-            label = f"User {i + 1}/{len(cred_list)}"
+            label = f"Felhasználó {i + 1}/{len(cred_list)}"
             logger.info("--- %s ---", label)
             res = await process_user(client, site_map, username, password, label)
             for k in total:
                 total[k] += res[k]
-            # Rate limit between users
+
             if i < len(cred_list) - 1:
                 await asyncio.sleep(1)
 
     elapsed = time.time() - start_time
-    logger.info("=== EPG Import Complete ===")
-    logger.info("Users processed:    %d", len(cred_list))
-    logger.info("Xtream EPG covers:  %d", total["xtream"])
-    logger.info("XMLTV EPG added:    %d", total["xmltv"])
-    logger.info("Programs imported:  %d", total["imported"])
-    logger.info("Logos imported:     %d", total["logos"])
-    logger.info("Elapsed: %.1f seconds", elapsed)
+    logger.info("==============================================")
+    logger.info("  EPG & LOGÓ IMPORT KÉSZ")
+    logger.info("  Feldolgozott fiókok:       %d", len(cred_list))
+    logger.info("  Külföldi EPG-re várók:     %d", total["total_non_hu"])
+    logger.info("  Sikeresen beazonosítva:   %d", total["identified"])
+    logger.info("  Beimportált műsorok:      %d", total["imported"])
+    logger.info("  Frissített logók:          %d", total["logos"])
+    logger.info("  Összes idő:               %.1f másodperc", elapsed)
+    logger.info("==============================================")
 
 
 if __name__ == "__main__":
