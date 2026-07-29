@@ -2,8 +2,8 @@ import { fetchWithTimeout } from './fetchWithTimeout';
 import { getConfig } from './config';
 
 const Config = getConfig();
-const AI_PROXY_URL = Config.AI_PROXY_URL || 'https://live.pusztaplay.eu/ai';
 const AI_PROXY_KEY = Config.AI_PROXY_KEY || '';
+const SEMANTIC_API = 'https://live.pusztaplay.eu';
 const BATCH_SIZE = 50;
 
 interface AICacheEntry {
@@ -46,7 +46,7 @@ export async function fetchAIMoods(
   for (let i = 0; i < items.length; i += BATCH_SIZE) {
     const batch = items.slice(i, i + BATCH_SIZE);
     try {
-      const res = await fetchWithTimeout(`${AI_PROXY_URL}/moods`, {
+      const res = await fetchWithTimeout(`${SEMANTIC_API}/api/v1/ai/moods`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

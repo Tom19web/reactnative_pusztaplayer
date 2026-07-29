@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 
@@ -18,7 +18,7 @@ class MovieModel(Base):
     cast = Column(Text)
     director = Column(String(500))
     rating = Column(String(10))
-    tmdb_id = Column(Integer)
+    tmdb_id = Column(Integer, index=True)  # JAVÍTVA: Indexelve a gyors kereséshez!
     poster_full = Column(String(1000))
     poster_thumb = Column(String(1000))
     backdrop_url = Column(String(1000))
@@ -28,6 +28,17 @@ class MovieModel(Base):
     embedding = Column(Vector(1536))
     meta = Column(JSONB)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        # JAVÍTVA: HNSW index a pgvector fénysebességű koszinusz-kereséséhez!
+        Index(
+            'ix_movies_embedding', 
+            'embedding', 
+            postgresql_using='hnsw', 
+            postgresql_with={'m': 16, 'ef_construction': 64}, 
+            postgresql_ops={'embedding': 'vector_cosine_ops'}
+        ),
+    )
 
 
 class ChannelModel(Base):
@@ -54,13 +65,18 @@ class EpgProgramModel(Base):
     start = Column(String(50))
     end = Column(String(50))
     description = Column(Text)
-    start_timestamp = Column(Integer, index=True)
+    start_timestamp = Column(Integer)
     stop_timestamp = Column(Integer)
     category = Column(String(200))
     genre = Column(String(500))
     cast = Column(Text)
     ai_enriched = Column(JSONB)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        # JAVÍTVA: Kompozit index a villámgyors "Mi megy most?" lekérdezésekhez!
+        Index('ix_epg_time', 'channel_id', 'start_timestamp', 'stop_timestamp'),
+    )
 
 
 class UserProfileModel(Base):
@@ -113,6 +129,16 @@ class SeriesModel(Base):
     meta = Column(JSONB)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+    __table_args__ = (
+        Index(
+            'ix_series_embedding', 
+            'embedding', 
+            postgresql_using='hnsw', 
+            postgresql_with={'m': 16, 'ef_construction': 64}, 
+            postgresql_ops={'embedding': 'vector_cosine_ops'}
+        ),
+    )
+
 
 class EpisodeModel(Base):
     __tablename__ = "episodes"
@@ -129,6 +155,13 @@ class EpisodeModel(Base):
 
     __table_args__ = (
         UniqueConstraint("series_id", "season", "episode", name="uq_series_season_episode"),
+        Index(
+            'ix_episodes_embedding', 
+            'embedding', 
+            postgresql_using='hnsw', 
+            postgresql_with={'m': 16, 'ef_construction': 64}, 
+            postgresql_ops={'embedding': 'vector_cosine_ops'}
+        ),
     )
 
 
@@ -144,7 +177,7 @@ class QrSessionModel(Base):
     nickname = Column(String(200))
     phone = Column(String(50))
     api_key = Column(String(200))
-    expires_at = Column(DateTime, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)  # JAVÍTVA: Indexelve a CRON takarítónak!
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 

@@ -2,8 +2,8 @@ import { fetchWithTimeout } from './fetchWithTimeout';
 import { getConfig } from './config';
 
 const Config = getConfig();
-const AI_PROXY_URL = Config.AI_PROXY_URL || 'https://live.pusztaplay.eu/ai';
 const AI_PROXY_KEY = Config.AI_PROXY_KEY || '';
+const SEMANTIC_API = 'https://live.pusztaplay.eu';
 
 export async function aiSearchQuery(
   query: string,
@@ -12,7 +12,7 @@ export async function aiSearchQuery(
 ): Promise<string[]> {
   if (!AI_PROXY_KEY || !query.trim()) return [];
   try {
-    const res = await fetchWithTimeout(`${AI_PROXY_URL}/search`, {
+    const res = await fetchWithTimeout(`${SEMANTIC_API}/api/v1/ai/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': AI_PROXY_KEY },
       body: JSON.stringify({ query, items }),
@@ -32,7 +32,7 @@ export async function aiRecommendQuery(
 ): Promise<Array<{ key: string; reason: string }>> {
   if (!AI_PROXY_KEY) return [];
   try {
-    const res = await fetchWithTimeout(`${AI_PROXY_URL}/recommend`, {
+    const res = await fetchWithTimeout(`${SEMANTIC_API}/api/v1/ai/recommend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': AI_PROXY_KEY },
       body: JSON.stringify({ history, items }),
@@ -44,8 +44,6 @@ export async function aiRecommendQuery(
     return [];
   }
 }
-
-const SEMANTIC_API = 'https://live.pusztaplay.eu';
 
 export interface SemanticResult {
   title: string;
