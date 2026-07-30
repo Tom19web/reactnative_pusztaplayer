@@ -1,11 +1,19 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar, View, Text, Image, ImageBackground, StyleSheet, Animated, LogBox, Platform, Dimensions } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
+import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
 import { AppProvider, useAppDispatch, useCore } from './src/store/AppContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import BackgroundAudio from './src/components/BackgroundAudio';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import RuggedBorder from './src/components/RuggedBorder';
+import SoundEffect from './src/components/SoundEffect';
+import ComicStarburst from './src/components/ComicStarburst';
 import * as Sentry from '@sentry/react-native';
+
+const { version: pkgVersion } = require('./package.json') as { version: string };
+const DISPLAY_VERSION = 'v' + pkgVersion.split('.').slice(0, 2).join('.');
 
 if (!__DEV__ && SENTRY_DSN) {
   Sentry.init({
@@ -31,8 +39,21 @@ const LOADING_STEPS = [
   'A szuperhőseid most felépítik a külső kerítést, hogy ne zavarhassanak illetéktelenek...',
   'A személyes adataid + csatornáid betöltése...',
 ];
+const STEP_DELAY = 1500;
 
-// Platform values may not be ready at module load time on Windows
+// Progress bar inline
+function ProgressBar({ pct }: { pct: number }) {
+  return (
+    <View style={pb.wrap}>
+      <View style={[pb.fill, { width: `${Math.max(2, pct * 100)}%` as any }]} />
+    </View>
+  );
+}
+const pb = StyleSheet.create({
+  wrap: { height: 4, backgroundColor: '#1a1a1a', borderRadius: 2, alignSelf: 'stretch', marginTop: 10, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 2, backgroundColor: COLORS.cyan },
+});
+
 let isTV = false;
 let isTablet = false;
 let isTouch = true;
@@ -54,7 +75,12 @@ function AppInitializer() {
   const [animReady, setAnimReady] = useState(false);
   const [pendingPlaylist, setPendingPlaylist] = useState<PlaylistData | null>(null);
   const [pendingUser, setPendingUser] = useState<any>(null);
+
+  // Logo animations: heartbeat + starburst
   const fadeLogo = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.5)).current;
+  const burstScale = useRef(new Animated.Value(0)).current;
+  const burstOpacity = useRef(new Animated.Value(1)).current;
   const fadeTitle = useRef(new Animated.Value(0)).current;
   const fadeVer = useRef(new Animated.Value(0)).current;
   const fadeEdition = useRef(new Animated.Value(0)).current;
@@ -62,58 +88,66 @@ function AppInitializer() {
   const stepChecks = useRef(LOADING_STEPS.map(() => new Animated.Value(0))).current;
   const fadeSteps = useRef(new Animated.Value(1)).current;
   const fadeDone = useRef(new Animated.Value(0)).current;
-
-  // Track which visual step we're on (0 = logo, 1-4 = loading text, 5 = done)
   const [animStep, setAnimStep] = useState(0);
-
-  // API progress stages (0-4): creds loaded, login done, wp fetch done, playlist dispatched, apiReady
   const [apiProgress, setApiProgress] = useState(0);
 
+  // Heartbeat + Starburst combined logo entrance
   useEffect(() => {
-    // Logo + title staggered fade-in (fixed, no delay)
-    Animated.sequence([
-Animated.timing(fadeLogo, { toValue: 1, duration: 500, useNativeDriver: false }),
-Animated.timing(fadeTitle, { toValue: 1, duration: 400, useNativeDriver: false }),
-Animated.timing(fadeVer, { toValue: 1, duration: 300, useNativeDriver: false }),
-Animated.timing(fadeEdition, { toValue: 1, duration: 300, useNativeDriver: false }),
-]).start(() => setAnimStep(1));
-}, []);
+    // Starburst expands behind logo
+    Animated.parallel([
+      Animated.timing(burstScale, { toValue: 1, duration: 600, useNativeDriver: false }),
+      Animated.timing(burstOpacity, { toValue: 0, duration: 500, delay: 300, useNativeDriver: false }),
+    ]).start();
 
-  // Animated loading steps — each step advances when BOTH the previous animation is done
-  // AND enough API progress has been made (minDelay gets smaller as apiProgress increases)
+    // Heartbeat: 0.5 → 1.15 → 0.9 → 1.05 → 1.0
+    Animated.sequence([
+      Animated.timing(fadeLogo, { toValue: 1, duration: 400, useNativeDriver: false }),
+      Animated.timing(logoScale, { toValue: 1.15, duration: 200, useNativeDriver: false }),
+      Animated.timing(logoScale, { toValue: 0.9, duration: 150, useNativeDriver: false }),
+      Animated.timing(logoScale, { toValue: 1.05, duration: 100, useNativeDriver: false }),
+      Animated.timing(logoScale, { toValue: 1.0, duration: 150, useNativeDriver: false }),
+    ]).start();
+
+    // Title + version + edition sequential fade
+    Animated.sequence([
+      Animated.delay(600),
+      Animated.timing(fadeTitle, { toValue: 1, duration: 400, useNativeDriver: false }),
+      Animated.timing(fadeVer, { toValue: 1, duration: 300, useNativeDriver: false }),
+      Animated.timing(fadeEdition, { toValue: 1, duration: 300, useNativeDriver: false }),
+    ]).start(() => setAnimStep(1));
+  }, []);
+
+  // Animated loading steps — fixed delay, not API-dependent
   useEffect(() => {
     if (animStep < 1 || animStep > LOADING_STEPS.length) return;
     const i = animStep - 1;
-    const minDelay = Math.max(300, 2000 - apiProgress * 400);
-    const isDone = apiProgress >= i;
-    const delay = isDone ? 300 : minDelay;
 
     stepFades[i].setValue(0);
     stepChecks[i].setValue(0);
 
     Animated.sequence([
       Animated.timing(stepFades[i], { toValue: 1, duration: 400, useNativeDriver: false }),
-      Animated.delay(delay),
+      Animated.delay(STEP_DELAY),
       Animated.spring(stepChecks[i], { toValue: 1, speed: 10, bounciness: 10, useNativeDriver: false }),
       Animated.delay(200),
     ]).start(() => setAnimStep(prev => prev <= LOADING_STEPS.length ? prev + 1 : prev));
-  }, [animStep, apiProgress]);
+  }, [animStep]);
 
-  // Final "done" animation when all steps complete
+  // Done animation
   useEffect(() => {
     if (animStep !== LOADING_STEPS.length + 1) return;
     Animated.sequence([
       Animated.delay(200),
       Animated.parallel([
-      Animated.timing(fadeSteps, { toValue: 0, duration: 250, useNativeDriver: false }),
-      Animated.timing(fadeDone, { toValue: 1, duration: 350, useNativeDriver: false }),
+        Animated.timing(fadeSteps, { toValue: 0, duration: 250, useNativeDriver: false }),
+        Animated.timing(fadeDone, { toValue: 1, duration: 350, useNativeDriver: false }),
       ]),
       Animated.delay(400),
       Animated.timing(fadeDone, { toValue: 0, duration: 200, useNativeDriver: false }),
     ]).start(() => setAnimReady(true));
   }, [animStep]);
 
-  // Defer playlist dispatch until profiles are loaded (race condition fix)
+  // Defer playlist dispatch until profiles loaded
   useEffect(() => {
     if (!isLoading && pendingPlaylist) {
       dispatch({ type: 'SET_PLAYLIST', payload: pendingPlaylist });
@@ -123,7 +157,7 @@ Animated.timing(fadeEdition, { toValue: 1, duration: 300, useNativeDriver: false
     }
   }, [isLoading, pendingPlaylist, pendingUser, dispatch]);
 
-  // API loading runs in parallel with animations
+  // API loading
   useEffect(() => {
     (async () => {
       try {
@@ -134,7 +168,6 @@ Animated.timing(fadeEdition, { toValue: 1, duration: 300, useNativeDriver: false
           const playlist = await xtreamLogin(creds.username, creds.password);
           setApiProgress(2);
 
-          // Fetch latest user data from WordPress (email, phone, nickname) on every startup
           let email = creds.email;
           let nickname = creds.nickname;
           let phone = creds.phone;
@@ -149,7 +182,7 @@ Animated.timing(fadeEdition, { toValue: 1, duration: 300, useNativeDriver: false
                   phone = wpUser.phone || phone;
                 }
               }
-            } catch { /* silent — use cached data */ }
+            } catch { /* silent */ }
           }
           setApiProgress(3);
 
@@ -174,43 +207,77 @@ Animated.timing(fadeEdition, { toValue: 1, duration: 300, useNativeDriver: false
     })();
   }, [dispatch]);
 
-  // Only proceed when BOTH API and animation are done
   const ready = apiReady && animReady;
 
   if (!ready) {
     return (
       <ImageBackground source={require('./assets/splash-bg.png')} style={styles.splash} resizeMode="cover">
-        <View style={styles.splashTop}>
-          <View style={styles.splashTopLeft}>
-            <Animated.Image
-              source={require('./assets/pp-logo.png')}
-              style={[styles.splashLogo, { opacity: fadeLogo, transform: [{ scale: fadeLogo.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }] }]}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.splashTopRight}>
-            <Animated.Text style={[styles.splashTitle, { opacity: fadeTitle }]}>pusztaplayer </Animated.Text>
-            <Animated.Text style={[styles.splashVersion, { opacity: fadeVer }]}>v0.7 </Animated.Text>
-            <Animated.Text style={[styles.splashEdition, { opacity: fadeEdition }]}>{deviceLabel}</Animated.Text>
-          </View>
-        </View>
-        <View style={styles.splashBottom}>
-          <Animated.View style={{ opacity: fadeSteps }}>
-            {LOADING_STEPS.map((text, i) => (
-              <View key={i} style={styles.stepRow}>
-                <Animated.Text style={[styles.stepText, { opacity: stepFades[i] }]} numberOfLines={1}>{text}</Animated.Text>
-                <Animated.Text
-                  style={[styles.stepCheck, {
-                    opacity: stepChecks[i],
-                    transform: [{ scale: stepChecks[i].interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }],
-                  }]}
-                >
-                  {'\u2713'}
-                </Animated.Text>
+        <SoundEffect text="LOADING..." textColor={COLORS.yellow} bgColor={COLORS.red} top={-2} right={-10} rotate={14} fontSize={12} />
+        <View style={styles.splashContent}>
+          {/* Upper: PopArtCard with gradient + RuggedBorder */}
+          <RuggedBorder color={COLORS.cyan} wobbleFactor={0.7}>
+            <View style={styles.card}>
+              {/* Gradient + dot background */}
+              <View style={StyleSheet.absoluteFill}>
+                <LinearGradient colors={['#060810', '#0c0f20', '#151430']} style={StyleSheet.absoluteFill} />
+                <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
+                  <Defs>
+                    <Pattern id="spdots" x="0" y="0" width={10} height={10} patternUnits="userSpaceOnUse">
+                      <Circle cx={5} cy={5} r={2} fill="#2a2550" opacity={0.35} />
+                    </Pattern>
+                  </Defs>
+                  <Rect width="100%" height="100%" fill="url(#spdots)" />
+                </Svg>
               </View>
-            ))}
-          </Animated.View>
-          <Animated.Text style={[styles.doneText, { opacity: fadeDone, marginTop: isTouch ? -4 : 0 }]}>MINDEN KÉSZ, INDULÁS!</Animated.Text>
+
+              <View style={styles.cardRow}>
+                <View style={styles.logoWrap}>
+                  {/* Expanding starburst behind logo */}
+                  <Animated.View style={[StyleSheet.absoluteFill, {
+                    alignItems: 'center', justifyContent: 'center',
+                    opacity: burstOpacity,
+                    transform: [{ scale: burstScale.interpolate({ inputRange: [0, 1], outputRange: [0.3, 2.5] }) }],
+                  }]}>
+                    <ComicStarburst size={80} pointsCount={12} fillColor={COLORS.yellow} borderColor={COLORS.red} borderWidth={3} shadowOffset={3} />
+                  </Animated.View>
+                  <Animated.Image
+                    source={require('./assets/pp-logo.png')}
+                    style={[styles.splashLogo, {
+                      opacity: fadeLogo,
+                      transform: [{ scale: logoScale }],
+                    }]}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={styles.cardTextCol}>
+                  <Animated.Text style={[styles.splashTitle, { opacity: fadeTitle }]}>pusztaplayer </Animated.Text>
+                  <Animated.Text style={[styles.splashVersion, { opacity: fadeVer }]}>{DISPLAY_VERSION}</Animated.Text>
+                  <Animated.Text style={[styles.splashEdition, { opacity: fadeEdition }]}>{deviceLabel}</Animated.Text>
+                </View>
+              </View>
+            </View>
+          </RuggedBorder>
+
+          {/* Lower: loading steps */}
+          <View style={styles.stepsWrap}>
+            <Animated.View style={{ opacity: fadeSteps }}>
+              {LOADING_STEPS.map((text, i) => (
+                <View key={i} style={styles.stepRow}>
+                  <Animated.Text style={[styles.stepText, { opacity: stepFades[i] }]} numberOfLines={1}>{text}</Animated.Text>
+                  <Animated.Text
+                    style={[styles.stepCheck, {
+                      opacity: stepChecks[i],
+                      transform: [{ scale: stepChecks[i].interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }],
+                    }]}
+                  >
+                    {'\u2713'}
+                  </Animated.Text>
+                </View>
+              ))}
+            </Animated.View>
+            <ProgressBar pct={Math.max(0, animStep - 1) / LOADING_STEPS.length} />
+            <Animated.Text style={[styles.doneText, { opacity: fadeDone }]}>MINDEN KÉSZ, INDULÁS!</Animated.Text>
+          </View>
         </View>
       </ImageBackground>
     );
@@ -248,73 +315,95 @@ const styles = StyleSheet.create({
   },
   splash: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
-  },
-  splashTop: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    backgroundColor: COLORS.bg,
     justifyContent: 'center',
-    paddingBottom: 40,
-    gap: 24,
+    alignItems: 'center',
+    padding: 20,
   },
-  splashTopLeft: {
-    alignItems: 'flex-end',
+  splashContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 28,
+    width: '100%',
+    maxWidth: 600,
+  },
+  // ── Card ──────────────────────────────
+  card: {
+    paddingVertical: 24,
+    paddingHorizontal: 28,
+    borderRadius: 10,
+    overflow: 'visible',
+    width: '100%',
+    backgroundColor: 'rgba(10,10,20,0.92)',
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  logoWrap: {
+    position: 'relative',
+    width: 75,
+    height: 75,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   splashLogo: {
-    width: 100,
-    height: 100,
-    borderRadius: 20,
+    width: 75,
+    height: 75,
+    borderRadius: 18,
   },
-  splashTopRight: {
+  cardTextCol: {
     alignItems: 'flex-start',
   },
   splashTitle: {
     color: COLORS.yellow,
-    fontSize: 42,
+    fontSize: 32,
     fontFamily: 'Bangers-Regular',
     letterSpacing: 1,
   },
   splashVersion: {
     color: COLORS.yellow,
-    fontSize: 20,
+    fontSize: 14,
     fontFamily: 'Bangers-Regular',
     opacity: 0.7,
     marginTop: -4,
   },
   splashEdition: {
     color: COLORS.cyan,
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: 'Poppins-Regular',
-    marginTop: 8,
+    marginTop: 6,
   },
-  splashBottom: {
-    flex: 1,
+  // ── Steps ─────────────────────────────
+  stepsWrap: {
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 24,
-    gap: 12,
+    gap: 10,
+    width: '100%',
+    maxWidth: 500,
   },
   stepRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginBottom: 2,
   },
   stepText: {
     color: COLORS.muted,
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Poppins-Regular',
+    flex: 1,
   },
   stepCheck: {
-    color: '#4caf50',
-    fontSize: 18,
+    color: COLORS.success,
+    fontSize: 14,
     fontWeight: '800',
   },
   doneText: {
     color: COLORS.yellow,
-    fontSize: 32,
+    fontSize: 24,
     fontFamily: 'Bangers-Regular',
     letterSpacing: 1,
-    marginTop: 8,
+    marginTop: 4,
   },
 });
