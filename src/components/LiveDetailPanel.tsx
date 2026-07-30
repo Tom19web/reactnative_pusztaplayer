@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, Animated } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, Animated, Platform, Dimensions } from 'react-native';
 import Video from 'react-native-video';
 import TFPressable from './TFPressable';
 import RuggedBorder from './RuggedBorder';
@@ -61,15 +61,18 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
     playBtnRef.current?.focus();
   }, []);
 
+  let isTouch = true;
+  try { isTouch = !Platform.isTV; } catch {}
+  const screenH = Dimensions.get('window').height;
+
   return (
-    <>
-      <View style={styles.focusOverlay} focusable={true} onFocus={handleTrapFocus} />
+    <View style={styles.focusTrap} focusable={true} onFocus={handleTrapFocus}>
       <View style={styles.bgOverlay} />
       <View style={styles.panelWrap}>
         <RuggedBorder color={COLORS.yellow}>
           <Animated.View style={[styles.container, { opacity: entryAnim, transform: [{ translateX: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 320] }) }, { scale: entryAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]}>
           {onClose && (
-            <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose}>
+            <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose} hasTVPreferredFocus>
               <Text style={styles.closeBtnText}>{'\u2716'}</Text>
             </TFPressable>
           )}
@@ -180,35 +183,42 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
         </RuggedBorder>
         <SoundEffect text="LIVE!" textColor={COLORS.white} bgColor={COLORS.red} top={-14} left={-6} rotate={-15} />
       </View>
-    <View style={styles.focusOverlay} focusable={true} onFocus={handleTrapFocus} />
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  focusOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 48,
+  focusTrap: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
   },
   bgOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 49,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   panelWrap: {
-    position: 'absolute', top: 0, right: 24, zIndex: 50,
+    position: 'absolute',
+    top: isTouch ? 0 : 0,
+    right: isTouch ? 0 : 24,
+    left: isTouch ? 0 : undefined,
+    bottom: isTouch ? 0 : undefined,
+    alignItems: isTouch ? 'center' : undefined,
+    justifyContent: isTouch ? 'center' : undefined,
   },
   container: {
-    width: 300, maxHeight: 600,
+    width: isTouch ? '100%' : 300,
+    maxHeight: isTouch ? screenH * 0.85 : 600,
     backgroundColor: 'rgba(0,0,0,0.92)',
-    borderRadius: 0, padding: 10,
+    borderRadius: isTouch ? 12 : 0,
+    padding: 10,
   },
-  scroll: { gap: 0 },
+  scroll: { gap: 0, paddingBottom: isTouch ? 40 : 0 },
   closeBtn: {
     position: 'absolute', top: 10, right: 12, zIndex: 10,
-    width: 16, height: 16, borderRadius: 8,
+    width: 20, height: 20, borderRadius: 4,
     backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center',
   },
-  closeBtnFocus: { backgroundColor: COLORS.yellow, transform: [{ scale: 1.1 }] },
-  closeBtnText: { color: COLORS.white, fontSize: 12, fontWeight: '700' },
+  closeBtnFocus: { backgroundColor: COLORS.yellow, transform: [{ scale: 1.15 }] },
+  closeBtnText: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
   header: { flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 12 },
   logoWrap: {
     width: 90, aspectRatio: 16 / 9, borderRadius: 6,

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, Animated } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, Animated, Platform, Dimensions } from 'react-native';
 import TFPressable from './TFPressable';
 import RuggedBorder from './RuggedBorder';
 import SoundEffect from './SoundEffect';
@@ -87,6 +87,10 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
   const handleTrapFocus = useCallback(() => {
     epsBtnRef.current?.focus();
   }, []);
+
+  let isTouch = true;
+  try { isTouch = !Platform.isTV; } catch {}
+  const screenH = Dimensions.get('window').height;
 
   return (
     <View style={styles.focusTrap} focusable={true} onFocus={handleTrapFocus}>
@@ -209,14 +213,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   panelWrap: {
-    position: 'absolute', top: 20, right: 24,
+    position: 'absolute',
+    top: isTouch ? 0 : 20,
+    right: isTouch ? 0 : 24,
+    left: isTouch ? 0 : undefined,
+    bottom: isTouch ? 0 : undefined,
+    alignItems: isTouch ? 'center' : undefined,
+    justifyContent: isTouch ? 'center' : undefined,
   },
   container: {
-    width: 300, maxHeight: 600,
+    width: isTouch ? '100%' : 300,
+    maxHeight: isTouch ? screenH * 0.85 : 600,
     backgroundColor: 'rgba(0,0,0,0.92)',
-    borderRadius: 0, padding: 10,
+    borderRadius: isTouch ? 12 : 0,
+    padding: 10,
   },
-  scroll: { gap: 0 },
+  scroll: { gap: 0, paddingBottom: isTouch ? 40 : 0 },
   closeBtn: {
     position: 'absolute', top: 10, right: 12, zIndex: 10,
     width: 20, height: 20, borderRadius: 4,
