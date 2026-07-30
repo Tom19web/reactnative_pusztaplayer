@@ -47,10 +47,10 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
             cover: data.info?.cover_big || '',
           });
         }
-        } catch (e) {
-          if (__DEV__) console.warn('[MovieDetailPanel] load failed:', e);
-        }
-        if (!c) setLoading(false);
+      } catch (e) {
+        if (__DEV__) console.warn('[MovieDetailPanel] load failed:', e);
+      }
+      if (!c) setLoading(false);
     })();
     return () => { c = true; };
   }, [streamId]);
@@ -65,7 +65,9 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
     let c = false;
     (async () => {
       const items = await fetchSimilar(streamId, 'movie', 5);
-      if (!c && items.length > 0) setSimilar(items);
+      if (!c && items.length > 0) {
+        setSimilar(items.filter(s => s.type === 'movie'));
+      }
     })();
     return () => { c = true; };
   }, [streamId, onOpenSimilar]);
@@ -86,14 +88,13 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
   }, []);
 
   return (
-    <>
-      <View style={styles.focusOverlay} focusable={true} onFocus={handleTrapFocus} />
+    <View style={styles.focusTrap} focusable={true} onFocus={handleTrapFocus}>
       <View style={styles.bgOverlay} />
       <View style={styles.panelWrap}>
         <RuggedBorder color={COLORS.yellow}>
           <Animated.View style={[styles.container, { opacity: entryAnim, transform: [{ translateX: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 320] }) }, { scale: entryAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]}>
           {onClose && (
-            <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose}>
+            <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose} hasTVPreferredFocus>
               <Text style={styles.closeBtnText}>{'\u2716'}</Text>
             </TFPressable>
           )}
@@ -108,8 +109,7 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
               <>
                 <View style={styles.content}>
                   <View style={styles.plotCol}>
-                    <Text style={styles.plotLabel}>Tartalom:</Text>
-                    <Text style={styles.plot} numberOfLines={12}>{info.plot || 'Nincs leírás.'}</Text>
+                    <Text style={styles.plot}>{info.plot || 'Nincs leírás.'}</Text>
                   </View>
                   <View style={styles.coverCol}>
                     {info.cover ? (
@@ -134,8 +134,8 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
                     </View>
                   ) : null}
                 </View>
-                {info.director ? <Text style={styles.director}>Rendező: {info.director}</Text> : null}
-                {info.cast ? <Text style={styles.cast} numberOfLines={3}>Szereplők: {info.cast}</Text> : null}
+                {info.director ? <Text style={styles.meta}>Rendező: {info.director}</Text> : null}
+                {info.cast ? <Text style={styles.meta} numberOfLines={3}>Szereplők: {info.cast}</Text> : null}
               </>
             ) : (
               <Text style={styles.loading}>{'\u26A0'} Nem sikerült betölteni az adatokat.</Text>
@@ -193,21 +193,20 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
         </RuggedBorder>
         <SoundEffect text="POP!" textColor={COLORS.red} bgColor={COLORS.yellow} top={-15} left={208} rotate={-12} />
       </View>
-    <View style={styles.focusOverlay} focusable={true} onFocus={handleTrapFocus} />
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  focusOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 48,
+  focusTrap: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
   },
   bgOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 49,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   panelWrap: {
-    position: 'absolute', top: 20, right: 24, zIndex: 50,
+    position: 'absolute', top: 20, right: 24,
   },
   container: {
     width: 300, maxHeight: 600,
@@ -217,11 +216,11 @@ const styles = StyleSheet.create({
   scroll: { gap: 0 },
   closeBtn: {
     position: 'absolute', top: 10, right: 12, zIndex: 10,
-    width: 16, height: 16, borderRadius: 8,
+    width: 20, height: 20, borderRadius: 4,
     backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center',
   },
-  closeBtnFocus: { backgroundColor: COLORS.yellow, transform: [{ scale: 1.1 }] },
-  closeBtnText: { color: COLORS.white, fontSize: 12, fontWeight: '700' },
+  closeBtnFocus: { backgroundColor: COLORS.yellow, transform: [{ scale: 1.15 }] },
+  closeBtnText: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
   title: {
     fontSize: 14, color: COLORS.yellow,
     fontFamily: 'Bangers-Regular', letterSpacing: 1, marginBottom: 4,
@@ -230,40 +229,38 @@ const styles = StyleSheet.create({
   loading: { color: COLORS.muted, fontSize: 10, textAlign: 'center' },
   content: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   plotCol: { flex: 1 },
-  plotLabel: { fontSize: 9, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
-  plot: { fontSize: 9, color: COLORS.text, lineHeight: 12 },
+  plot: { fontSize: 8, color: COLORS.text, lineHeight: 10 },
   coverCol: {},
-  cover: { width: 90, aspectRatio: 2 / 3, borderRadius: 6, marginVertical: 4 },
+  cover: { width: 80, aspectRatio: 2 / 3, borderRadius: 6, marginVertical: 4 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 },
   tagBox: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
-  tagText: { fontSize: 9, color: COLORS.text },
-  tagRating: { fontSize: 9, color: COLORS.yellow },
-  director: { fontSize: 9, color: COLORS.muted, marginTop: 1 },
-  cast: { fontSize: 9, color: COLORS.muted, maxHeight: 33, overflow: 'hidden', marginTop: 1 },
-  buttons: { flexDirection: 'column', gap: 4, marginTop: 8, marginHorizontal: 4 },
+  tagText: { fontSize: 8, color: COLORS.text },
+  tagRating: { fontSize: 8, color: COLORS.yellow },
+  meta: { fontSize: 8, color: COLORS.muted, marginTop: 1 },
+  buttons: { flexDirection: 'row', gap: 4, marginTop: 8, marginHorizontal: 4 },
   btnPlay: {
-    backgroundColor: COLORS.yellow, borderRadius: 10,
+    flex: 1, backgroundColor: COLORS.yellow, borderRadius: 10,
     paddingTop: 8, paddingBottom: 8, alignItems: 'center',
     borderWidth: 2, borderColor: '#000',
   },
   btnPlayFocus: { backgroundColor: COLORS.cyan },
-  btnPlayText: { color: COLORS.black, fontSize: 10, fontWeight: '700', fontFamily: 'Poppins-Bold' },
+  btnPlayText: { color: COLORS.black, fontSize: 8, fontWeight: '700', fontFamily: 'Poppins-Bold' },
   btnFav: {
-    backgroundColor: COLORS.panel2, borderRadius: 10,
+    flex: 1, backgroundColor: COLORS.panel2, borderRadius: 10,
     paddingTop: 6, paddingBottom: 4, alignItems: 'center',
     borderWidth: 2, borderColor: 'transparent',
   },
   btnFavActive: { borderColor: COLORS.red },
   btnFavFocus: { borderColor: COLORS.yellow, backgroundColor: COLORS.panel },
-  btnFavText: { color: COLORS.text, fontSize: 10, fontWeight: '600', fontFamily: 'Poppins-Regular' },
+  btnFavText: { color: COLORS.text, fontSize: 8, fontWeight: '600', fontFamily: 'Poppins-Regular' },
   btnWl: {
-    backgroundColor: COLORS.panel2, borderRadius: 10,
+    flex: 1, backgroundColor: COLORS.panel2, borderRadius: 10,
     paddingTop: 6, paddingBottom: 4, alignItems: 'center',
     borderWidth: 2, borderColor: 'transparent',
   },
   btnWlActive: { borderColor: COLORS.cyan },
   btnWlFocus: { borderColor: COLORS.yellow, backgroundColor: COLORS.panel },
-  btnWlText: { color: COLORS.text, fontSize: 10, fontWeight: '600', fontFamily: 'Poppins-Regular' },
+  btnWlText: { color: COLORS.text, fontSize: 8, fontWeight: '600', fontFamily: 'Poppins-Regular' },
   similarSection: { marginTop: 8 },
   similarLabel: { fontSize: 10, color: COLORS.yellow, fontFamily: 'Bangers-Regular', letterSpacing: 0.5, marginBottom: 4 },
   similarRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
