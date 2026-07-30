@@ -1,12 +1,38 @@
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo, useEffect, useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, BackHandler, Dimensions } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
 import TFPressable from '../components/TFPressable';
-import PopArtCard from '../components/PopArtCard';
+import RuggedBorder from '../components/RuggedBorder';
 import { useCore, useProfiles, useSetActiveProfile, useActiveProfile } from '../store/AppContext';
 import { xtreamGetUserInfo, XtreamUserFullInfo } from '../services/xtreamApi';
 import { loadXtreamCredentials } from '../services/storage';
+import { getSessionToken } from '../services/liveProxy';
+import { COLORS, FONT, SPACING } from '../constants';
 
 interface UserInfoScreenProps { onBack: () => void; onLogout?: () => void; }
+
+const SCREEN_W = Dimensions.get('window').width;
+const CARD_W = Math.min(530, SCREEN_W - 60);
+
+function CardBg() {
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      <LinearGradient
+        colors={['#060810', '#0c0f20', '#151430']}
+        style={StyleSheet.absoluteFill}
+      />
+      <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
+        <Defs>
+          <Pattern id="uidots" x="0" y="0" width={10} height={10} patternUnits="userSpaceOnUse">
+            <Circle cx={5} cy={5} r={2} fill="#2a2550" opacity={0.35} />
+          </Pattern>
+        </Defs>
+        <Rect width="100%" height="100%" fill="url(#uidots)" />
+      </Svg>
+    </View>
+  );
+}
 
 export default function UserInfoScreen({ onBack, onLogout }: UserInfoScreenProps) {
   const { state: { user } } = useCore();
@@ -16,6 +42,10 @@ export default function UserInfoScreen({ onBack, onLogout }: UserInfoScreenProps
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [info, setInfo] = useState<XtreamUserFullInfo | null>(null);
+
+  const sessionToken = useMemo(() => {
+    try { return getSessionToken(); } catch { return null; }
+  }, []);
 
   useEffect(() => {
     const h = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
@@ -57,93 +87,108 @@ export default function UserInfoScreen({ onBack, onLogout }: UserInfoScreenProps
     return { label: 'AKTÍV', bg: '#1b5e20', text: '#a5d6a7', border: '#2e7d32' };
   };
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color="#f6c800" /></View>;
-  if (error) return <View style={s.center}><Text style={s.errText}>{error}</Text><TFPressable style={s.backBtn} focusedStyle={s.backBtnFoc} onPress={onBack} accessibilityLabel="Vissza"><Text style={s.backBtnText}>{'\u2190'} Vissza</Text></TFPressable></View>;
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.yellow} /></View>;
+  if (error) return (
+    <View style={s.center}>
+      <Text style={s.errText}>{error}</Text>
+      <TFPressable style={s.backBtn} focusedStyle={s.backBtnFoc} onPress={onBack} accessibilityLabel="Vissza">
+        <Text style={s.backBtnText}>{'\u2190'} Vissza</Text>
+      </TFPressable>
+    </View>
+  );
 
   const status = getSubStatus();
   const nick = user.nickname || info?.username || '\u2014';
-  const subPackage = '\u2014'; // Xtream API does not expose package name
   const expiry = formatDate(info?.exp_date || '');
+  const sessionShort = sessionToken ? sessionToken.slice(0, 12) + '\u2026' : '\u2014';
 
   return (
-    <ScrollView contentContainerStyle={s.scroll} nestedScrollEnabled>
-      <PopArtCard shadowOffset={5} borderRadius={11} borderWidth={2} contentStyle={s.cardInner}>
-        <Text style={s.title}>FIÓK</Text>
-        <Text style={s.subtitle}>SZEMÉLYES ADATOK & ELŐFIZETÉS</Text>
-        <View style={s.divider} />
+    <View style={s.root}>
+      <CardBg />
+      <ScrollView contentContainerStyle={s.scroll} nestedScrollEnabled>
+        <RuggedBorder color={COLORS.cyan} wobbleFactor={0.7}>
+          <View style={[s.card, { width: CARD_W }]}>
+            <Text style={s.title}>FIÓK</Text>
+            <Text style={s.subtitle}>SZEMÉLYES ADATOK & ELŐFIZETÉS</Text>
+            <View style={s.divider} />
 
-        <View style={s.columns}>
-          <View style={s.column}>
-            <Text style={s.sectionHeader}>ADATAID</Text>
-            <View style={s.sectionDivider} />
-            <Row label="E-mail" value={user.email || info?.username || '\u2014'} />
-            <Row label="Becenév" value={nick} />
-            <Row label="Felhaszn." value={(info?.username || '\u2014') + (info?.password ? ' \u2022\u2022\u2022\u2022\u2022' : '')} mono />
-          </View>
+            <View style={s.columns}>
+              <View style={s.column}>
+                <Text style={s.sectionHeader}>ADATAID</Text>
+                <View style={s.sectionDivider} />
+                <Row label="E-mail" value={user.email || info?.username || '\u2014'} />
+                <Row label="Becenév" value={nick} />
+                <Row label="Felhaszn." value={(info?.username || '\u2014') + (info?.password ? ' \u2022\u2022\u2022\u2022\u2022' : '')} mono />
+                <View style={s.sectionDivider} />
+                <Row label="Session" value={sessionShort} />
+                <Row label="Session aktív" value="24 óra" />
+              </View>
 
-          <View style={s.column}>
-            <Text style={s.sectionHeader}>ELŐFIZETÉS</Text>
-            <View style={s.sectionDivider} />
-            <Row label="Csomag" value={subPackage} />
-            <View style={s.row}>
-              <Text style={s.label}>Státusz</Text>
-              <View style={[s.badge, { backgroundColor: status.bg, borderColor: status.border }]}>
-                <Text style={[s.badgeText, { color: status.text }]}>{status.label}</Text>
+              <View style={s.column}>
+                <Text style={s.sectionHeader}>ELŐFIZETÉS</Text>
+                <View style={s.sectionDivider} />
+                <Row label="Csomag" value={'\u2014'} />
+                <View style={s.row}>
+                  <Text style={s.label}>Státusz</Text>
+                  <View style={[s.badge, { backgroundColor: status.bg, borderColor: status.border }]}>
+                    <Text style={[s.badgeText, { color: status.text }]}>{status.label}</Text>
+                  </View>
+                </View>
+                <Row label="Lejárat" value={expiry} />
+                <Row label="Regisztráció" value={formatDate(info?.created_at || '')} />
+                <Row label="Aktív kapcs." value={info?.active_cons || '0'} />
+                <Row label="Max kapcs." value={info?.max_connections || '0'} />
               </View>
             </View>
-            <Row label="Lejárat" value={expiry} />
-            <Row label="Regisztráció" value={formatDate(info?.created_at || '')} />
-            <Row label="Aktív kapcs." value={info?.active_cons || '0'} />
-            <Row label="Max kapcs." value={info?.max_connections || '0'} />
+
+            <View style={s.divider} />
+
+            {profiles.length > 1 && (
+              <>
+                <Text style={[s.sectionHeader, { marginBottom: 4 }]}>PROFILOK</Text>
+                <View style={s.sectionDivider} />
+                <View style={s.profileRow}>
+                  {profiles.map(p => {
+                    const isActive = activeProfile?.id === p.id;
+                    return (
+                      <TFPressable
+                        key={p.id}
+                        style={[s.profileChip, isActive && s.profileChipActive]}
+                        focusedStyle={s.profileChipFocus}
+                        onPress={() => setActiveProfile(p.id)}
+                        accessibilityLabel={`${p.name} profil`}
+                        accessibilityRole="button"
+                      >
+                        <View style={[s.miniAvatar, { backgroundColor: p.color || COLORS.yellow }]}>
+                          <Text style={s.miniAvatarText}>{p.avatar || (p.name || 'P')[0]}</Text>
+                        </View>
+                        <Text style={[s.profileChipName, isActive && s.profileChipNameActive]} numberOfLines={1}>{p.name}</Text>
+                        {isActive && <Text style={s.check}>{'\u2713'}</Text>}
+                      </TFPressable>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
+            {onLogout && (
+              <>
+                <View style={[s.divider, { marginBottom: 4 }]} />
+                <TFPressable
+                  style={s.logoutBtn}
+                  focusedStyle={s.logoutBtnFoc}
+                  onPress={onLogout}
+                  accessibilityLabel="Kijelentkezés"
+                  accessibilityRole="button"
+                >
+                  <Text style={s.logoutBtnText}>KIJELENTKEZÉS</Text>
+                </TFPressable>
+              </>
+            )}
           </View>
-        </View>
-
-        <View style={s.divider} />
-
-        {profiles.length > 1 && (
-          <>
-            <Text style={[s.sectionHeader, { marginBottom: 4 }]}>PROFILOK</Text>
-            <View style={s.sectionDivider} />
-            <View style={s.profileRow}>
-              {profiles.map(p => {
-                const isActive = activeProfile?.id === p.id;
-                return (
-                  <TFPressable
-                    key={p.id}
-                    style={[s.profileChip, isActive && s.profileChipActive]}
-                    focusedStyle={s.profileChipFocus}
-                    onPress={() => setActiveProfile(p.id)}
-                    accessibilityLabel={`${p.name} profil`}
-                    accessibilityRole="button"
-                  >
-                    <View style={[s.miniAvatar, { backgroundColor: p.color || '#ffcc00' }]}>
-                      <Text style={s.miniAvatarText}>{p.avatar || (p.name || 'P')[0]}</Text>
-                    </View>
-                    <Text style={[s.profileChipName, isActive && s.profileChipNameActive]} numberOfLines={1}>{p.name}</Text>
-                    {isActive && <Text style={s.check}>{'\u2713'}</Text>}
-                  </TFPressable>
-                );
-              })}
-            </View>
-          </>
-        )}
-
-        {onLogout && (
-          <>
-            <View style={[s.divider, { marginBottom: 4 }]} />
-            <TFPressable
-              style={s.logoutBtn}
-              focusedStyle={s.logoutBtnFoc}
-              onPress={onLogout}
-              accessibilityLabel="Kijelentkezés"
-              accessibilityRole="button"
-            >
-              <Text style={s.logoutBtnText}>KIJELENTKEZÉS</Text>
-            </TFPressable>
-          </>
-        )}
-      </PopArtCard>
-    </ScrollView>
+        </RuggedBorder>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -157,9 +202,16 @@ const Row = memo(function Row({ label, value, mono }: { label: string; value: st
 });
 
 const s = StyleSheet.create({
-  scroll: { paddingVertical: 8, paddingHorizontal: 10, alignItems: 'center' },
-  cardInner: { width: Math.min(530, Dimensions.get('window').width - 60), paddingVertical: 8, paddingHorizontal: 20 },
-  title: { color: '#f6c800', fontSize: 27, fontFamily: 'Bangers-Regular', letterSpacing: 3, textShadowColor: '#000', textShadowOffset: { width: 4, height: 4 }, textShadowRadius: 0 },
+  root: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg, padding: 20 },
+  scroll: { paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xs, alignItems: 'center' },
+  card: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: 'rgba(10,10,20,0.92)',
+    borderRadius: 8,
+  },
+  title: { color: COLORS.yellow, fontSize: 22, fontFamily: 'Bangers-Regular', letterSpacing: 3, textShadowColor: COLORS.black, textShadowOffset: { width: 4, height: 4 }, textShadowRadius: 0 },
   subtitle: { color: '#555', fontSize: 8, fontFamily: 'Poppins-Bold', letterSpacing: 3, textTransform: 'uppercase', marginTop: 1 },
   divider: { height: 2, backgroundColor: '#1a1a1a', alignSelf: 'stretch', marginVertical: 5 },
   columns: { flexDirection: 'row', gap: 20 },
@@ -168,25 +220,24 @@ const s = StyleSheet.create({
   sectionDivider: { height: 1, backgroundColor: '#1a1a1a', alignSelf: 'stretch', marginBottom: 3, marginTop: 1 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 2 },
   label: { color: '#777', fontSize: 10, fontFamily: 'Poppins-Regular' },
-  value: { color: '#fff', fontSize: 10, fontFamily: 'Poppins-Bold', textAlign: 'right', maxWidth: '55%' },
-  valueMono: { fontSize: 9, fontFamily: 'monospace', backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
+  value: { color: COLORS.text, fontSize: 8, fontFamily: 'Poppins-Bold', textAlign: 'right', maxWidth: '55%' },
+  valueMono: { fontSize: 8, fontFamily: 'monospace', backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
   badge: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 5, paddingVertical: 1 },
   badgeText: { fontSize: 8, fontFamily: 'Poppins-Bold', letterSpacing: 0.5 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0a0a0a', padding: 20 },
-  errText: { color: '#ff4d57', fontSize: 11, fontFamily: 'Poppins-Bold', marginBottom: 6 },
-  backBtn: { backgroundColor: '#222', borderRadius: 10, borderWidth: 2, borderColor: '#000', paddingVertical: 4, paddingHorizontal: 12 },
-  backBtnFoc: { backgroundColor: '#f6c800' },
-  backBtnText: { color: '#fff', fontSize: 11, fontFamily: 'Poppins-Bold' },
+  errText: { color: COLORS.red, fontSize: 11, fontFamily: 'Poppins-Bold', marginBottom: 6 },
+  backBtn: { backgroundColor: '#222', borderRadius: 10, borderWidth: 2, borderColor: COLORS.black, paddingVertical: 4, paddingHorizontal: 12 },
+  backBtnFoc: { backgroundColor: COLORS.yellow },
+  backBtnText: { color: COLORS.text, fontSize: 11, fontFamily: 'Poppins-Bold' },
   profileRow: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
   profileChip: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#1a1a1a', borderRadius: 8, borderWidth: 1, borderColor: 'transparent', paddingVertical: 3, paddingHorizontal: 5 },
-  profileChipActive: { backgroundColor: '#f6c800', borderColor: '#000' },
-  profileChipFocus: { borderColor: '#1fd6e8' },
-  miniAvatar: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#000' },
-  miniAvatarText: { color: '#000', fontSize: 9, fontFamily: 'Bangers-Regular' },
-  profileChipName: { color: '#fff', fontSize: 9, fontFamily: 'Poppins-Bold' },
-  profileChipNameActive: { color: '#000' },
+  profileChipActive: { backgroundColor: COLORS.yellow, borderColor: COLORS.black },
+  profileChipFocus: { borderColor: COLORS.cyan },
+  miniAvatar: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.black },
+  miniAvatarText: { color: COLORS.black, fontSize: 9, fontFamily: 'Bangers-Regular' },
+  profileChipName: { color: COLORS.text, fontSize: 9, fontFamily: 'Poppins-Bold' },
+  profileChipNameActive: { color: COLORS.black },
   check: { color: '#1b5e20', fontSize: 11, fontWeight: '800' },
-  logoutBtn: { backgroundColor: '#b71c1c', borderRadius: 10, borderWidth: 2, borderColor: '#000', paddingVertical: 8, paddingHorizontal: 16, alignSelf: 'stretch', alignItems: 'center' },
+  logoutBtn: { backgroundColor: '#b71c1c', borderRadius: 10, borderWidth: 2, borderColor: COLORS.black, paddingVertical: 6, paddingHorizontal: 6, alignSelf: 'center', alignItems: 'center' },
   logoutBtnFoc: { backgroundColor: '#ff4d57' },
-  logoutBtnText: { color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold', letterSpacing: 1 },
+  logoutBtnText: { color: COLORS.text, fontSize: 10, fontFamily: 'Poppins-Bold', letterSpacing: 1 },
 });
