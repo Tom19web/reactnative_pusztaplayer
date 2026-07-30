@@ -31,6 +31,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    extra_hosts:
+      - "live.pusztaplay.eu:host-gateway"
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://puszta:${DB_PASSWORD:-puszta_secret}@postgres:5432/pusztaplayer
