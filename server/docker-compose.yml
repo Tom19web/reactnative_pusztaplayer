@@ -42,7 +42,7 @@ services:
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com}
       TMDB_API_KEY: ${TMDB_API_KEY}
       OPENSUBTITLES_API_KEY: ${OPENSUBTITLES_API_KEY}
-      XTREAM_API_BASE: ${XTREAM_API_BASE:-http://movaloget.cc:42310}
+      XTREAM_API_BASE: ${XTREAM_API_BASE:-https://live.pusztaplay.eu}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       FCM_CREDENTIALS_JSON: ${FCM_CREDENTIALS_JSON:-/run/secrets/fcm_credentials}
     depends_on:
@@ -54,6 +54,8 @@ services:
       - puszta_internal
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      - ./static/logos:/app/static/logos
 
 
 volumes:

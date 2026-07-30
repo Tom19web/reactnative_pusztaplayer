@@ -13,7 +13,7 @@ from sqlalchemy import select
 from app.database import async_session_factory
 from app.models.models import SeriesModel
 
-XTREAM_URL = "http://movaloget.cc:42310/player_api.php"
+XTREAM_URL = "https://live.pusztaplay.eu/player_api.php"
 USERNAME = os.getenv("XTREAM_USERNAME", "Kertesznora")
 PASSWORD = os.getenv("XTREAM_PASSWORD", "Kertesznora.kn")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
