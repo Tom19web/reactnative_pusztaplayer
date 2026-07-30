@@ -30,6 +30,7 @@ export default function BackgroundAudio() {
       source={source}
       audioOnly
       paused={!isPlaying}
+      playInBackground
       style={{ width: 0, height: 0, position: 'absolute' }}
       resizeMode="cover"
       ignoreSilentSwitch="ignore"

@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   scroll: { gap: 0, paddingBottom: isTouch ? 40 : 0 },
   closeBtn: {
     position: 'absolute', top: 10, right: 12, zIndex: 10,
-    width: 20, height: 20, borderRadius: 4,
+    width: isTouch ? 40 : 20, height: isTouch ? 40 : 20, borderRadius: 4,
     backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center',
   },
   closeBtnFocus: { backgroundColor: COLORS.yellow, transform: [{ scale: 1.15 }] },
