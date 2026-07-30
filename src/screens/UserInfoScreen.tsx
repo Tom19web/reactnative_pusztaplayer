@@ -4,6 +4,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
 import TFPressable from '../components/TFPressable';
 import RuggedBorder from '../components/RuggedBorder';
+import SoundEffect from '../components/SoundEffect';
 import { useCore, useProfiles, useSetActiveProfile, useActiveProfile } from '../store/AppContext';
 import { xtreamGetUserInfo, XtreamUserFullInfo } from '../services/xtreamApi';
 import { loadXtreamCredentials } from '../services/storage';
@@ -107,7 +108,7 @@ export default function UserInfoScreen({ onBack, onLogout }: UserInfoScreenProps
       <CardBg />
       <ScrollView contentContainerStyle={s.scroll} nestedScrollEnabled>
         <RuggedBorder color={COLORS.cyan} wobbleFactor={0.7}>
-          <View style={[s.card, { width: CARD_W }]}>
+          <View style={[s.card, { width: CARD_W, position: 'relative', overflow: 'visible' }]}>
             <Text style={s.title}>FIÓK</Text>
             <Text style={s.subtitle}>SZEMÉLYES ADATOK & ELŐFIZETÉS</Text>
             <View style={s.divider} />
@@ -185,6 +186,9 @@ export default function UserInfoScreen({ onBack, onLogout }: UserInfoScreenProps
                 </TFPressable>
               </>
             )}
+
+            <SoundEffect text="AKTÍV!" textColor={COLORS.yellow} bgColor={COLORS.red} top={-8} right={-18} rotate={15} fontSize={14} />
+            <SoundEffect text="BYE!" textColor={COLORS.red} bgColor={COLORS.yellow} bottom={-16} left={-14} rotate={-10} fontSize={14} />
           </View>
         </RuggedBorder>
       </ScrollView>
@@ -204,12 +208,13 @@ const Row = memo(function Row({ label, value, mono }: { label: string; value: st
 const s = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg, padding: 20 },
-  scroll: { paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xs, alignItems: 'center' },
+  scroll: { paddingVertical: 24, paddingHorizontal: SPACING.md, alignItems: 'center' },
   card: {
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     backgroundColor: 'rgba(10,10,20,0.92)',
     borderRadius: 8,
+    overflow: 'visible',
   },
   title: { color: COLORS.yellow, fontSize: 22, fontFamily: 'Bangers-Regular', letterSpacing: 3, textShadowColor: COLORS.black, textShadowOffset: { width: 4, height: 4 }, textShadowRadius: 0 },
   subtitle: { color: '#555', fontSize: 8, fontFamily: 'Poppins-Bold', letterSpacing: 3, textTransform: 'uppercase', marginTop: 1 },
