@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="hu" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PusztaPlayer - Vezérlőpult</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 500: '#00d4ff', 600: '#00a8cc' },
+                        darkBg: '#0a0a0a',
+                        cardBg: '#12121a'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        .log-container { max-height: 500px; overflow-y: auto; }
+        .animate-pulse-slow { animation: pulse 3s infinite; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="bg-darkBg text-gray-100 font-sans min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <header class="border-b border-gray-800 bg-cardBg/80 backdrop-blur sticky top-0 z-50 px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-3 h-3 bg-brand-500 rounded-full animate-pulse"></div>
+            <h1 class="text-xl font-black tracking-wider text-brand-500">PUSZTAPLAYER // ADMIN</h1>
+        </div>
+        <div id="server-status" class="text-xs text-gray-400">Szerver: <span class="text-green-400 font-bold">ONLINE</span></div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+
+        <!-- Stats Row -->
+        <section id="stats-section" class="grid grid-cols-2 md:grid-cols-6 gap-4">
+            <div class="bg-cardBg border border-gray-800 rounded-xl p-4"><h3 class="text-xs text-gray-500 uppercase">Session-ök</h3><p id="stat-sessions" class="text-2xl font-bold text-brand-500 mt-1">--</p></div>
+            <div class="bg-cardBg border border-gray-800 rounded-xl p-4"><h3 class="text-xs text-gray-500 uppercase">Logók</h3><p id="stat-logos" class="text-2xl font-bold text-yellow-400 mt-1">--</p></div>
+            <div class="bg-cardBg border border-gray-800 rounded-xl p-4"><h3 class="text-xs text-gray-500 uppercase">EPG Programok</h3><p id="stat-epg" class="text-2xl font-bold text-purple-400 mt-1">--</p></div>
+            <div class="bg-cardBg border border-gray-800 rounded-xl p-4"><h3 class="text-xs text-gray-500 uppercase">Csatorna EPG-vel</h3><p id="stat-epg-ch" class="text-2xl font-bold text-green-400 mt-1">--</p></div>
+            <div class="bg-cardBg border border-gray-800 rounded-xl p-4"><h3 class="text-xs text-gray-500 uppercase">Most futó</h3><p id="stat-epg-now" class="text-2xl font-bold text-blue-400 mt-1">--</p></div>
+            <div class="bg-cardBg border border-gray-800 rounded-xl p-4"><h3 class="text-xs text-gray-500 uppercase">Utolsó import</h3><p id="stat-last" class="text-sm font-bold text-gray-300 mt-1">--</p></div>
+        </section>
+
+        <!-- Actions -->
+        <section class="bg-cardBg border border-gray-800 rounded-xl p-6">
+            <h2 class="text-lg font-bold text-gray-200 mb-4">Műveleti Központ</h2>
+            <div class="flex flex-wrap gap-3">
+                <button onclick="triggerImport('logos')" id="btn-logos" class="px-5 py-2.5 bg-yellow-600 hover:bg-yellow-500 text-black font-bold rounded-lg transition shadow-md cursor-pointer">🖼 Logo Import</button>
+                <button onclick="triggerImport('epg')" id="btn-epg" class="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-black font-bold rounded-lg transition shadow-md cursor-pointer">📡 EPG Import</button>
+                <button onclick="clearCache()" id="btn-cache" class="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 font-bold rounded-lg transition border border-gray-600 cursor-pointer">🧹 Cache Clear</button>
+            </div>
+        </section>
+
+        <!-- Log Viewer -->
+        <section class="bg-cardBg border border-gray-800 rounded-xl p-6">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-bold text-gray-200">Import Log <span id="task-status" class="text-xs text-gray-500 ml-2"></span></h2>
+                <button onclick="clearLog()" class="text-xs text-gray-500 hover:text-gray-300 cursor-pointer">🗑 Törlés</button>
+            </div>
+            <div id="log-output" class="log-container bg-black/70 rounded-lg p-4 text-xs font-mono text-green-400 leading-relaxed">
+                <span class="text-gray-500">Várakozás parancsra...</span>
+            </div>
+        </section>
+
+        <!-- Logo File Manager -->
+        <section class="bg-cardBg border border-gray-800 rounded-xl p-6">
+            <h2 class="text-lg font-bold text-gray-200 mb-4">Logo Fájlkezelő</h2>
+            <div class="flex gap-2 mb-4">
+                <input id="logo-search" type="text" placeholder="Keresés (URL vagy stream_id)..." onkeyup="if(event.key==='Enter')loadLogos()" class="flex-1 bg-black/50 border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-200 outline-none focus:border-brand-500">
+                <button onclick="loadLogos()" class="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-black font-bold rounded-lg text-sm">Keresés</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead><tr class="text-gray-500 text-left border-b border-gray-800">
+                        <th class="py-2 pr-2">Stream ID</th><th class="py-2 pr-2">Csatornanév</th><th class="py-2 pr-2">Matchelt név</th><th class="py-2 pr-2">Logo URL</th><th class="py-2 pr-2">Forrás</th><th class="py-2 pr-2">Létrehozva</th><th class="py-2">✕</th>
+                    </tr></thead>
+                    <tbody id="logo-table-body"><tr><td colspan="7" class="py-4 text-gray-500 text-center">Betöltés...</td></tr></tbody>
+                </table>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="logoPage(-1)" id="logo-prev" class="px-3 py-1 bg-gray-800 rounded text-xs disabled:opacity-30" disabled>← Előző</button>
+                <span id="logo-page-info" class="text-xs text-gray-400 self-center">-- / --</span>
+                <button onclick="logoPage(1)" id="logo-next" class="px-3 py-1 bg-gray-800 rounded text-xs disabled:opacity-30" disabled>Következő →</button>
+            </div>
+        </section>
+
+        <!-- Missing Analysis -->
+        <section class="bg-cardBg border border-gray-800 rounded-xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-200">Missing Analysis</h2>
+                <button onclick="loadMissingAnalysis()" class="px-3 py-1 bg-brand-500 hover:bg-brand-600 text-black font-bold rounded text-xs cursor-pointer">Frissítés</button>
+            </div>
+            <div id="missing-result" class="text-sm text-gray-400">Betöltés...</div>
+            <div id="epg-info-panel" class="mt-4 p-3 bg-black/50 rounded-lg text-xs hidden"></div>
+        </section>
+
+        <!-- HU EPG Manual Mapping -->
+        <section class="bg-cardBg border border-gray-800 rounded-xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-200">🇭🇺 HU EPG Mapping (port.hu)</h2>
+                <button onclick="loadHuMapping()" class="px-3 py-1 bg-brand-500 hover:bg-brand-600 text-black font-bold rounded text-xs cursor-pointer">Betöltés</button>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">
+                Port.hu csatornák manuális párosítása Xtream stream_id-khez.
+                Töltsd ki a SID mezőket, mentsd el, majd futtasd a szerveren:
+                <code class="text-brand-500">docker compose exec fastapi python /app/scripts/import_epg_hu_direct.py</code>
+            </p>
+            <div id="hu-map-result" class="text-sm text-gray-400">Betöltés...</div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-4 text-xs text-gray-600 border-t border-gray-900">
+        PusztaPlayer Backend Core // v3.0 Admin Panel
+    </footer>
+
+    <!-- Merge Modal -->
+    <div id="merge-modal" class="fixed inset-0 z-50 hidden bg-black/70 flex items-center justify-center">
+        <div class="bg-cardBg border border-gray-700 rounded-xl p-6 w-full max-w-lg mx-4 shadow-2xl">
+            <h3 class="text-lg font-bold text-gray-200 mb-4">Csatornanév Merge</h3>
+            <div class="space-y-3 mb-4">
+                <div><label class="text-xs text-gray-500">Stream ID</label><input id="merge-sid" readonly class="w-full bg-black/50 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-300 outline-none"></div>
+                <div><label class="text-xs text-gray-500">Csatornanév (Xtream)</label><input id="merge-name" class="w-full bg-black/50 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 outline-none focus:border-brand-500"></div>
+                <div><label class="text-xs text-gray-500">XMLTV név keresés (írj pár betűt)</label><input id="merge-search" onkeyup="searchXmltvNames()" placeholder="pl: RTL, ORF, SAT..." class="w-full bg-black/50 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 outline-none focus:border-brand-500"></div>
+                <select id="merge-select" size="6" class="w-full bg-black/70 border border-gray-700 rounded px-2 py-1 text-sm text-gray-300 outline-none"></select>
+                <div><label class="text-xs text-gray-500">VAGY saját név</label><input id="merge-custom" class="w-full bg-black/50 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 outline-none focus:border-brand-500"></div>
+            </div>
+            <div class="flex gap-2 justify-end">
+                <button onclick="closeMerge()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-sm cursor-pointer">Mégsem</button>
+                <button onclick="saveMerge()" class="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-black font-bold rounded-lg text-sm cursor-pointer">Mentés</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api/v1/admin';
+        let logoCurrentPage = 1, logoTotalPages = 1;
+        let eventSource = null;
+
+        // ── Stats ──────────────────────────────────
+        async function loadStats() {
+            try {
+                const r = await fetch(`${API}/stats`);
+                if (!r.ok) return;
+                const d = await r.json();
+                document.getElementById('stat-sessions').innerText = d.sessions;
+                document.getElementById('stat-logos').innerText = d.logos;
+                document.getElementById('stat-epg').innerText = d.epg_programs;
+                document.getElementById('stat-epg-ch').innerText = d.channels_with_epg;
+                document.getElementById('stat-epg-now').innerText = d.channels_now_playing;
+                document.getElementById('stat-last').innerText = d.last_import;
+            } catch(e) { console.error(e); }
+        }
+
+        // ── Import Trigger ─────────────────────────
+        async function triggerImport(type) {
+            const btn = document.getElementById(`btn-${type}`);
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            document.getElementById('log-output').innerHTML = '<span class="text-gray-500">Import indítása...</span>';
+            document.getElementById('task-status').innerText = '⏳ Fut...';
+
+            try {
+                const r = await fetch(`${API}/${type}/import`, { method: 'POST' });
+                const d = await r.json();
+                if (d.task_id) streamLog(d.task_id, type);
+            } catch(e) {
+                logAppend(`❌ Hiba: ${e.message}`, 'text-red-400');
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+            }
+        }
+
+        function streamLog(taskId, type) {
+            if (eventSource) eventSource.close();
+            const btn = document.getElementById(`btn-${type}`);
+            document.getElementById('log-output').innerHTML = '';
+
+            eventSource = new EventSource(`${API}/import/stream/${taskId}`);
+            eventSource.addEventListener('done', (e) => {
+                const d = JSON.parse(e.data);
+                logAppend(d.exit_code === 0 ? '✅ Import sikeresen befejeződött.' : `⚠️ Import exit code ${d.exit_code}`, d.exit_code === 0 ? 'text-green-400' : 'text-red-400');
+                document.getElementById('task-status').innerText = '✅ Kész';
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                eventSource.close();
+                loadStats();
+            });
+            eventSource.onmessage = (e) => {
+                const d = JSON.parse(e.data);
+                logAppend(d.line);
+            };
+            eventSource.onerror = () => {
+                logAppend('⚠️ SSE kapcsolat megszakadt.', 'text-yellow-400');
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                eventSource.close();
+            };
+        }
+
+        function logAppend(line, cls = '') {
+            const el = document.getElementById('log-output');
+            if (el.innerHTML === '<span class="text-gray-500">Várakozás parancsra...</span>') el.innerHTML = '';
+            const div = document.createElement('div');
+            div.className = cls;
+            div.textContent = line;
+            el.appendChild(div);
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log-output').innerHTML = '<span class="text-gray-500">Várakozás parancsra...</span>';
+        }
+
+        // ── Cache Clear ────────────────────────────
+        async function clearCache() {
+            const btn = document.getElementById('btn-cache');
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            try {
+                const r = await fetch(`${API}/cache/clear`, { method: 'POST' });
+                const d = await r.json();
+                logAppend(`🧹 Cache törölve: ${d.cleared} kulcs.`);
+            } catch(e) {
+                logAppend(`❌ Hiba: ${e.message}`);
+            }
+            btn.disabled = false;
+            btn.classList.remove('opacity-50');
+        }
+
+        // ── Logo File Manager ──────────────────────
+        async function loadLogos(page = 1) {
+            const search = document.getElementById('logo-search').value;
+            const url = `${API}/logos/list?page=${page}&per_page=25&search=${encodeURIComponent(search)}`;
+            try {
+                const r = await fetch(url);
+                const d = await r.json();
+                logoCurrentPage = d.page;
+                logoTotalPages = d.pages;
+                document.getElementById('logo-page-info').innerText = `${d.page} / ${d.pages}`;
+                document.getElementById('logo-prev').disabled = d.page <= 1;
+                document.getElementById('logo-next').disabled = d.page >= d.pages;
+
+                const tbody = document.getElementById('logo-table-body');
+                tbody.innerHTML = d.logos.map(l => `<tr class="border-b border-gray-800/50 hover:bg-gray-900/30">
+                    <td class="py-2 pr-2 text-brand-500">${l.stream_id}</td>
+                    <td class="py-2 pr-2 text-gray-300 max-w-32 truncate" title="${esc(l.channel_name)}">${esc(l.channel_name||'-')}</td>
+                    <td class="py-2 pr-2 text-purple-400 max-w-40 truncate" title="${esc(l.matched_name)}">${esc(l.matched_name||'-')}</td>
+                    <td class="py-2 pr-2 max-w-xs truncate">${l.local?'💾 ':'🌐 '}<a href="${esc(l.logo_url)}" target="_blank" class="text-brand-500 hover:underline">${esc(l.logo_url).substring(0,50)}</a></td>
+                    <td class="py-2 pr-2 text-xs text-gray-500">${esc(l.source)}</td>
+                    <td class="py-2 pr-2 text-xs text-gray-500">${l.created_at}</td>
+                    <td class="py-2"><button onclick="openMerge(${l.stream_id},'${esc(l.channel_name||'')}','${esc(l.matched_name||'')}','${esc(l.source)}')" class="text-brand-500 hover:text-brand-300 font-bold mr-2" title="Merge">🔀</button><button onclick="deleteLogo(${l.stream_id})" class="text-red-500 hover:text-red-300 font-bold">✕</button></td>
+                </tr>`).join('');
+                if (d.logos.length === 0) tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-gray-500 text-center">Nincs találat.</td></tr>';
+            } catch(e) { console.error(e); }
+        }
+
+        async function deleteLogo(streamId) {
+            if (!confirm(`Biztosan törlöd a ${streamId} logóját?`)) return;
+            try {
+                const r = await fetch(`${API}/logos/${streamId}`, { method: 'DELETE' });
+                if (r.ok) { loadLogos(logoCurrentPage); loadStats(); }
+            } catch(e) { alert('Hiba: ' + e.message); }
+        }
+
+        function logoPage(dir) {
+            const next = logoCurrentPage + dir;
+            if (next >= 1 && next <= logoTotalPages) loadLogos(next);
+        }
+
+        function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+
+        // ── EPG Quick Check ────────────────────────
+        async function checkEpg(sid, name) {
+            const panel = document.getElementById('epg-info-panel');
+            panel.innerHTML = '<span class="text-yellow-400">⏳ EPG lekérése...</span>';
+            panel.classList.remove('hidden');
+            try {
+                const r = await fetch(`${API}/epg-check/${sid}`);
+                const d = await r.json();
+                let html = `<div class="flex items-center gap-2 mb-2">
+                    <span class="font-bold text-brand-500 text-sm">📡 ${sid}: ${esc(name||'')}</span>
+                    <span class="text-xs text-gray-500">(${d.total||0} program)</span>
+                    <button onclick="document.getElementById('epg-info-panel').classList.add('hidden')" class="text-gray-500 hover:text-gray-300 text-xs">✕</button>
+                </div>`;
+                if (d.now_playing) {
+                    html += `<div class="text-xs text-green-400 mb-1">▶ MOST: ${esc(d.now_playing.title)} (ts: ${d.now_playing.start})</div>`;
+                } else {
+                    html += `<div class="text-xs text-red-400 mb-1">▶ MOST: nincs adás</div>`;
+                }
+                if (d.upcoming && d.upcoming.length > 0) {
+                    html += '<div class="text-xs text-gray-400">Következő:</div>';
+                    for (const u of d.upcoming) html += `<div class="text-xs text-gray-300 ml-2">▸ ${esc(u.title)}</div>`;
+                }
+                if (d.first_ts) html += `<div class="text-xs text-gray-500 mt-1">Időszak: ${d.first_ts} – ${d.last_ts}</div>`;
+                panel.innerHTML = html;
+            } catch(e) { panel.innerHTML = `<span class="text-red-400">Hiba: ${esc(e.message)}</span>`; }
+        }
+
+        // ── Channel Merge ─────────────────────────
+        let mergeCountry = '', mergeSid = 0;
+        function openMerge(sid, name, matched, source) {
+            mergeSid = sid;
+            mergeCountry = (source||'').includes('austria') ? 'at' : (source||'').includes('germany') ? 'de' : (source||'').includes('switz')||(source||'').includes('ch') ? 'ch' : 'de';
+            document.getElementById('merge-sid').value = sid;
+            document.getElementById('merge-name').value = name;
+            document.getElementById('merge-search').value = matched;
+            document.getElementById('merge-custom').value = matched;
+            document.getElementById('merge-select').innerHTML = '';
+            document.getElementById('merge-modal').classList.remove('hidden');
+            searchXmltvNames();
+        }
+        function closeMerge() { document.getElementById('merge-modal').classList.add('hidden'); }
+        async function searchXmltvNames() { 
+            let q = document.getElementById('merge-search').value;
+            if (!q || q.length < 1) { q = (document.getElementById('merge-name').value||'').slice(0, 3); }
+            if (!q || q.length < 1) return;
+            try {
+                const r = await fetch(`${API}/xmltv-names/${mergeCountry}?q=${encodeURIComponent(q)}`);
+                const d = await r.json();
+                const sel = document.getElementById('merge-select');
+                sel.innerHTML = (d.names||[]).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+                if (d.count > 100) sel.innerHTML += `<option disabled>...és még ${d.count-100} találat</option>`;
+            } catch(e) {}
+        }
+        async function saveMerge() {
+            const name = document.getElementById('merge-name').value;
+            const custom = document.getElementById('merge-custom').value;
+            const sel = document.getElementById('merge-select').value;
+            const matched = sel || custom;
+            if (!matched) { alert('Válassz ki egy XMLTV nevet a listából, vagy írj be egy saját nevet!'); return; }
+            try {
+                const r = await fetch(`${API}/logos/merge?stream_id=${mergeSid}&channel_name=${encodeURIComponent(name)}&matched_name=${encodeURIComponent(matched)}&country=${mergeCountry}`, { method: 'POST' });
+                if (r.ok) { closeMerge(); loadLogos(logoCurrentPage); loadStats(); }
+            } catch(e) { alert('Hiba: ' + e.message); }
+        }
+
+        // ── Missing Analysis ──────────────────────
+        async function deleteCategory(catId, catName) {
+            if (!confirm(`Biztosan törlöd az ÖSSZES logo-t és EPG-t a(z) "${catName}" kategóriából?`)) return;
+            document.getElementById('missing-result').innerHTML = '<span class="text-yellow-400">⏳ Törlés folyamatban...</span>';
+            try {
+                const r = await fetch(`${API}/delete-category?category_id=${catId}`, { method: 'POST' });
+                const d = await r.json();
+                if (r.ok) {
+                    logAppend(`🗑 ${catName}: ${d.deleted_logos} logo + ${d.deleted_epg} EPG törölve (${d.streams} csatorna).`, 'text-green-400');
+                    loadMissingAnalysis();
+                    loadStats();
+                } else {
+                    alert('Hiba: ' + (d.detail || 'ismeretlen'));
+                }
+            } catch(e) { alert('Hiba: ' + e.message); }
+        }
+        async function loadMissingAnalysis() {
+            document.getElementById('missing-result').innerHTML = '<span class="text-yellow-400">⏳ Analízis folyamatban... (akár 10 MP)</span>';
+            try {
+                const r = await fetch(`${API}/missing-analysis`);
+                const d = await r.json();
+                if (d.error) { document.getElementById('missing-result').innerHTML = `<span class="text-red-400">Hiba: ${esc(d.error)}</span>`; return; }
+                if (!d.categories || d.categories.length === 0) { document.getElementById('missing-result').innerHTML = '<span class="text-gray-500">Minden kategóriában van logo és EPG.</span>'; return; }
+                let html = '';
+                for (const cat of d.categories) {
+                    html += `<div class="mb-3 pb-3 border-b border-gray-800">
+                        <div class="flex items-center gap-3 mb-1">
+                            <span class="font-bold text-gray-200">${esc(cat.name)}</span>
+                            <span class="text-xs text-gray-500">${cat.total} csatorna</span>
+                            <span class="text-xs px-2 py-0.5 rounded ${cat.no_logo > 0 ? 'bg-red-900/50 text-red-400' : 'bg-green-900/30 text-green-400'}">🚫${cat.no_logo} logó hiány</span>
+                            <span class="text-xs px-2 py-0.5 rounded ${cat.no_epg > 0 ? 'bg-red-900/50 text-red-400' : 'bg-green-900/30 text-green-400'}">📡${cat.no_epg} EPG hiány</span>
+                            <button onclick="deleteCategory(${cat.category_id},'${esc(cat.name)}')" class="text-xs px-2 py-0.5 bg-red-900/50 hover:bg-red-800 text-red-400 rounded cursor-pointer" title="Összes logo + EPG törlése ebből a kategóriából">🗑 Töröl</button>
+                        </div>`;
+                    if (cat.no_logo > 0 || cat.no_epg > 0) {
+                        html += '<div class="ml-2 text-xs text-gray-500">';
+                        for (const ch of cat.channels) {
+                            if (!ch.has_logo || !ch.has_epg) {
+                                html += `<span class="mr-3 ${!ch.has_logo?'text-red-400':'text-green-400'}">${ch.stream_id}: <button onclick="checkEpg('${ch.stream_id}','${esc(ch.name)}')" class="text-brand-500 hover:underline" title="EPG ellenőrzés">📡</button> ${esc(ch.name)} ${ch.has_logo?'✅':ch.has_epg?'🟡':'❌'}</span>`;
+                            }
+                        }
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                }
+                document.getElementById('missing-result').innerHTML = html;
+            } catch(e) { document.getElementById('missing-result').innerHTML = `<span class="text-red-400">Hiba: ${esc(e.message)}</span>`; }
+        }
+
+        // ── HU EPG Mapping ──────────────────────────
+        let huMapping = [];
+
+        async function loadHuMapping() {
+            try {
+                const r = await fetch(`${API}/epg-hu-mapping`);
+                const d = await r.json();
+                huMapping = d.channels || [];
+                renderHuMapping();
+            } catch(e) { document.getElementById('hu-map-result').innerHTML = `<span class="text-red-400">Hiba: ${esc(e.message)}</span>`; }
+        }
+
+        function renderHuMapping() {
+            const container = document.getElementById('hu-map-result');
+            if (huMapping.length === 0) {
+                container.innerHTML = '<span class="text-gray-500">Nincs adat. Futtasd le a grab_hu_port.py-t először.</span>';
+                return;
+            }
+            const mapped = huMapping.filter(c => c.xtream_sid).length;
+            let html = `<div class="text-xs text-gray-400 mb-2">${huMapping.length} port.hu csatorna | ${mapped} párosítva | <button onclick="importHuDirect()" class="text-brand-500 hover:underline cursor-pointer">📥 Import EPG többire</button></div>`;
+            html += '<div class="log-container"><table class="w-full text-xs"><thead class="text-gray-500"><tr><th class="text-left p-1">Port.hu név</th><th class="text-left p-1">Programok</th><th class="text-left p-1">Xtream SID</th><th class="p-1">Mentés</th></tr></thead><tbody>';
+            for (let i = 0; i < huMapping.length; i++) {
+                const c = huMapping[i];
+                html += `<tr class="border-b border-gray-800/50">
+                    <td class="p-1">${esc(c.name)}<span class="text-gray-600 ml-1">(${c.xmltv_id})</span></td>
+                    <td class="p-1">${c.programmes}</td>
+                    <td class="p-1"><input id="sid-${i}" type="number" value="${c.xtream_sid || ''}" placeholder="SID" class="w-20 bg-gray-900 border border-gray-700 rounded px-2 py-0.5 text-gray-200 text-xs" /></td>
+                    <td class="p-1"><button onclick="saveHuMappingOne(${i})" class="text-brand-500 hover:underline cursor-pointer text-xs">💾</button></td>
+                </tr>`;
+            }
+            html += '</tbody></table></div>';
+            html += `<div class="mt-3"><button onclick="saveHuMappingAll()" class="px-4 py-1 bg-brand-500/20 border border-brand-500 text-brand-500 rounded text-xs hover:bg-brand-500/30 cursor-pointer">💾 Összes mentése</button></div>`;
+            container.innerHTML = html;
+        }
+
+        function collectHuUpdates() {
+            const updates = {};
+            for (let i = 0; i < huMapping.length; i++) {
+                const el = document.getElementById('sid-' + i);
+                if (el) {
+                    const val = parseInt(el.value) || 0;
+                    if (val !== (huMapping[i].xtream_sid || 0)) {
+                        updates[huMapping[i].name] = val;
+                    }
+                }
+            }
+            return updates;
+        }
+
+        async function saveHuMappingOne(idx) {
+            const el = document.getElementById('sid-' + idx);
+            if (!el) return;
+            const sid = parseInt(el.value) || 0;
+            huMapping[idx].xtream_sid = sid || null;
+            try {
+                const r = await fetch(`${API}/epg-hu-mapping`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mapping: { [huMapping[idx].name]: sid } })
+                });
+                if (r.ok) { logAppend(`💾 ${huMapping[idx].name} → SID ${sid || 'törölve'}`, 'text-green-400'); renderHuMapping(); }
+                else { alert('Hiba: ' + (await r.json()).detail); }
+            } catch(e) { alert('Hiba: ' + e.message); }
+        }
+
+        async function saveHuMappingAll() {
+            const updates = collectHuUpdates();
+            if (Object.keys(updates).length === 0) { alert('Nincs változás.'); return; }
+            try {
+                const r = await fetch(`${API}/epg-hu-mapping`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mapping: updates })
+                });
+                if (r.ok) { logAppend(`💾 ${Object.keys(updates).length} párosítás mentve.`, 'text-green-400'); loadHuMapping(); }
+                else { alert('Hiba'); }
+            } catch(e) { alert('Hiba: ' + e.message); }
+        }
+
+        async function importHuDirect() {
+            try {
+                const r = await fetch(`${API}/epg/hu-direct-import`, { method: 'POST' });
+                const d = await r.json();
+                if (d.task_id) {
+                    logAppend(`📥 HU direkt import elindítva: ${d.task_id}`, 'text-brand-500');
+                    streamLogs(d.task_id);
+                }
+            } catch(e) { alert('Hiba: ' + e.message); }
+        }
+
+        // ── Init ────────────────────────────────────
+        loadStats();
+        loadLogos();
+        loadMissingAnalysis();
+        loadHuMapping();
+        setInterval(loadStats, 30000); // Auto-refresh every 30s
+    </script>
+</body>
+</html>

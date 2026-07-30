@@ -26,6 +26,7 @@ INIT_URL = f"{API_ORIGIN}/tvapi/init"
 PROG_URL = f"{API_ORIGIN}/tvapi?channel_id=tvchannel-{{ch_id}}" \
             "&i_datetime_from={date_from}&i_datetime_to={date_to}"
 OUTPUT_FILE = "/tmp/epg_hu_port.xml"
+MAPPING_FILE = "/tmp/epg_hu_port_mapping.json"
 
 CET = timezone(timedelta(hours=2))       # CEST
 PROG_DAYS = 7
@@ -177,9 +178,22 @@ async def main():
             logger.error("No channels found, aborting.")
             return
 
+        # Load existing mapping to preserve manual xtream_sid
+        existing_map: dict[str, int | None] = {}
+        if os.path.exists(MAPPING_FILE):
+            try:
+                with open(MAPPING_FILE, encoding="utf-8") as f:
+                    old = json.load(f)
+                for entry in old:
+                    if entry.get("xtream_sid"):
+                        existing_map[entry["name"]] = int(entry["xtream_sid"])
+            except Exception:
+                pass
+
         total = 0
         all_progs: list[dict] = []
         channel_defs: list[dict] = []
+        prog_counts: dict[str, int] = {}
 
         for i, ch in enumerate(channels):
             xmltv_id = f"{ch['name'].replace(' ', '').replace('/', '-')}.hu"
@@ -189,8 +203,8 @@ async def main():
             progs = await fetch_programmes(client, ch["id"], today, end_date, xmltv_id)
             all_progs.extend(progs)
             total += len(progs)
+            prog_counts[ch["name"]] = len(progs)
 
-            # Rate limit: port.hu blocks at ~120 req/s
             if (i + 1) % 20 == 0:
                 logger.info("  %d/%d channels, %d programmes so far...", i + 1, len(channels), total)
             await asyncio.sleep(0.15)
@@ -202,12 +216,24 @@ async def main():
         f.write(xml_str)
     logger.info("  written to %s (%.1f MB)", args.output, len(xml_str) / 1_000_000)
 
-    # Write channel map for import pipeline (clean name → xmltv_id)
-    map_file = "/tmp/epg_hu_port_map.json"
-    ch_map = {ch["name"]: ch["xmltv_id"] for ch in channel_defs}
-    with open(map_file, "w", encoding="utf-8") as f:
-        json.dump(ch_map, f, ensure_ascii=False, indent=2)
-    logger.info("  channel map written to %s (%d entries)", map_file, len(ch_map))
+    # Write mapping file with channel list + program counts + manual xtream_sid
+    mapping_entries = []
+    for ch in channel_defs:
+        entry = {
+            "name": ch["name"],
+            "xmltv_id": ch["xmltv_id"],
+            "programmes": prog_counts.get(ch["name"], 0),
+            "xtream_sid": existing_map.get(ch["name"])
+        }
+        mapping_entries.append(entry)
+    # Sort by programme count descending
+    mapping_entries.sort(key=lambda x: x["programmes"], reverse=True)
+
+    with open(MAPPING_FILE, "w", encoding="utf-8") as f:
+        json.dump(mapping_entries, f, ensure_ascii=False, indent=2)
+    mapped = sum(1 for e in mapping_entries if e["xtream_sid"])
+    logger.info("  mapping written to %s (%d channels, %d mapped, %d total programmes)",
+               MAPPING_FILE, len(mapping_entries), mapped, total)
 
 
 if __name__ == "__main__":

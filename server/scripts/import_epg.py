@@ -13,9 +13,7 @@ Usage:
   docker compose exec fastapi python /app/scripts/import_epg.py
 """
 import asyncio
-import json
 import logging
-import os
 import time
 
 import httpx
@@ -31,9 +29,6 @@ from import_common import (
 )
 
 EPG_IMPORT_TTL = 86400  # 24 hours
-
-PORT_HU_XML = "/tmp/epg_hu_port.xml"
-PORT_HU_MAP = "/tmp/epg_hu_port_map.json"
 
 
 async def _mark_imported(channel_id: int):
@@ -193,74 +188,6 @@ async def process_user_epg(client: httpx.AsyncClient,
             epg_missing = still_needs
             del xml_text
             del programs
-
-            # ── Port.hu source for remaining Hungarian channels ──
-            if epg_missing and country == "hu" and os.path.exists(PORT_HU_XML):
-                with open(PORT_HU_XML, encoding="utf-8") as f:
-                    phu_xml = f.read()
-                phu_channels, _ = extract_xmltv_channels(phu_xml)
-                phu_progs = parse_xmltv(phu_xml)
-                phu_names = [c["name"] for c in phu_channels]
-
-                # Channel name → XMLTV id index
-                phu_name_to_id = {c["name"]: c["id"] for c in phu_channels}
-                phu_lower_to_id = {n.lower(): i for n, i in phu_name_to_id.items()}
-                # Also index by id for channel map lookups
-                phu_id_channels = {c["id"]: c for c in phu_channels}
-
-                # Load channel map (Xtream name → XMLTV display name)
-                phu_map: dict[str, str] = {}
-                phu_lower_map: dict[str, str] = {}
-                if os.path.exists(PORT_HU_MAP):
-                    with open(PORT_HU_MAP, encoding="utf-8") as f:
-                        raw_map = json.load(f)
-                    phu_map = {k: v for k, v in raw_map.items()}
-                    phu_lower_map = {k.lower(): v for k, v in raw_map.items()}
-
-                logger.info("    port.hu: %d chars, %d channels, %d programmes",
-                           len(phu_xml), len(phu_channels), len(phu_progs))
-
-                still_need = []
-                for name, stream_id in epg_missing:
-                    clean = clean_stream_name(name)
-                    ch_id = ""
-
-                    # Try channel map exact match (case-insensitive)
-                    map_val = phu_lower_map.get(clean.lower(), "")
-                    if map_val:
-                        # map_val could be xmltv_id or display name
-                        if map_val in phu_name_to_id:
-                            ch_id = phu_name_to_id[map_val]
-                        elif map_val in phu_id_channels:
-                            ch_id = map_val
-
-                    # Try hard override (case-insensitive)
-                    if not ch_id:
-                        hard_key = clean.lower()
-                        hard_match = _HARD_MATCHES.get(hard_key)
-                        if hard_match:
-                            ch_id = phu_lower_to_id.get(hard_match.lower(), "")
-
-                    # Try fuzzy match
-                    if not ch_id:
-                        match = match_best(phu_names, clean)
-                        if match and match[1] >= 0.25:
-                            matched_name = match[0]
-                            ch_id = phu_name_to_id.get(matched_name, "")
-
-                    if ch_id and phu_progs:
-                        ch_progs = [p for p in phu_progs if p.get("xml_channel") == ch_id]
-                        if ch_progs:
-                            inserted = await import_programs(stream_id, name, ch_progs, ch_id)
-                            result["imported"] += inserted
-                            logger.info("      [port.hu] %s → %s [%s]: %d programmes", name,
-                                       phu_id_channels.get(ch_id, {}).get("name", ch_id), ch_id, inserted)
-                            await _mark_imported(stream_id)
-                        else:
-                            still_need.append((name, stream_id))
-                    else:
-                        still_need.append((name, stream_id))
-                epg_missing = still_need
 
     return result
 
