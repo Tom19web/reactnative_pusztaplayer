@@ -260,7 +260,7 @@ function AppInitializer() {
 
           {/* Lower: loading steps */}
           <View style={styles.stepsWrap}>
-            <Animated.View style={{ opacity: fadeSteps }}>
+            <Animated.View style={{ opacity: fadeSteps, alignSelf: 'stretch', width: '100%' }}>
               {LOADING_STEPS.map((text, i) => (
                 <View key={i} style={styles.stepRow}>
                   <Animated.Text style={[styles.stepText, { opacity: stepFades[i] }]} numberOfLines={1}>{text}</Animated.Text>
@@ -387,6 +387,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 2,
+    alignSelf: 'stretch',
+    width: '100%',
   },
   stepText: {
     color: COLORS.muted,
