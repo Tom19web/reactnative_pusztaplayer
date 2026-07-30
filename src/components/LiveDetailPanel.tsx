@@ -65,8 +65,12 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
     playBtnRef.current?.focus();
   }, []);
 
+  const Fence = useCallback(() => (
+    <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
+  ), [handleTrapFocus]);
+
   return (
-    <View style={styles.focusTrap} focusable={true} onFocus={handleTrapFocus}>
+    <View style={styles.panelRoot} focusable={false}>
       <View style={styles.bgOverlay} />
       <View style={styles.panelWrap}>
         <RuggedBorder color={COLORS.yellow}>
@@ -78,6 +82,7 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
           )}
 
           <ScrollView contentContainerStyle={styles.scroll} nestedScrollEnabled>
+            <Fence />
             <View style={styles.header}>
               {channel.streamUrl ? (
                 <View style={styles.logoWrap}>
@@ -178,6 +183,7 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
                 </TFPressable>
               )}
             </View>
+            <Fence />
           </ScrollView>
         </Animated.View>
         </RuggedBorder>
@@ -188,9 +194,10 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
 }
 
 const styles = StyleSheet.create({
-  focusTrap: {
+  panelRoot: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
   },
+  fence: { height: 1, width: 1, opacity: 0 },
   bgOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.4)',

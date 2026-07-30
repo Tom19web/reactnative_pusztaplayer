@@ -18,6 +18,10 @@ const CARD_W = 120;
 const CARD_GAP = 8;
 const PAGE_SIZE = 30;
 
+// Persist filter/page state across component remounts (navigation back from PlayerScreen)
+let _savedGroup = 'Összes csatorna';
+let _savedPage = 0;
+
 interface LiveScreenProps { onPlayContent: (key: string) => void; onBack: () => void; }
 
 export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
@@ -28,9 +32,9 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
   const toggleFav = useToggleFavorite();
   const isWl = (key: string) => wlItems.some(w => w.key === key);
   const isFav = (key: string) => favItems.some(f => f.key === key);
-  const [activeGroup, setActiveGroup] = useState('Összes csatorna');
+  const [activeGroup, setActiveGroup] = useState(_savedGroup);
   const [showFilter, setShowFilter] = useState(false);
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(_savedPage);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const selectedChannelRef = useRef(selectedChannel);
   selectedChannelRef.current = selectedChannel;
@@ -61,7 +65,7 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
     return () => h.remove();
   }, [onBack]);
 
-  useEffect(() => { setPage(0); }, [activeGroup, searchTerm]);
+  useEffect(() => { _savedPage = 0; setPage(0); }, [activeGroup, searchTerm]);
 
   const channels = playlist?.liveChannels || [];
   const groups = playlist?.groups || ['Összes csatorna'];
@@ -151,7 +155,7 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
                     key={g}
                     label={g}
                     isActive={g === activeGroup}
-                    onPress={() => { setActiveGroup(g); setShowFilter(false); setPage(0); }}
+                    onPress={() => { _savedGroup = g; _savedPage = 0; setActiveGroup(g); setShowFilter(false); setPage(0); }}
                   />
                 ))}
               </ScrollView>
@@ -184,7 +188,7 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
             <SoundEffect text="POP!" textColor={COLORS.red} bgColor={COLORS.yellow} top={380} left={200} rotate={-6} fontSize={20} />
           </View>
         )}
-        {totalPages>1&&<Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={setPage}/>}
+        {totalPages>1&&<Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={(p) => { _savedPage = p; setPage(p); }}/>}
       </ScrollView>
 
       {/* Live detail panel */}

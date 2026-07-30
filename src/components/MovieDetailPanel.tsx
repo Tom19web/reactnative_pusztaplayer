@@ -91,8 +91,13 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
     playBtnRef.current?.focus();
   }, []);
 
+  // Invisible fence elements to trap focus inside the panel
+  const Fence = useCallback(() => (
+    <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
+  ), [handleTrapFocus]);
+
   return (
-    <View style={styles.focusTrap} focusable={true} onFocus={handleTrapFocus}>
+    <View style={styles.panelRoot} focusable={false}>
       <View style={styles.bgOverlay} />
       <View style={styles.panelWrap}>
         <RuggedBorder color={COLORS.yellow}>
@@ -104,6 +109,7 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
           )}
 
           <ScrollView contentContainerStyle={styles.scroll} nestedScrollEnabled>
+            <Fence />
             <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
             <View style={styles.divider} />
 
@@ -192,6 +198,7 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
                 </View>
               </View>
             )}
+            <Fence />
           </ScrollView>
         </Animated.View>
         </RuggedBorder>
@@ -202,9 +209,10 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
 }
 
 const styles = StyleSheet.create({
-  focusTrap: {
+  panelRoot: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
   },
+  fence: { height: 1, width: 1, opacity: 0 },
   bgOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -249,7 +257,7 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 8, color: COLORS.text },
   tagRating: { fontSize: 8, color: COLORS.yellow },
   meta: { fontSize: 8, color: COLORS.muted, marginTop: 1 },
-  buttons: { flexDirection: 'row', gap: 4, marginTop: 8, marginHorizontal: 4 },
+  buttons: { flexDirection: 'row', gap: 6, marginTop: 8, alignSelf: 'stretch' },
   btnPlay: {
     flex: 1, backgroundColor: COLORS.yellow, borderRadius: 10,
     paddingTop: 8, paddingBottom: 8, alignItems: 'center',
@@ -275,13 +283,13 @@ const styles = StyleSheet.create({
   btnWlText: { color: COLORS.text, fontSize: 8, fontWeight: '600', fontFamily: 'Poppins-Regular' },
   similarSection: { marginTop: 8 },
   similarLabel: { fontSize: 10, color: COLORS.yellow, fontFamily: 'Bangers-Regular', letterSpacing: 0.5, marginBottom: 4 },
-  similarRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  similarRow: { flexDirection: 'column', gap: 3 },
   similarCard: {
-    flex: 1, minWidth: 80, maxWidth: '48%',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: COLORS.panel2, borderRadius: 6, padding: 6,
     borderWidth: 1, borderColor: 'transparent',
   },
   similarCardFocus: { borderColor: COLORS.yellow, backgroundColor: COLORS.panel },
-  similarTitle: { fontSize: 8, color: COLORS.text, lineHeight: 10 },
-  similarPct: { fontSize: 9, color: COLORS.cyan, fontWeight: '700', marginTop: 2 },
+  similarTitle: { fontSize: 8, color: COLORS.text, lineHeight: 10, flex: 1 },
+  similarPct: { fontSize: 9, color: COLORS.cyan, fontWeight: '700', minWidth: 32, textAlign: 'right' },
 });
