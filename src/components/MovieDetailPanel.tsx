@@ -91,11 +91,6 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
     playBtnRef.current?.focus();
   }, []);
 
-  // Invisible fence elements to trap focus inside the panel
-  const Fence = useCallback(() => (
-    <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
-  ), [handleTrapFocus]);
-
   return (
     <View style={styles.panelRoot} focusable={false}>
       <View style={styles.bgOverlay} />
@@ -109,7 +104,7 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
           )}
 
           <ScrollView contentContainerStyle={styles.scroll} nestedScrollEnabled>
-            <Fence />
+            <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
             <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
             <View style={styles.divider} />
 
@@ -198,7 +193,7 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
                 </View>
               </View>
             )}
-            <Fence />
+            <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
           </ScrollView>
         </Animated.View>
         </RuggedBorder>
@@ -212,7 +207,7 @@ const styles = StyleSheet.create({
   panelRoot: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
   },
-  fence: { height: 1, width: 1, opacity: 0 },
+  fence: { height: 10, width: '100%', opacity: 0.01 },
   bgOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -257,7 +252,7 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 8, color: COLORS.text },
   tagRating: { fontSize: 8, color: COLORS.yellow },
   meta: { fontSize: 8, color: COLORS.muted, marginTop: 1 },
-  buttons: { flexDirection: 'row', gap: 6, marginTop: 8, alignSelf: 'stretch' },
+  buttons: { flexDirection: 'row', gap: 6, marginTop: 8, width: '100%' },
   btnPlay: {
     flex: 1, backgroundColor: COLORS.yellow, borderRadius: 10,
     paddingTop: 8, paddingBottom: 8, alignItems: 'center',
