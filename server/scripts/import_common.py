@@ -158,6 +158,31 @@ _QUALITY_SUFFIX_RE = re.compile(
     re.IGNORECASE,
 )
 
+_XMLTV_PREFIX_RE = re.compile(
+    r'^(' + '|'.join(_STRIP_PREFIXES) + r')\s*[-:|]\s*',
+    re.IGNORECASE,
+)
+
+_HARD_MATCHES: dict[str, str] = {
+    "m1": "m1",
+    "m2": "m2Petőfi TV",
+    "m3": "M3",
+    "m4 sport": "M4 Sport",
+    "m4 sport+": "M4 Sport+",
+    "m4 sport 1": "M4 Sport",
+    "m5": "M5",
+    "duna": "DUNA Televízió",
+    "duna world": "Duna World",
+    "rtl klub": "RTL Klub",
+    "rtl": "RTL Klub",
+    "rtl gold": "RTL Gold",
+    "rtl ii": "RTL II",
+    "tv2": "TV2",
+    "atv": "ATV",
+    "hír tv": "Hír TV",
+    "spektrum home": "Spektrum Home",
+}
+
 def clean_stream_name(name: str) -> str:
     cleaned = _COUNTRY_PREFIX_RE.sub('', name)
     cleaned = re.sub(r'^[:\s\-]+', '', cleaned)
@@ -234,6 +259,7 @@ def extract_xmltv_channels(xml_text: str) -> tuple[list[dict], dict[str, str]]:
             for dn in ch.findall("display-name"):
                 if dn.text:
                     name = dn.text.strip()
+                    name = _XMLTV_PREFIX_RE.sub('', name)
                     channels.append({"id": ch_id, "name": name})
                     if icon_src:
                         icons[name] = icon_src
@@ -506,8 +532,9 @@ async def ai_match_channels(unmatched_names: list[str], xmltv_names: list[str]) 
     try:
         system = (
             "You are a TV channel name matcher. Given an Xtream channel name and a list of XMLTV display names, "
-            "find the best match. Match by content type (e.g. 'RTL' matches 'RTL.at' or 'RTL HD'), "
+            "find the best match. Match by content type (e.g. 'RTL' matches 'RTL.at' or 'RTL'), "
             "ignore quality suffixes like HD/FHD/SD, resolve HTML entities (&amp;#246;=ö). "
+            "Single letters + numbers are valid (M1, M2, RTL, TV2). "
             "Return ONLY JSON: {\"matches\": {\"xtream_name\": \"xmltv_display_name\"}}. "
             "If no plausible match, omit that name."
         )
@@ -572,11 +599,12 @@ async def ai_parse_channel_map(
             "Rules:\n"
             "- Ignore quality suffixes (HD, FHD, SD, 4K, HEVC) when matching.\n"
             "- Resolve HTML entities (&#246; → ö, &#252; → ü).\n"
-            "- 'RTL' matches 'RTL.at', 'RTL2' matches 'RTL2.at'.\n"
-            "- Short numeric names without clear match → omit.\n"
+            "- 'RTL' matches 'RTL.at' or 'RTL', 'RTL2' matches 'RTL2' or 'RTLZWEI'.\n"
+            "- Single letters + number are valid channel names (M1, M2, RTL, ATV, TV2). DO NOT skip them.\n"
             "- 'Servus TV Osterreich' → 'ServusTV.at', 'krone.tv.at' → 'Krone TV'.\n"
-            "- '3+' → '3 Plus', '4+' → '4 Plus', 'ATV' → 'ATV.at'.\n"
-            "- Use country context: AT=Austria, DE=Germany, CH=Switzerland.\n"
+            "- '3+' → '3 Plus', '4+' → '4 Plus'.\n"
+            "- Use country context: AT=Austria, DE=Germany, CH=Switzerland, HU=Hungary, RO=Romania, IT=Italy.\n"
+            "- Hungarian channels: 'M1'→'m1', 'Duna'→'DUNA Televízió', 'RTL Klub'→'RTL Klub', 'TV2'→'TV2'.\n"
             "Return ONLY JSON: {\"matches\": {\"xtream_name\": \"xmltv_display_name\"}}. "
             "If no plausible match, omit that name from matches."
         )

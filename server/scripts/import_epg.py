@@ -25,6 +25,7 @@ from import_common import (
     _fetch_categories, _fetch_streams_by_category, build_targets,
     scan_redis_sessions, fetch_text, ai_match_channels,
     settings, parse_xmltv, import_programs, ai_parse_channel_map,
+    _HARD_MATCHES,
 )
 
 EPG_IMPORT_TTL = 86400  # 24 hours
@@ -131,9 +132,15 @@ async def process_user_epg(client: httpx.AsyncClient,
                 matched_name = channel_map.get(name)
                 if not matched_name:
                     clean = clean_stream_name(name)
-                    match = match_best(display_names, clean)
-                    if match and match[1] >= 0.5:
-                        matched_name = match[0]
+                    # Hard-coded overrides first
+                    hard_key = clean.lower()
+                    hard_match = _HARD_MATCHES.get(hard_key)
+                    if hard_match and hard_match in display_names:
+                        matched_name = hard_match
+                    else:
+                        match = match_best(display_names, clean)
+                        if match and match[1] >= 0.25:
+                            matched_name = match[0]
                 if matched_name:
                     ch_id = ""
                     for ch in xmltv_channels:
