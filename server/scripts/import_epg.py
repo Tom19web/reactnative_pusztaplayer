@@ -204,16 +204,18 @@ async def process_user_epg(client: httpx.AsyncClient,
 
                 # Channel name → XMLTV id index
                 phu_name_to_id = {c["name"]: c["id"] for c in phu_channels}
+                phu_lower_to_id = {n.lower(): i for n, i in phu_name_to_id.items()}
                 # Also index by id for channel map lookups
                 phu_id_channels = {c["id"]: c for c in phu_channels}
 
                 # Load channel map (Xtream name → XMLTV display name)
                 phu_map: dict[str, str] = {}
+                phu_lower_map: dict[str, str] = {}
                 if os.path.exists(PORT_HU_MAP):
                     with open(PORT_HU_MAP, encoding="utf-8") as f:
                         raw_map = json.load(f)
-                    # Map Xtream names → XMLTV display names
                     phu_map = {k: v for k, v in raw_map.items()}
+                    phu_lower_map = {k.lower(): v for k, v in raw_map.items()}
 
                 logger.info("    port.hu: %d chars, %d channels, %d programmes",
                            len(phu_xml), len(phu_channels), len(phu_progs))
@@ -223,8 +225,8 @@ async def process_user_epg(client: httpx.AsyncClient,
                     clean = clean_stream_name(name)
                     ch_id = ""
 
-                    # Try channel map exact match first
-                    map_val = phu_map.get(name) or phu_map.get(clean)
+                    # Try channel map exact match (case-insensitive)
+                    map_val = phu_lower_map.get(clean.lower(), "")
                     if map_val:
                         # map_val could be xmltv_id or display name
                         if map_val in phu_name_to_id:
@@ -232,12 +234,12 @@ async def process_user_epg(client: httpx.AsyncClient,
                         elif map_val in phu_id_channels:
                             ch_id = map_val
 
-                    # Try hard override
+                    # Try hard override (case-insensitive)
                     if not ch_id:
                         hard_key = clean.lower()
                         hard_match = _HARD_MATCHES.get(hard_key)
-                        if hard_match and hard_match in phu_name_to_id:
-                            ch_id = phu_name_to_id[hard_match]
+                        if hard_match:
+                            ch_id = phu_lower_to_id.get(hard_match.lower(), "")
 
                     # Try fuzzy match
                     if not ch_id:
