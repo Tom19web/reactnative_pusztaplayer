@@ -23,7 +23,8 @@ logger = logging.getLogger("grab_hu_port")
 
 API_ORIGIN = "https://port.hu"
 INIT_URL = f"{API_ORIGIN}/tvapi/init"
-PROG_URL = f"{API_ORIGIN}/tvapi?channel_id=tvchannel-{{ch_id}}&i_datetime_from={{date_from}}"
+PROG_URL = f"{API_ORIGIN}/tvapi?channel_id=tvchannel-{{ch_id}}" \
+            "&i_datetime_from={date_from}&i_datetime_to={date_to}"
 OUTPUT_FILE = "/tmp/epg_hu_port.xml"
 
 CET = timezone(timedelta(hours=2))       # CEST
@@ -62,10 +63,11 @@ async def fetch_channels(client: httpx.AsyncClient) -> list[dict]:
 # ─── Programme fetching ───────────────────────────────
 
 async def fetch_programmes(
-    client: httpx.AsyncClient, ch_id: str, date_from: str, ch_xmltv_id: str,
+    client: httpx.AsyncClient, ch_id: str, date_from: str, date_to: str,
+    ch_xmltv_id: str,
 ) -> list[dict]:
-    """date_from = YYYY-MM-DD; returns list of programme dicts."""
-    url = PROG_URL.format(ch_id=ch_id, date_from=date_from)
+    """date_from/date_to = YYYY-MM-DD; returns list of programme dicts."""
+    url = PROG_URL.format(ch_id=ch_id, date_from=date_from, date_to=date_to)
     data = await _fetch_json(client, url, f"ch {ch_id} {date_from}")
     if not data:
         return []
@@ -167,6 +169,7 @@ async def main():
 
     logger.info("=== Port.hu EPG Grab ===")
     today = datetime.now(CET).strftime("%Y-%m-%d")
+    end_date = (datetime.now(CET) + timedelta(days=args.days)).strftime("%Y-%m-%d")
 
     async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
         channels = await fetch_channels(client)
@@ -183,12 +186,14 @@ async def main():
             ch["xmltv_id"] = xmltv_id
             channel_defs.append(ch)
 
-            progs = await fetch_programmes(client, ch["id"], today, xmltv_id)
+            progs = await fetch_programmes(client, ch["id"], today, end_date, xmltv_id)
             all_progs.extend(progs)
             total += len(progs)
 
+            # Rate limit: port.hu blocks at ~120 req/s
             if (i + 1) % 20 == 0:
                 logger.info("  %d/%d channels, %d programmes so far...", i + 1, len(channels), total)
+            await asyncio.sleep(0.15)
 
         logger.info("  total: %d channels, %d programmes", len(channel_defs), total)
 
