@@ -274,11 +274,13 @@ export default function ProfileSelectScreen({ onProfileSelected }: Props) {
                     accessibilityLabel={`${p.name} profil${isActive ? ', aktív' : ''}`}
                     accessibilityRole="button"
                   >
-                    <PopArtCard shadowOffset={6} borderRadius={16} borderWidth={3} focused={isFocused && !isActive} contentStyle={[s.profileCard, isActive && s.profileCardActive]}>
-                      <Text style={s.profileAvatar}>{p.avatar || '\uD83D\uDE0E'}</Text>
-                      <Text style={s.profileName}>{p.name}</Text>
-                      {isActive && <Text style={s.activeTag}>{'\u2726'} AKTÍV</Text>}
-                    </PopArtCard>
+                    <RuggedBorder color={COLORS.cyan} wobbleFactor={0.5}>
+                      <View style={[s.profileCard, isActive && s.profileCardActive]}>
+                        <Text style={s.profileAvatar}>{p.avatar || '\uD83D\uDE0E'}</Text>
+                        <Text style={s.profileName}>{p.name}</Text>
+                        {isActive && <Text style={s.activeTag}>{'\u2726'} AKTÍV</Text>}
+                      </View>
+                    </RuggedBorder>
                   </TFPressable>
                 </Animated.View>
               );
@@ -357,8 +359,8 @@ const s = StyleSheet.create({
 
   gridScroll: { alignItems: 'center', paddingBottom: 40, paddingTop: 8 },
   profileGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 16, maxWidth: 600 },
-  profileCard: { width: 150, minHeight: 120, paddingVertical: 20, paddingHorizontal: 16, alignItems: 'center' },
-  profileCardActive: { borderColor: COLORS.yellow },
+  profileCard: { width: 150, minHeight: 120, padding: 8, alignItems: 'center', backgroundColor: 'rgba(10,10,20,0.92)', borderRadius: 8, overflow: 'visible' },
+  profileCardActive: { backgroundColor: 'rgba(0,255,255,0.06)' },
   profileCardOuter: {},
   profileCardFocusWrap: { transform: [{ translateY: -4 }] },
   profileAvatar: { fontSize: 40, marginBottom: 6 },
