@@ -13,7 +13,9 @@ Usage:
   docker compose exec fastapi python /app/scripts/import_epg.py
 """
 import asyncio
+import json
 import logging
+import os
 import time
 
 import httpx
@@ -29,6 +31,9 @@ from import_common import (
 )
 
 EPG_IMPORT_TTL = 86400  # 24 hours
+
+PORT_HU_XML = "/tmp/epg_hu_port.xml"
+PORT_HU_MAP = "/tmp/epg_hu_port_map.json"
 
 
 async def _mark_imported(channel_id: int):
@@ -188,6 +193,52 @@ async def process_user_epg(client: httpx.AsyncClient,
             epg_missing = still_needs
             del xml_text
             del programs
+
+            # ── Port.hu source for remaining Hungarian channels ──
+            if epg_missing and country == "hu" and os.path.exists(PORT_HU_XML):
+                with open(PORT_HU_XML, encoding="utf-8") as f:
+                    phu_xml = f.read()
+                phu_channels, _ = extract_xmltv_channels(phu_xml)
+                phu_progs = parse_xmltv(phu_xml)
+                phu_names = [c["name"] for c in phu_channels]
+                
+                # Also try channel map for exact matches
+                phu_map: dict[str, str] = {}
+                if os.path.exists(PORT_HU_MAP):
+                    with open(PORT_HU_MAP, encoding="utf-8") as f:
+                        phu_map = json.load(f)
+
+                logger.info("    port.hu: %d chars, %d channels, %d programmes",
+                           len(phu_xml), len(phu_channels), len(phu_progs))
+
+                still_need = []
+                for name, stream_id in epg_missing:
+                    clean = clean_stream_name(name)
+                    matched_name = phu_map.get(name) or phu_map.get(clean)
+                    if not matched_name:
+                        match = match_best(phu_names, clean)
+                        if match and match[1] >= 0.25:
+                            matched_name = match[0]
+                    if matched_name:
+                        ch_id = ""
+                        for ch in phu_channels:
+                            if ch["name"] == matched_name:
+                                ch_id = ch["id"]
+                                break
+                        if ch_id and phu_progs:
+                            ch_progs = [p for p in phu_progs if p.get("xml_channel") == ch_id]
+                            if ch_progs:
+                                inserted = await import_programs(stream_id, name, ch_progs, ch_id)
+                                result["imported"] += inserted
+                                logger.info("      [port.hu] %s → %s [%s]: %d programmes", name, matched_name, ch_id, inserted)
+                                await _mark_imported(stream_id)
+                            else:
+                                still_need.append((name, stream_id))
+                        else:
+                            still_need.append((name, stream_id))
+                    else:
+                        still_need.append((name, stream_id))
+                epg_missing = still_need
 
     return result
 

@@ -499,13 +499,31 @@ async def _call_deepseek(system_prompt: str, user_prompt: str) -> dict:
                         {"role": "user", "content": user_prompt},
                     ],
                     "temperature": 0.1,
-                    "max_tokens": 1000,
+                    "max_tokens": 4096,
                     "response_format": {"type": "json_object"},
                 },
             )
             resp.raise_for_status()
             data = resp.json()
-            return json.loads(data["choices"][0]["message"]["content"])
+            content = data["choices"][0]["message"]["content"]
+            try:
+                return json.loads(content)
+            except json.JSONDecodeError:
+                # Attempt JSON repair: close unterminated strings/objects
+                logger.warning("DeepSeek JSON truncated, attempting repair...")
+                repaired = content.rstrip()
+                # Remove trailing incomplete key/value
+                last_complete = repaired.rfind(',\n  "')
+                if last_complete > 0:
+                    repaired = repaired[:last_complete] + '\n}}'
+                else:
+                    # Just close braces
+                    repaired = repaired.rstrip(',\n ') + '\n}}'
+                try:
+                    return json.loads(repaired)
+                except json.JSONDecodeError as e2:
+                    logger.warning("DeepSeek JSON repair failed: %s", e2)
+                    return {}
     except Exception as e:
         logger.warning("DeepSeek API call failed: %s", e)
         return {}
