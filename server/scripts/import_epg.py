@@ -201,12 +201,19 @@ async def process_user_epg(client: httpx.AsyncClient,
                 phu_channels, _ = extract_xmltv_channels(phu_xml)
                 phu_progs = parse_xmltv(phu_xml)
                 phu_names = [c["name"] for c in phu_channels]
-                
-                # Also try channel map for exact matches
+
+                # Channel name → XMLTV id index
+                phu_name_to_id = {c["name"]: c["id"] for c in phu_channels}
+                # Also index by id for channel map lookups
+                phu_id_channels = {c["id"]: c for c in phu_channels}
+
+                # Load channel map (Xtream name → XMLTV display name)
                 phu_map: dict[str, str] = {}
                 if os.path.exists(PORT_HU_MAP):
                     with open(PORT_HU_MAP, encoding="utf-8") as f:
-                        phu_map = json.load(f)
+                        raw_map = json.load(f)
+                    # Map Xtream names → XMLTV display names
+                    phu_map = {k: v for k, v in raw_map.items()}
 
                 logger.info("    port.hu: %d chars, %d channels, %d programmes",
                            len(phu_xml), len(phu_channels), len(phu_progs))
@@ -214,26 +221,39 @@ async def process_user_epg(client: httpx.AsyncClient,
                 still_need = []
                 for name, stream_id in epg_missing:
                     clean = clean_stream_name(name)
-                    matched_name = phu_map.get(name) or phu_map.get(clean)
-                    if not matched_name:
+                    ch_id = ""
+
+                    # Try channel map exact match first
+                    map_val = phu_map.get(name) or phu_map.get(clean)
+                    if map_val:
+                        # map_val could be xmltv_id or display name
+                        if map_val in phu_name_to_id:
+                            ch_id = phu_name_to_id[map_val]
+                        elif map_val in phu_id_channels:
+                            ch_id = map_val
+
+                    # Try hard override
+                    if not ch_id:
+                        hard_key = clean.lower()
+                        hard_match = _HARD_MATCHES.get(hard_key)
+                        if hard_match and hard_match in phu_name_to_id:
+                            ch_id = phu_name_to_id[hard_match]
+
+                    # Try fuzzy match
+                    if not ch_id:
                         match = match_best(phu_names, clean)
                         if match and match[1] >= 0.25:
                             matched_name = match[0]
-                    if matched_name:
-                        ch_id = ""
-                        for ch in phu_channels:
-                            if ch["name"] == matched_name:
-                                ch_id = ch["id"]
-                                break
-                        if ch_id and phu_progs:
-                            ch_progs = [p for p in phu_progs if p.get("xml_channel") == ch_id]
-                            if ch_progs:
-                                inserted = await import_programs(stream_id, name, ch_progs, ch_id)
-                                result["imported"] += inserted
-                                logger.info("      [port.hu] %s → %s [%s]: %d programmes", name, matched_name, ch_id, inserted)
-                                await _mark_imported(stream_id)
-                            else:
-                                still_need.append((name, stream_id))
+                            ch_id = phu_name_to_id.get(matched_name, "")
+
+                    if ch_id and phu_progs:
+                        ch_progs = [p for p in phu_progs if p.get("xml_channel") == ch_id]
+                        if ch_progs:
+                            inserted = await import_programs(stream_id, name, ch_progs, ch_id)
+                            result["imported"] += inserted
+                            logger.info("      [port.hu] %s → %s [%s]: %d programmes", name,
+                                       phu_id_channels.get(ch_id, {}).get("name", ch_id), ch_id, inserted)
+                            await _mark_imported(stream_id)
                         else:
                             still_need.append((name, stream_id))
                     else:
