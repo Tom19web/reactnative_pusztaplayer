@@ -19,6 +19,10 @@ interface LiveDetailPanelProps {
   onQualityChange?: (idx: number) => void;
 }
 
+let isTouch = true;
+try { isTouch = !Platform.isTV; } catch {}
+const screenH = Dimensions.get('window').height;
+
 export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onToggleFav, selectedQualityIdx = 0, onQualityChange }: LiveDetailPanelProps) {
   const [epg, setEpg] = useState<EpgEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,10 +64,6 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
   const handleTrapFocus = useCallback(() => {
     playBtnRef.current?.focus();
   }, []);
-
-  let isTouch = true;
-  try { isTouch = !Platform.isTV; } catch {}
-  const screenH = Dimensions.get('window').height;
 
   return (
     <View style={styles.focusTrap} focusable={true} onFocus={handleTrapFocus}>

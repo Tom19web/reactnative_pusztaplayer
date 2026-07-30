@@ -24,6 +24,10 @@ interface VodInfo {
   plot: string; cast: string; genre: string; rating: string; director: string; year: string; cover: string;
 }
 
+let isTouch = true;
+try { isTouch = !Platform.isTV; } catch {}
+const screenH = Dimensions.get('window').height;
+
 export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isFav, onToggleFav, isWatchLater, onToggleWatchLater, onOpenSimilar }: MovieDetailPanelProps) {
   const [info, setInfo] = useState<VodInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,11 +90,6 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
   const handleTrapFocus = useCallback(() => {
     playBtnRef.current?.focus();
   }, []);
-
-  let isTouch = true;
-  try { isTouch = !Platform.isTV; } catch {}
-
-  const screenH = Dimensions.get('window').height;
 
   return (
     <View style={styles.focusTrap} focusable={true} onFocus={handleTrapFocus}>

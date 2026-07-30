@@ -24,6 +24,10 @@ interface SeriesInfo {
   plot: string; cast: string; genre: string; rating: string; director: string; year: string; cover: string; seasonCount: number;
 }
 
+let isTouch = true;
+try { isTouch = !Platform.isTV; } catch {}
+const screenH = Dimensions.get('window').height;
+
 export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpisodes, isFav, onToggleFav, isWatchLater, onToggleWatchLater, onOpenSimilar }: SeriesDetailPanelProps) {
   const [info, setInfo] = useState<SeriesInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,10 +91,6 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
   const handleTrapFocus = useCallback(() => {
     epsBtnRef.current?.focus();
   }, []);
-
-  let isTouch = true;
-  try { isTouch = !Platform.isTV; } catch {}
-  const screenH = Dimensions.get('window').height;
 
   return (
     <View style={styles.focusTrap} focusable={true} onFocus={handleTrapFocus}>

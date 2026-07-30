@@ -13,7 +13,7 @@ import ComicStarburst from './src/components/ComicStarburst';
 import * as Sentry from '@sentry/react-native';
 
 const { version: pkgVersion } = require('./package.json') as { version: string };
-const DISPLAY_VERSION = 'v' + pkgVersion.split('.').slice(0, 2).join('.');
+const DISPLAY_VERSION = 'v' + (pkgVersion || '0.7.0').split('.').slice(0, 2).join('.');
 
 if (!__DEV__ && SENTRY_DSN) {
   Sentry.init({
