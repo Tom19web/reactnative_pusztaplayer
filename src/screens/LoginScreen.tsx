@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Dimensions, StyleSheet, ActivityIndicator, ScrollView, Platform, Linking, ImageBackground } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, Dimensions, StyleSheet, ActivityIndicator, ScrollView, Platform, Linking, ImageBackground, Animated } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import TFPressable from '../components/TFPressable';
-import PopArtCard from '../components/PopArtCard';
-import { USER_STATUS_LOGGED_IN } from '../constants';
+import RuggedBorder from '../components/RuggedBorder';
+import SoundEffect from '../components/SoundEffect';
+import { USER_STATUS_LOGGED_IN, COLORS } from '../constants';
 import { useSetUser, useSetPlaylist } from '../store/AppContext';
 import { xtreamLogin } from '../services/playlistService';
 import { saveXtreamCredentials } from '../services/storage';
@@ -14,17 +15,45 @@ try { isTV = Platform.isTV; } catch {}
 
 interface LoginScreenProps { onLoginSuccess: () => void; }
 
+const SCREEN_W = Dimensions.get('window').width;
+const CARD_W = Math.min(440, SCREEN_W - 80);
+const COUNTDOWN_SECS = 300;
+
+// Progress bar SVG: small inline component
+function ProgressBar({ pct, warn }: { pct: number; warn: boolean }) {
+  return (
+    <View style={pb.wrap}>
+      <View style={[pb.fill, { width: `${Math.max(2, pct * 100)}%` as any, backgroundColor: warn ? COLORS.red : COLORS.cyan }]} />
+    </View>
+  );
+}
+const pb = StyleSheet.create({
+  wrap: { height: 4, backgroundColor: '#1a1a1a', borderRadius: 2, alignSelf: 'stretch', marginBottom: 8, marginTop: 4, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 2 },
+});
+
 export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [step, setStep] = useState<'idle' | 'qr' | 'polling' | 'loggingIn' | 'expired' | 'error'>('idle');
   const [qrData, setQrData] = useState<{ code: string; authUrl: string } | null>(null);
   const [verifyCode, setVerifyCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [countdown, setCountdown] = useState(0);
+  const [dotsDone, setDotsDone] = useState(1);
   const setUser = useSetUser();
   const setPlaylist = useSetPlaylist();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startRef = useRef(0);
   const mountedRef = useRef(true);
+
+  // Animated transitions
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const fadeTo = useCallback((cb: () => void) => {
+    Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start();
+    cb();
+  }, [fadeAnim]);
 
   useEffect(() => () => { mountedRef.current = false; stopPolling(); if (timerRef.current) clearInterval(timerRef.current); }, []);
 
@@ -35,14 +64,13 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
   const startCountdown = () => {
     startRef.current = Date.now();
-    setCountdown(300);
+    setCountdown(COUNTDOWN_SECS);
     timerRef.current = setInterval(() => {
-      const left = Math.max(0, 300 - Math.floor((Date.now() - startRef.current) / 1000));
+      const left = Math.max(0, COUNTDOWN_SECS - Math.floor((Date.now() - startRef.current) / 1000));
       setCountdown(left);
       if (left <= 0) {
         if (timerRef.current) clearInterval(timerRef.current);
-        setStep('expired');
-        setErrorMsg('A kód lejárt. Kérj egy újat.');
+        fadeTo(() => { setStep('expired'); setErrorMsg('A kód lejárt. Kérj egy újat.'); setDotsDone(0); });
       }
     }, 250);
   };
@@ -56,25 +84,25 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const handleStart = async () => {
     if (step !== 'idle') return;
     setErrorMsg('');
-    setStep('qr');
+    fadeTo(() => setStep('qr'));
     try {
       const r = await requestQRCode();
       setQrData(r);
       const code = fmtCode(r.code);
       setVerifyCode(code);
       startCountdown();
+      setDotsDone(2);
 
-      // Touchscreen: open browser for auth, poll in background
       if (!isTV) {
         try { Linking.openURL(r.authUrl); } catch {}
       }
 
-      setStep('polling');
+      fadeTo(() => setStep('polling'));
       pollQRCode(r.code, async (authResult) => {
         if (!mountedRef.current) return;
         const { xtreamUser, xtreamPass, userEmail, nickname, phone, apiKey } = authResult;
         if (xtreamUser && xtreamPass) {
-          setStep('loggingIn');
+          fadeTo(() => { setStep('loggingIn'); setDotsDone(3); });
           try {
             saveXtreamCredentials(xtreamUser, xtreamPass, { email: userEmail, nickname, phone, apiKey });
             await registerSession(xtreamUser, xtreamPass, apiKey || '');
@@ -87,156 +115,146 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             onLoginSuccess();
           } catch (e: unknown) {
             if (!mountedRef.current) return;
-            setStep('error');
-            setErrorMsg('Bejelentkezési hiba: ' + (e instanceof Error ? e.message : 'ismeretlen'));
+            fadeTo(() => { setStep('error'); setErrorMsg('Bejelentkezési hiba: ' + (e instanceof Error ? e.message : 'ismeretlen')); });
           }
         }
       }, (err) => {
         if (!mountedRef.current) return;
-        setStep('error');
-        setErrorMsg(err);
+        fadeTo(() => { setStep('error'); setErrorMsg(err); });
       });
     } catch (e: unknown) {
-      setStep('error');
-      setErrorMsg(e instanceof Error ? e.message : 'QR kód hiba');
+      fadeTo(() => { setStep('error'); setErrorMsg(e instanceof Error ? e.message : 'QR kód hiba'); });
     }
   };
 
   const handleBack = () => {
     stopPolling();
     if (timerRef.current) clearInterval(timerRef.current);
-    setStep('idle');
-    setQrData(null);
-    setVerifyCode('');
-    setErrorMsg('');
-    setCountdown(0);
+    fadeTo(() => {
+      setStep('idle'); setQrData(null); setVerifyCode(''); setErrorMsg(''); setCountdown(0); setDotsDone(1);
+    });
   };
 
   const handleRetry = () => {
     stopPolling();
     if (timerRef.current) clearInterval(timerRef.current);
-    setStep('idle');
-    setQrData(null);
-    setErrorMsg('');
-    setCountdown(0);
+    fadeTo(() => {
+      setStep('idle'); setQrData(null); setErrorMsg(''); setCountdown(0); setDotsDone(1);
+    });
     setTimeout(handleStart, 100);
   };
 
+  const pct = countdown / COUNTDOWN_SECS;
+  const isWarn = countdown < 60 && countdown > 0;
+
   return (
     <ImageBackground source={require('../../assets/splash-bg.png')} style={s.root} resizeMode="cover">
+      <SoundEffect text="SCAN!" textColor={COLORS.yellow} bgColor={COLORS.red} top={12} right={SCREEN_W * 0.08} rotate={15} fontSize={14} />
+      <SoundEffect text="GO!" textColor={COLORS.red} bgColor={COLORS.yellow} bottom={20} left={SCREEN_W * 0.1} rotate={-10} fontSize={16} />
       <ScrollView contentContainerStyle={s.scrollInner} nestedScrollEnabled>
-      <PopArtCard shadowOffset={10} borderRadius={22} borderWidth={4} contentStyle={s.cardInner}>
-        <Text style={s.title}>PUSZTAPLAYER</Text>
-        <Text style={s.subtitle}>DARK POP-ART PLAYER</Text>
-        <View style={s.divider} />
+        <RuggedBorder color={COLORS.cyan} wobbleFactor={0.7}>
+          <View style={[s.card, { width: CARD_W }]}>
+            <Text style={s.title}>PUSZTAPLAYER</Text>
+            <Text style={s.subtitle}>DARK POP-ART PLAYER</Text>
+            <View style={s.divider} />
 
-        {step === 'idle' ? (
-          <>
-            <Text style={s.emoji}>{isTV ? '\uD83D\uDCF1' : '\uD83D\uDD10'}</Text>
-            <Text style={s.desc}>
-              {isTV
-                ? <>A Pusztaplayer és a <Text style={s.descBold}>pusztaplay.eu</Text> szolgáltatásainak használatához be kell jelentkezned. Nincs jelszó — csak egy QR kód, amit a telefonoddal beolvasol.</>
-                : <>A Pusztaplayer és a <Text style={s.descBold}>pusztaplay.eu</Text> szolgáltatásainak használatához be kell jelentkezned. Nyomd meg a gombot és jelentkezz be a böngészőben.</>
-              }
-            </Text>
-            <TFPressable style={s.btnPrimary} focusedStyle={s.btnPrimaryFocus} onPress={handleStart} testID="qr-login-btn" accessibilityLabel={isTV ? 'Bejelentkezés QR kóddal' : 'Bejelentkezés'} accessibilityRole="button">
-              <Text style={s.btnPrimaryText}>{isTV ? 'BEJELENTKEZÉS QR KÓDDAL' : 'BEJELENTKEZÉS'}</Text>
-            </TFPressable>
-            {errorMsg ? <Text style={s.errText}>{'\u26A0 ' + errorMsg}</Text> : null}
-          </>
-        ) : (
-          <>
-            {isTV ? (
+            <Animated.View style={{ opacity: fadeAnim, alignSelf: 'stretch', alignItems: 'center' }}>
+            {step === 'idle' ? (
               <>
-                {step !== 'loggingIn' && (
-                  <View style={s.dotsRow}>
-                    {(['done', step === 'polling' ? 'active' : 'pending', 'pending'] as const).map((st, i) => (
-                      <View key={i} style={[s.dot, st === 'done' ? s.dotDone : st === 'active' ? s.dotActive : s.dotPending]} />
-                    ))}
-                  </View>
-                )}
-                {step === 'polling' && <Text style={s.pollText}>Olvasd be a QR kódot a telefonoddal.</Text>}
-                {step === 'loggingIn' && (
-                  <View style={s.pollRow}><ActivityIndicator color="#f6c800" size="small" /><Text style={s.pollText}> Bejelentkezés…</Text></View>
-                )}
-                {step !== 'loggingIn' && qrData && (
-                  <>
-                    <View style={s.qrWrap}>
-                      <View style={s.qrInner}>
-                         <QRCode value={qrData.authUrl} size={150} backgroundColor="#fff" color="#000" />
-                      </View>
-                    </View>
-                    {verifyCode ? <Text style={s.verifyCode}>{verifyCode}</Text> : null}
-                    <Text style={[s.countdownText, countdown < 60 && s.countdownWarn]}>{'\u23F3 ' + fmtTime(countdown)}</Text>
-                  </>
-                )}
+                <Text style={s.emoji}>{'\uD83D\uDCFA'}</Text>
+                <Text style={s.desc}>
+                  {isTV
+                    ? <>A Pusztaplayer és a <Text style={s.descBold}>pusztaplay.eu</Text> szolgáltatásainak használatához be kell jelentkezned. Nincs jelszó — csak egy QR kód, amit a telefonoddal beolvasol.</>
+                    : <>A Pusztaplayer és a <Text style={s.descBold}>pusztaplay.eu</Text> szolgáltatásainak használatához be kell jelentkezned. Nyomd meg a gombot és jelentkezz be a böngészőben.</>
+                  }
+                </Text>
+                <TFPressable style={s.btnPrimary} focusedStyle={s.btnPrimaryFocus} onPress={handleStart} testID="qr-login-btn" accessibilityLabel={isTV ? 'Bejelentkezés QR kóddal' : 'Bejelentkezés'} accessibilityRole="button">
+                  <Text style={s.btnPrimaryText}>{isTV ? 'BEJELENTKEZÉS QR KÓDDAL' : 'BEJELENTKEZÉS'}</Text>
+                </TFPressable>
+                {errorMsg ? <Text style={s.errText}>{'\u26A0 ' + errorMsg}</Text> : null}
               </>
             ) : (
               <>
-                {step !== 'loggingIn' && (
-                  <View style={s.dotsRow}>
-                    {(['done', step === 'polling' ? 'active' : 'pending', 'pending'] as const).map((st, i) => (
-                      <View key={i} style={[s.dot, st === 'done' ? s.dotDone : st === 'active' ? s.dotActive : s.dotPending]} />
-                    ))}
-                  </View>
+                <View style={s.dotsRow}>
+                  {[1, 2, 3].map(i => (
+                    <View key={i} style={[s.dot, i < dotsDone ? s.dotDone : i === dotsDone ? s.dotActive : s.dotPending]} />
+                  ))}
+                </View>
+
+                {isTV && step !== 'loggingIn' && qrData && (
+                  <>
+                    <View style={s.qrWrap}>
+                      <View style={s.qrInner}>
+                        <QRCode value={qrData.authUrl} size={120} backgroundColor="#fff" color="#000" />
+                      </View>
+                    </View>
+                    {verifyCode ? <Text style={s.verifyCode}>{verifyCode}</Text> : null}
+                  </>
                 )}
-                {step === 'polling' && <>
-                  <Text style={s.pollText}>Jóváhagyásra vár a böngészőben…</Text>
-                  <Text style={[s.countdownText, countdown < 60 && s.countdownWarn]}>{'\u23F3 ' + fmtTime(countdown)}</Text>
-                </>}
+
+                <Text style={s.pollText}>
+                  {step === 'loggingIn' ? '' :
+                   isTV ? 'Olvasd be a QR kódot a telefonoddal.' :
+                   'Jóváhagyásra vár a böngészőben…'}
+                </Text>
+
+                {step === 'polling' && <ProgressBar pct={pct} warn={isWarn} />}
+                {step === 'polling' && <Text style={[s.countdownText, isWarn && s.countdownWarn]}>{'\u23F3 ' + fmtTime(countdown)}</Text>}
+
                 {step === 'loggingIn' && (
-                  <View style={s.pollRow}><ActivityIndicator color="#f6c800" size="small" /><Text style={s.pollText}> Bejelentkezés…</Text></View>
+                  <View style={s.pollRow}><ActivityIndicator color={COLORS.yellow} size="small" /><Text style={s.pollText}> Bejelentkezés…</Text></View>
+                )}
+
+                {step === 'expired' || step === 'error' ? (
+                  <>
+                    <Text style={s.errText}>{errorMsg}</Text>
+                    <TFPressable style={s.btnPrimary} focusedStyle={s.btnPrimaryFocus} onPress={handleRetry} testID="retry-btn" accessibilityLabel="Újrapróbálkozás" accessibilityRole="button">
+                      <Text style={s.btnPrimaryText}>{'\uD83D\uDD04'} ÚJRA</Text>
+                    </TFPressable>
+                  </>
+                ) : null}
+                {step !== 'loggingIn' && step !== 'expired' && (
+                  <TFPressable style={s.btnGhost} focusedStyle={s.btnGhostFocus} onPress={handleBack} testID="cancel-btn" accessibilityLabel="Mégsem" accessibilityRole="button">
+                    <Text style={s.btnGhostText}>MÉGSEM</Text>
+                  </TFPressable>
                 )}
               </>
             )}
-            {step === 'expired' || step === 'error' ? (
-              <>
-                <Text style={s.errText}>{errorMsg}</Text>
-                <TFPressable style={s.btnPrimary} focusedStyle={s.btnPrimaryFocus} onPress={handleRetry} testID="retry-btn" accessibilityLabel="Újrapróbálkozás" accessibilityRole="button">
-                  <Text style={s.btnPrimaryText}>{'\uD83D\uDD04'} ÚJRA</Text>
-                </TFPressable>
-              </>
-            ) : null}
-            {step !== 'loggingIn' && step !== 'expired' && (
-              <TFPressable style={s.btnGhost} focusedStyle={s.btnGhostFocus} onPress={handleBack} testID="cancel-btn" accessibilityLabel="Mégsem" accessibilityRole="button">
-                <Text style={s.btnGhostText}>MÉGSEM</Text>
-              </TFPressable>
-            )}
-          </>
-        )}
-      </PopArtCard>
+            </Animated.View>
+          </View>
+        </RuggedBorder>
       </ScrollView>
     </ImageBackground>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center' },
+  root: { flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
   scrollInner: { flexGrow: 1, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 40 },
-  cardInner: { width: Math.min(440, Dimensions.get('window').width - 80), paddingVertical: 14, paddingHorizontal: 36, alignItems: 'center' },
-  title: { color: '#f6c800', fontSize: 32, fontFamily: 'Bangers-Regular', letterSpacing: 3, textShadowColor: '#000', textShadowOffset: { width: 4, height: 4 }, textShadowRadius: 0 },
-  subtitle: { color: '#555', fontSize: 8, fontFamily: 'Poppins-Bold', letterSpacing: 3, textTransform: 'uppercase', marginTop: 2 },
+  card: { paddingVertical: 14, paddingHorizontal: 36, alignItems: 'center', backgroundColor: 'rgba(10,10,20,0.92)', borderRadius: 8, overflow: 'visible' },
+  title: { color: COLORS.yellow, fontSize: 24, fontFamily: 'Bangers-Regular', letterSpacing: 3, textShadowColor: COLORS.black, textShadowOffset: { width: 4, height: 4 }, textShadowRadius: 0 },
+  subtitle: { color: COLORS.muted, fontSize: 8, fontFamily: 'Poppins-Bold', letterSpacing: 3, textTransform: 'uppercase', marginTop: 2 },
   divider: { height: 2, backgroundColor: '#1a1a1a', alignSelf: 'stretch', marginVertical: 8 },
-  emoji: { fontSize: 48, marginBottom: 4 },
-  desc: { color: '#999', fontSize: 11, fontFamily: 'Poppins-Regular', lineHeight: 16, textAlign: 'center', marginBottom: 8 },
-  descBold: { color: '#fff', fontFamily: 'Poppins-Bold' },
-  btnPrimary: { backgroundColor: '#f6c800', borderRadius: 12, borderWidth: 3, borderColor: '#000', paddingVertical: 8, paddingHorizontal: 24, alignSelf: 'stretch', alignItems: 'center' },
-  btnPrimaryFocus: { backgroundColor: '#1fd6e8' },
-  btnPrimaryText: { color: '#000', fontSize: 11, fontFamily: 'Poppins-Bold', letterSpacing: 1, textTransform: 'uppercase' },
+  emoji: { fontSize: 36, marginBottom: 4 },
+  desc: { color: COLORS.muted, fontSize: 10, fontFamily: 'Poppins-Regular', lineHeight: 15, textAlign: 'center', marginBottom: 8 },
+  descBold: { color: COLORS.text, fontFamily: 'Poppins-Bold' },
+  btnPrimary: { backgroundColor: COLORS.yellow, borderRadius: 12, borderWidth: 3, borderColor: COLORS.black, paddingVertical: 8, paddingHorizontal: 24, alignSelf: 'stretch', alignItems: 'center' },
+  btnPrimaryFocus: { backgroundColor: COLORS.cyan },
+  btnPrimaryText: { color: COLORS.black, fontSize: 11, fontFamily: 'Poppins-Bold', letterSpacing: 1, textTransform: 'uppercase' },
   btnGhost: { backgroundColor: 'transparent', borderRadius: 12, borderWidth: 3, borderColor: '#1a1a1a', paddingVertical: 7, paddingHorizontal: 24, alignSelf: 'stretch', alignItems: 'center', marginTop: 6 },
-  btnGhostFocus: { borderColor: '#f6c800', backgroundColor: 'rgba(246,200,0,0.08)' },
-  btnGhostText: { color: '#888', fontSize: 11, fontFamily: 'Poppins-Bold', letterSpacing: 1 },
+  btnGhostFocus: { borderColor: COLORS.yellow, backgroundColor: 'rgba(246,200,0,0.08)' },
+  btnGhostText: { color: COLORS.muted, fontSize: 11, fontFamily: 'Poppins-Bold', letterSpacing: 1 },
   dotsRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  dotDone: { backgroundColor: '#1fd6e8' },
-  dotActive: { backgroundColor: '#f6c800', shadowColor: '#f6c800', shadowOffset: { width: 0, height: 0 }, shadowRadius: 6, shadowOpacity: 1, elevation: 8 },
+  dotDone: { backgroundColor: COLORS.cyan },
+  dotActive: { backgroundColor: COLORS.yellow, shadowColor: COLORS.yellow, shadowOffset: { width: 0, height: 0 }, shadowRadius: 6, shadowOpacity: 1, elevation: 8 },
   dotPending: { backgroundColor: '#333' },
-  pollText: { color: '#1fd6e8', fontSize: 11, fontFamily: 'Poppins-Bold', marginBottom: 8 },
+  pollText: { color: COLORS.cyan, fontSize: 10, fontFamily: 'Poppins-Bold', marginBottom: 6, textAlign: 'center' },
   pollRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  qrWrap: { backgroundColor: '#0d0d0d', borderRadius: 14, borderWidth: 2, borderColor: '#1a1a1a', padding: 12, marginBottom: 6 },
-  qrInner: { padding: 5, backgroundColor: '#fff', borderRadius: 10, borderWidth: 3, borderColor: '#000' },
-  verifyCode: { color: '#f6c800', fontSize: 12, fontFamily: 'Poppins-Bold', letterSpacing: 6, marginBottom: 4 },
-  countdownText: { color: '#666', fontSize: 9, fontFamily: 'Poppins-Regular' },
-  countdownWarn: { color: '#f6c800', fontFamily: 'Poppins-Bold' },
-  errText: { color: '#ff4d57', fontSize: 11, fontFamily: 'Poppins-Bold', marginTop: 8, textAlign: 'center' },
+  qrWrap: { backgroundColor: '#0d0d0d', borderRadius: 14, borderWidth: 2, borderColor: '#1a1a1a', padding: 10, marginBottom: 6 },
+  qrInner: { padding: 4, backgroundColor: '#fff', borderRadius: 8, borderWidth: 3, borderColor: COLORS.black },
+  verifyCode: { color: COLORS.yellow, fontSize: 12, fontFamily: 'Poppins-Bold', letterSpacing: 6, marginBottom: 4 },
+  countdownText: { color: COLORS.muted, fontSize: 8, fontFamily: 'Poppins-Regular' },
+  countdownWarn: { color: COLORS.yellow, fontFamily: 'Poppins-Bold' },
+  errText: { color: COLORS.red, fontSize: 10, fontFamily: 'Poppins-Bold', marginTop: 8, textAlign: 'center' },
 });
