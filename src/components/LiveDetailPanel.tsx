@@ -67,18 +67,18 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
 
   return (
     <View style={styles.panelRoot} focusable={false}>
-      <View style={styles.bgOverlay} />
+      <View style={styles.bgOverlay} focusable={true} onFocus={handleTrapFocus} />
       <View style={styles.panelWrap}>
         <RuggedBorder color={COLORS.yellow}>
           <Animated.View style={[styles.container, { opacity: entryAnim, transform: [{ translateX: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 320] }) }, { scale: entryAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]}>
-          {onClose && (
-            <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose} hasTVPreferredFocus>
-              <Text style={styles.closeBtnText}>{'\u2716'}</Text>
-            </TFPressable>
-          )}
+            {onClose && (
+              <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose} hasTVPreferredFocus>
+                <Text style={styles.closeBtnText}>{'\u2716'}</Text>
+              </TFPressable>
+            )}
 
+          <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
           <ScrollView contentContainerStyle={styles.scroll} nestedScrollEnabled>
-            <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
             <View style={styles.header}>
               {channel.streamUrl ? (
                 <View style={styles.logoWrap}>
@@ -179,8 +179,8 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
                 </TFPressable>
               )}
             </View>
-            <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
           </ScrollView>
+          <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
         </Animated.View>
         </RuggedBorder>
         <SoundEffect text="LIVE!" textColor={COLORS.white} bgColor={COLORS.red} top={-14} left={-6} rotate={-15} />
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   panelRoot: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
   },
-  fence: { height: 10, width: '100%', opacity: 0.01 },
+  fence: { height: 20, width: '100%', opacity: 0.01 },
   bgOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.4)',
