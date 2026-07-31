@@ -94,12 +94,12 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
 
   return (
     <View style={styles.panelRoot} focusable={false}>
-      <View style={styles.bgOverlay} focusable={true} onFocus={handleTrapFocus} />
+      <View style={styles.bgOverlay} />
       <View style={styles.panelWrap}>
         <RuggedBorder color={COLORS.yellow}>
           <Animated.View style={[styles.container, { opacity: entryAnim, transform: [{ translateX: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 320] }) }, { scale: entryAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]}>
             {onClose && (
-              <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose} hasTVPreferredFocus>
+              <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose}>
                 <Text style={styles.closeBtnText}>{'\u2716'}</Text>
               </TFPressable>
             )}
@@ -225,7 +225,8 @@ const styles = StyleSheet.create({
     justifyContent: isTouch ? 'center' : undefined,
   },
   container: {
-    width: isTouch ? '100%' : 300,
+    width: isTouch ? '90%' : 300,
+    maxWidth: isTouch ? 400 : undefined,
     maxHeight: isTouch ? screenH * 0.85 : 600,
     backgroundColor: 'rgba(0,0,0,0.92)',
     borderRadius: isTouch ? 12 : 0,
