@@ -138,3 +138,26 @@ export async function fetchSimilar(
     return [];
   }
 }
+
+export interface CastSearchResult {
+  title: string;
+  type: string;
+  key: string;
+  stream_id: number | null;
+  series_id: number | null;
+  year: string;
+  poster: string;
+}
+
+export async function searchByCast(name: string, limit = 50): Promise<CastSearchResult[]> {
+  try {
+    const res = await fetchWithTimeout(
+      `${SEMANTIC_API}/api/v1/search/cast?q=${encodeURIComponent(name)}&limit=${limit}`,
+      { headers: { 'User-Agent': 'PusztaPlayer v1.0' } },
+    );
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}

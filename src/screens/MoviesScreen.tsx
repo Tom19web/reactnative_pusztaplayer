@@ -21,9 +21,9 @@ const CARD_W = 110;
 const CARD_GAP = 8;
 const PAGE_SIZE = 30;
 
-interface MoviesScreenProps { onPlayContent: (key: string) => void; onBack: () => void; }
+interface MoviesScreenProps { onPlayContent: (key: string) => void; onBack: () => void; onNavigate?: (route: string, params?: any) => void; }
 
-export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProps) {
+export default function MoviesScreen({ onPlayContent, onBack, onNavigate }: MoviesScreenProps) {
   const { state: { playlist, searchTerm } } = useCore();
   const toggleWl = useToggleWatchLater();
   const wlItems = useWatchLater();
@@ -46,6 +46,11 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
   }, [selectedMovie, onPlayContent]);
 
   const handleClose = useCallback(() => setSelectedMovie(null), []);
+
+  const handleCastPress = useCallback((name: string) => {
+    setSelectedMovie(null);
+    onNavigate?.('castSearch', { castName: name });
+  }, [onNavigate]);
 
   const handleToggleFav = useCallback(() => {
     if (!selectedMovie) return;
@@ -221,6 +226,7 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
         onToggleFav={handleToggleFav}
         isWatchLater={isWl(selectedMovie?.key || '')}
         onToggleWatchLater={handleToggleWl}
+        onCastPress={handleCastPress}
       />
     </Modal>
     </View>

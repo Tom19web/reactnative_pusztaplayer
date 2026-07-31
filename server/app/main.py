@@ -7,10 +7,12 @@ import logging
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy import text
+import secrets
 
 from app.config import settings
 from app.database import engine, async_session_factory
@@ -29,7 +31,26 @@ from app.api.v1.qr_auth import router as qr_auth_router
 from app.api.v1.episodes import router as episodes_router
 from app.api.v1.session import router as session_router
 from app.api.v1.live import router as live_router
+from app.api.v1.playlist import router as playlist_router
+from app.api.v1.admin import router as admin_router
 from app.api.v1.ai import router as ai_router  # 🚀 AZ ÚJ UNIFIED AI PROXY!
+from app.api.v1.cast_search import router as cast_search_router
+
+# --- Admin Auth (must be defined before router registration) ---
+security = HTTPBasic()
+ADMIN_USER = settings.ADMIN_USER
+ADMIN_PASS = settings.ADMIN_PASS
+
+def verify_admin_access(credentials: HTTPBasicCredentials = Depends(security)):
+    is_user_valid = secrets.compare_digest(credentials.username, ADMIN_USER)
+    is_pass_valid = secrets.compare_digest(credentials.password, ADMIN_PASS)
+    if not (is_user_valid and is_pass_valid):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Hozzáférés megtagadva.",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +111,9 @@ app.include_router(qr_auth_router, prefix="/api/v1")
 app.include_router(episodes_router, prefix="/api/v1")
 app.include_router(session_router, prefix="/api/v1")
 app.include_router(live_router, prefix="/api/v1")
+app.include_router(playlist_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1", dependencies=[Depends(verify_admin_access)])
+app.include_router(cast_search_router, prefix="/api/v1")
 
 
 # --- Az IGAZI Health Check ---
@@ -125,30 +149,8 @@ async def health_check():
         status_code=200 if status_dict["status"] == "ok" else 503,
         content=status_dict
     )
-import secrets
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-
-security = HTTPBasic()
-
-# A birodalom kulcsai (Éles környezetben ezt persze a .env fájrból szedjük, ugye, Mester?)
-ADMIN_USER = "puszta_admin"
-ADMIN_PASS = "csodalatos_v8_motor"
-
-def verify_admin_access(credentials: HTTPBasicCredentials = Depends(security)):
-    """Biztonságos, időzítés-támadás ellen védett összehasonlítás (timing-safe)."""
-    is_user_valid = secrets.compare_digest(credentials.username, ADMIN_USER)
-    is_pass_valid = secrets.compare_digest(credentials.password, ADMIN_PASS)
-    
-    if not (is_user_valid and is_pass_valid):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Hozzáférés megtagadva. Takarodó a kapuból!",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    return credentials.username
 
 # Statikus fájlok és a védett admin végpont csatolása
 app.mount("/admin-assets", StaticFiles(directory="app/static"), name="static")

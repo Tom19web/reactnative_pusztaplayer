@@ -18,6 +18,7 @@ import WatchLaterScreen from '../screens/WatchLaterScreen';
 import EpgScreen from '../screens/EpgScreen';
 import RadioScreen from '../screens/RadioScreen';
 import EpisodeScreen from '../screens/EpisodeScreen';
+import CastSearchScreen from '../screens/CastSearchScreen';
 import { useCore, useAppDispatch, useSetSearch, useSetProfiles, useActiveProfile, useSetActiveProfile } from '../store/AppContext';
 import { clearImportedPlaylist, refreshPlaylist as refreshPl } from '../services/playlistService';
 import { flush as syncFlush, fetchProfiles, setProfilesVersion } from '../services/wordpressSync';
@@ -41,6 +42,7 @@ export default function AppNavigator() {
   const [syncing, setSyncing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [episodeParams, setEpisodeParams] = useState<{ seriesId: number; title: string } | null>(null);
+  const [castSearchName, setCastSearchName] = useState<string>('');
   const [liveFormat, setLiveFormat] = useLiveFormat();
   const hasUser = user.status === USER_STATUS_LOGGED_IN;
 
@@ -90,7 +92,7 @@ export default function AppNavigator() {
     return true;
   }, [activeProfile, showProfileSelect, user.status, currentRoute]);
 
-  const navigate = useCallback((route: string, params?: { id?: string; seriesId?: number; title?: string }) => {
+  const navigate = useCallback((route: string, params?: { id?: string; seriesId?: number; title?: string; castName?: string }) => {
     if (route === 'player') {
       setPlayerContentId(params?.id || DEFAULT_PLAYER_CONTENT_ID);
       setPrevRoute(currentRoute);
@@ -99,6 +101,10 @@ export default function AppNavigator() {
       setEpisodeParams({ seriesId: params?.seriesId || 0, title: params?.title || '' });
       setPrevRoute(currentRoute);
       setCurrentRoute('Episodes');
+    } else if (route === 'castSearch') {
+      setCastSearchName(params?.castName || '');
+      setPrevRoute(currentRoute);
+      setCurrentRoute('CastSearch');
     } else {
       setCurrentRoute(route as RouteName);
     }
@@ -166,9 +172,9 @@ export default function AppNavigator() {
       case 'Live':
         return <LiveScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
       case 'Movies':
-        return <MoviesScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
+        return <MoviesScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} onNavigate={navigate} />;
       case 'Series':
-        return <SeriesScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} onNavigateEpisodes={(seriesId, title) => navigate('episodes', { seriesId, title })} />;
+        return <SeriesScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} onNavigateEpisodes={(seriesId, title) => navigate('episodes', { seriesId, title })} onNavigate={navigate} />;
       case 'EPG':
         return <EpgScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
       case 'Radio':
@@ -201,6 +207,14 @@ export default function AppNavigator() {
             onBack={handleBack}
           />
         ) : null;
+      case 'CastSearch':
+        return (
+          <CastSearchScreen
+            castName={castSearchName}
+            onPlayContent={playContent}
+            onBack={handleBack}
+          />
+        );
       default:
         return <HomeScreen onNavigate={navigate} onPlayContent={playContent} />;
     }

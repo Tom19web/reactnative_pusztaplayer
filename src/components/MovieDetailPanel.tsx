@@ -18,6 +18,7 @@ interface MovieDetailPanelProps {
   isWatchLater?: boolean;
   onToggleWatchLater?: () => void;
   onOpenSimilar?: (item: { key: string; title: string; type: string; streamId?: number; seriesId?: number }) => void;
+  onCastPress?: (name: string) => void;
 }
 
 interface VodInfo {
@@ -143,7 +144,25 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
                   ) : null}
                 </View>
                 {info.director ? <Text style={styles.meta}>Rendező: {info.director}</Text> : null}
-                {info.cast ? <Text style={styles.meta} numberOfLines={3}>Szereplők: {info.cast}</Text> : null}
+                {info.cast ? (
+                  <View style={styles.castWrap}>
+                    <Text style={styles.meta}>Szereplők: </Text>
+                    {info.cast.split(',').map((name, i) => {
+                      const trimmed = name.trim();
+                      if (!trimmed) return null;
+                      return (
+                        <TFPressable
+                          key={`${trimmed}-${i}`}
+                          style={styles.castChip}
+                          focusedStyle={styles.castChipFocus}
+                          onPress={() => onCastPress?.(trimmed)}
+                        >
+                          <Text style={styles.castChipText}>{trimmed}</Text>
+                        </TFPressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
               </>
             ) : (
               <Text style={styles.loading}>{'\u26A0'} Nem sikerült betölteni az adatokat.</Text>
@@ -261,6 +280,14 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 8, color: COLORS.text },
   tagRating: { fontSize: 8, color: COLORS.yellow },
   meta: { fontSize: 8, color: COLORS.muted, marginTop: 1 },
+  castWrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 2, marginTop: 1 },
+  castChip: {
+    backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 4,
+    paddingHorizontal: 4, paddingVertical: 1,
+    borderWidth: 1, borderColor: 'transparent',
+  },
+  castChipFocus: { borderColor: COLORS.yellow, backgroundColor: 'rgba(255,204,0,0.12)' },
+  castChipText: { color: COLORS.muted, fontSize: 8 },
   buttons: { flexDirection: 'row', gap: 6, marginTop: 8, width: '100%' },
   btnPlay: {
     flex: 1, backgroundColor: COLORS.yellow, borderRadius: 10,

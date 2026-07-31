@@ -342,6 +342,7 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
           isWatchLater={isWl(selectedMovie?.key || '')}
           onToggleWatchLater={handleMovieToggleWl}
           onOpenSimilar={handleOpenSimilar}
+          onCastPress={(name: string) => { setSelectedMovie(null); onNavigate('castSearch', { castName: name }); }}
         />
       </Modal>
       <Modal visible={!!selectedSeries} transparent animationType="fade" onRequestClose={handleSeriesClose}>
@@ -355,6 +356,7 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
           isWatchLater={isWl(selectedSeries?.key || '')}
           onToggleWatchLater={handleSeriesToggleWl}
           onOpenSimilar={handleOpenSimilar}
+          onCastPress={(name: string) => { setSelectedSeries(null); onNavigate('castSearch', { castName: name }); }}
         />
       </Modal>
     </>

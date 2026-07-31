@@ -21,9 +21,9 @@ const CARD_W = 110;
 const CARD_GAP = 8;
 const PAGE_SIZE = 30;
 
-interface SeriesScreenProps { onPlayContent: (key: string) => void; onBack: () => void; onNavigateEpisodes: (seriesId: number, title: string) => void; }
+interface SeriesScreenProps { onPlayContent: (key: string) => void; onBack: () => void; onNavigateEpisodes: (seriesId: number, title: string) => void; onNavigate?: (route: string, params?: any) => void; }
 
-export default function SeriesScreen({ onPlayContent, onBack, onNavigateEpisodes }: SeriesScreenProps) {
+export default function SeriesScreen({ onPlayContent, onBack, onNavigateEpisodes, onNavigate }: SeriesScreenProps) {
   const { state: { playlist, searchTerm } } = useCore();
   const toggleWl = useToggleWatchLater();
   const wlItems = useWatchLater();
@@ -42,6 +42,11 @@ export default function SeriesScreen({ onPlayContent, onBack, onNavigateEpisodes
   const [semanticMatches, setSemanticMatches] = useState<Array<{key: string; title: string; type: string; similarity: number}>>([]);
 
   const handleClose = useCallback(() => setSelectedSeries(null), []);
+
+  const handleCastPress = useCallback((name: string) => {
+    setSelectedSeries(null);
+    onNavigate?.('castSearch', { castName: name });
+  }, [onNavigate]);
 
   const handleShowEpisodes = useCallback(() => {
     if (!selectedSeries) return;
@@ -223,6 +228,7 @@ export default function SeriesScreen({ onPlayContent, onBack, onNavigateEpisodes
         onToggleFav={handleToggleFav}
         isWatchLater={isWl(selectedSeries?.key || '')}
         onToggleWatchLater={handleToggleWl}
+        onCastPress={handleCastPress}
       />
     </Modal>
     </View>
