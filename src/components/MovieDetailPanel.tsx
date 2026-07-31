@@ -103,7 +103,10 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
               </TFPressable>
             )}
 
-          <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
+          <View focusable={true} style={{ height: 4, width: '100%', position: 'absolute', top: 0, opacity: 0.01 }} onFocus={handleTrapFocus} />
+          <View focusable={true} style={{ height: 4, width: '100%', position: 'absolute', bottom: 0, opacity: 0.01 }} onFocus={handleTrapFocus} />
+          <View focusable={true} style={{ width: 4, height: '100%', position: 'absolute', left: 0, opacity: 0.01 }} onFocus={handleTrapFocus} />
+          <View focusable={true} style={{ width: 4, height: '100%', position: 'absolute', right: 0, opacity: 0.01 }} onFocus={handleTrapFocus} />
           <ScrollView contentContainerStyle={styles.scroll} nestedScrollEnabled>
             <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
             <View style={styles.divider} />
@@ -148,19 +151,25 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
 
             <View style={styles.buttons}>
               {onPlay && (
+                <View style={{ flex: 1 }}>
                 <TFPressable ref={playBtnRef} hasTVPreferredFocus style={styles.btnPlay} focusedStyle={styles.btnPlayFocus} onPress={onPlay}>
                   <Text style={styles.btnPlayText}>{'\u25B6'} Lejátszás</Text>
                 </TFPressable>
+                </View>
               )}
               {onToggleFav && (
+                <View style={{ flex: 1 }}>
                 <TFPressable style={[styles.btnFav, isFav && styles.btnFavActive]} focusedStyle={styles.btnFavFocus} onPress={onToggleFav}>
                   <Text style={styles.btnFavText}>{isFav ? '\u2764\uFE0F' : '\uD83E\uDD0D'} Kedvencekhez</Text>
                 </TFPressable>
+                </View>
               )}
               {onToggleWatchLater && (
+                <View style={{ flex: 1 }}>
                 <TFPressable style={[styles.btnWl, isWatchLater && styles.btnWlActive]} focusedStyle={styles.btnWlFocus} onPress={onToggleWatchLater}>
                   <Text style={styles.btnWlText}>{isWatchLater ? '\u23F1\uFE0F' : '\uD83D\uDCCB'} Megnézendő</Text>
                 </TFPressable>
+                </View>
               )}
             </View>
 
@@ -194,7 +203,6 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
               </View>
             )}
           </ScrollView>
-          <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
         </Animated.View>
         </RuggedBorder>
         <SoundEffect text="POP!" textColor={COLORS.red} bgColor={COLORS.yellow} top={-15} left={208} rotate={-12} />

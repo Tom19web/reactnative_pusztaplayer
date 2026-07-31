@@ -104,7 +104,10 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
               </TFPressable>
             )}
 
-          <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
+          <View focusable={true} style={{ height: 4, width: '100%', position: 'absolute', top: 0, opacity: 0.01 }} onFocus={handleTrapFocus} />
+          <View focusable={true} style={{ height: 4, width: '100%', position: 'absolute', bottom: 0, opacity: 0.01 }} onFocus={handleTrapFocus} />
+          <View focusable={true} style={{ width: 4, height: '100%', position: 'absolute', left: 0, opacity: 0.01 }} onFocus={handleTrapFocus} />
+          <View focusable={true} style={{ width: 4, height: '100%', position: 'absolute', right: 0, opacity: 0.01 }} onFocus={handleTrapFocus} />
           <ScrollView contentContainerStyle={styles.scroll} nestedScrollEnabled>
             <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
             <View style={styles.divider} />
@@ -154,19 +157,25 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
 
             <View style={styles.buttons}>
               {onShowEpisodes && (
+                <View style={{ flex: 1 }}>
                 <TFPressable ref={epsBtnRef} hasTVPreferredFocus style={styles.btnEps} focusedStyle={styles.btnEpsFocus} onPress={onShowEpisodes}>
                   <Text style={styles.btnEpsText}>{'\uD83D\uDCFA'} Epiz{String.fromCharCode(243)}dok</Text>
                 </TFPressable>
+                </View>
               )}
               {onToggleFav && (
+                <View style={{ flex: 1 }}>
                 <TFPressable style={[styles.btnFav, isFav && styles.btnFavActive]} focusedStyle={styles.btnFavFocus} onPress={onToggleFav}>
                   <Text style={styles.btnFavText}>{isFav ? '\u2764\uFE0F' : '\uD83E\uDD0D'} Kedvencekhez</Text>
                 </TFPressable>
+                </View>
               )}
               {onToggleWatchLater && (
+                <View style={{ flex: 1 }}>
                 <TFPressable style={[styles.btnWl, isWatchLater && styles.btnWlActive]} focusedStyle={styles.btnWlFocus} onPress={onToggleWatchLater}>
                   <Text style={styles.btnWlText}>{isWatchLater ? '\u23F1\uFE0F' : '\uD83D\uDCCB'} Megn{String.fromCharCode(233)}zend{String.fromCharCode(337)}</Text>
                 </TFPressable>
+                </View>
               )}
             </View>
 
@@ -197,7 +206,6 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
               </View>
             )}
           </ScrollView>
-          <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
         </Animated.View>
         </RuggedBorder>
         <SoundEffect text="BINGE!" textColor={COLORS.white} bgColor={COLORS.red} top={-15} right={8} rotate={10} />

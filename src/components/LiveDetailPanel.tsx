@@ -77,7 +77,10 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
               </TFPressable>
             )}
 
-          <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
+          <View focusable={true} style={{ height: 4, width: '100%', position: 'absolute', top: 0, opacity: 0.01 }} onFocus={handleTrapFocus} />
+          <View focusable={true} style={{ height: 4, width: '100%', position: 'absolute', bottom: 0, opacity: 0.01 }} onFocus={handleTrapFocus} />
+          <View focusable={true} style={{ width: 4, height: '100%', position: 'absolute', left: 0, opacity: 0.01 }} onFocus={handleTrapFocus} />
+          <View focusable={true} style={{ width: 4, height: '100%', position: 'absolute', right: 0, opacity: 0.01 }} onFocus={handleTrapFocus} />
           <ScrollView contentContainerStyle={styles.scroll} nestedScrollEnabled>
             <View style={styles.header}>
               {channel.streamUrl ? (
@@ -180,7 +183,6 @@ export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onTog
               )}
             </View>
           </ScrollView>
-          <View style={styles.fence} focusable={true} onFocus={handleTrapFocus} />
         </Animated.View>
         </RuggedBorder>
         <SoundEffect text="LIVE!" textColor={COLORS.white} bgColor={COLORS.red} top={-14} left={-6} rotate={-15} />
