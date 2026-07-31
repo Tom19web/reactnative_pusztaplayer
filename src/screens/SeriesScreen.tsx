@@ -166,7 +166,7 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
-    <View focusable={!selectedSeries} accessible={!selectedSeries} style={{ flex: 1 }}>
+    <View importantForAccessibility={selectedSeries ? 'no-hide-descendants' : 'auto'} style={{ flex: 1 }}>
     <ScrollView style={styles.container} nestedScrollEnabled>
       <RuggedBorder color={COLORS.black} wobbleFactor={0.7} style={{ marginBottom: SPACING.md }}>
         <View style={styles.filterBox}>

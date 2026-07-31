@@ -177,7 +177,7 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
 
   return (
     <>
-      <View focusable={!(selectedMovie || selectedSeries)} accessible={!(selectedMovie || selectedSeries)} style={{ flex: 1 }}>
+      <View importantForAccessibility={(selectedMovie || selectedSeries) ? 'no-hide-descendants' : 'auto'} style={{ flex: 1 }}>
       <ScrollView style={styles.container}>
       <View style={{ marginBottom: 10 }}>
         <HomeHero history={watchHistory} playlist={playlist} onPlayContent={onPlayContent} />
