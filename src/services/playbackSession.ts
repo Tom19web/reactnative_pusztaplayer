@@ -14,6 +14,7 @@ try {
 import { getImportedPlaylist } from './playlistService';
 import { loadXtreamCredentials } from './storage';
 import { buildEpisodeUrl } from './xtreamApi';
+import { XTREAM_SERVER, getLiveFormat } from '../constants';
 import { radioStations } from '../constants/radioStations';
 import { PlayerSession } from '../types';
 
@@ -108,6 +109,21 @@ export async function createPlaybackSession(
         streamType: 'hls', token: 'xtream-series',
         streamUrl: buildEpisodeUrl(creds.username, creds.password, epId),
         isLive: false,
+      };
+    }
+  }
+
+  // Fallback: építsünk URL-t credential-ökből live csatornákhoz is
+  const liveMatch = contentId.match(/^live_(\d+)$/);
+  if (liveMatch) {
+    const creds = await loadXtreamCredentials();
+    if (creds) {
+      const fmt = getLiveFormat();
+      return {
+        contentId, title: contentId,
+        streamType: fmt === 'm3u8' ? 'hls' : 'ts', token: 'xtream-live',
+        streamUrl: `${XTREAM_SERVER}/live/${encodeURIComponent(creds.username)}/${encodeURIComponent(creds.password)}/${liveMatch[1]}.${fmt}`,
+        isLive: true,
       };
     }
   }

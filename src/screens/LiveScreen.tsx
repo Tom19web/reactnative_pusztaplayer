@@ -42,12 +42,10 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
 
   const handlePlay = useCallback(() => {
     if (selectedChannel) {
-      const qv = selectedChannel.qualityVariants;
-      const key = qv && selectedQualityIdx < qv.length ? qv[selectedQualityIdx].key : selectedChannel.key;
-      onPlayContent(key);
+      onPlayContent(selectedChannel.key);
       setSelectedChannel(null);
     }
-  }, [selectedChannel, onPlayContent, selectedQualityIdx]);
+  }, [selectedChannel, onPlayContent]);
 
   const handleClose = useCallback(() => { setSelectedChannel(null); setSelectedQualityIdx(0); }, []);
 
