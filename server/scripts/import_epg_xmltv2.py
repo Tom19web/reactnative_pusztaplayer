@@ -616,7 +616,7 @@ async def process_user(client: httpx.AsyncClient, site_map: dict[str, str], open
                                     "stream_id": stream_id,
                                     "logo_url": logo_url,
                                     "source": f"xmltv:{site_id}",
-                                    "created_at": datetime.utcnow(),
+                                    "created_at": datetime.utcnow().replace(tzinfo=None),
                                 })
                                 logger.info("      + logo [%s]: %s", xmltv_id, logo_url[:80])
                             else:
@@ -682,7 +682,7 @@ async def process_user(client: httpx.AsyncClient, site_map: dict[str, str], open
                                 "stream_id": stream_id,
                                 "logo_url": icon_url,
                                 "source": f"openepg:{guide_url.split('/')[-1].split('.')[0]}",
-                                "created_at": datetime.utcnow(),
+                                "created_at": datetime.utcnow().replace(tzinfo=None),
                             })
                             logger.info("      + logo [%s]: %s", matched_name, icon_url[:80])
                     else:
@@ -721,7 +721,7 @@ async def process_user(client: httpx.AsyncClient, site_map: dict[str, str], open
                                         "stream_id": stream_id,
                                         "logo_url": icon_url,
                                         "source": f"openepg:{guide_url.split('/')[-1].split('.')[0]}",
-                                        "created_at": datetime.utcnow(),
+                                        "created_at": datetime.utcnow().replace(tzinfo=None),
                                     })
                                     logger.info("      [AI] + logo [%s]: %s", ai_name, icon_url[:80])
                                 ai_done.append((name, stream_id))

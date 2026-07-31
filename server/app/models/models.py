@@ -27,7 +27,7 @@ class MovieModel(Base):
     stream_id = Column(Integer, unique=True, index=True)
     embedding = Column(Vector(1536))
     meta = Column(JSONB)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     __table_args__ = (
         # JAVÍTVA: HNSW index a pgvector fénysebességű koszinusz-kereséséhez!
@@ -40,18 +40,6 @@ class MovieModel(Base):
         ),
     )
 
-
-class ChannelModel(Base):
-    __tablename__ = "channels"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    slug = Column(String(200), unique=True, index=True)
-    display_name = Column(String(500))
-    logo_url = Column(String(1000))
-    category = Column(String(200))
-    stream_id = Column(Integer, index=True)
-    meta = Column(JSONB)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class EpgProgramModel(Base):
@@ -71,7 +59,7 @@ class EpgProgramModel(Base):
     genre = Column(String(500))
     cast = Column(Text)
     ai_enriched = Column(JSONB)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.utcnow().replace(tzinfo=None))
 
     __table_args__ = (
         # JAVÍTVA: Kompozit index a villámgyors "Mi megy most?" lekérdezésekhez!
@@ -88,7 +76,7 @@ class UserProfileModel(Base):
     interests = Column(JSONB)
     fcm_token = Column(String(500))
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 
 class RadioStationModel(Base):
@@ -108,7 +96,7 @@ class RadioStationModel(Base):
     bitrate = Column(Integer)
     votes = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 
 class SeriesModel(Base):
@@ -127,7 +115,7 @@ class SeriesModel(Base):
     cover = Column(String(1000))
     embedding = Column(Vector(1536))
     meta = Column(JSONB)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     __table_args__ = (
         Index(
@@ -151,7 +139,7 @@ class EpisodeModel(Base):
     plot = Column(Text)
     air_date = Column(String(20))
     embedding = Column(Vector(1536))
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     __table_args__ = (
         UniqueConstraint("series_id", "season", "episode", name="uq_series_season_episode"),
@@ -178,7 +166,7 @@ class QrSessionModel(Base):
     phone = Column(String(50))
     api_key = Column(String(200))
     expires_at = Column(DateTime, nullable=False, index=True)  # JAVÍTVA: Indexelve a CRON takarítónak!
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 
 class ChannelLogoModel(Base):
@@ -188,4 +176,6 @@ class ChannelLogoModel(Base):
     stream_id = Column(Integer, unique=True, nullable=False, index=True)
     logo_url = Column(Text, nullable=False)
     source = Column(String(100), default="xmltv")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    channel_name = Column(String(300))
+    matched_name = Column(String(300))
+    created_at = Column(DateTime, default=lambda: datetime.utcnow().replace(tzinfo=None))
