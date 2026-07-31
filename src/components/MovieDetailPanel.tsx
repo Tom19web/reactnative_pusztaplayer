@@ -98,7 +98,7 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
         <RuggedBorder color={COLORS.yellow}>
           <Animated.View style={[styles.container, { opacity: entryAnim, transform: [{ translateX: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 320] }) }, { scale: entryAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]}>
             {onClose && (
-              <TFPressable style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose}>
+              <TFPressable focusable={true} style={styles.closeBtn} focusedStyle={styles.closeBtnFocus} onPress={handleClose}>
                 <Text style={styles.closeBtnText}>{'\u2716'}</Text>
               </TFPressable>
             )}

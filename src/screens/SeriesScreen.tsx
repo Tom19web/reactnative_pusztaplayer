@@ -166,6 +166,7 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
+    <View focusable={!selectedSeries} style={{ flex: 1 }}>
     <ScrollView style={styles.container} nestedScrollEnabled>
       <RuggedBorder color={COLORS.black} wobbleFactor={0.7} style={{ marginBottom: SPACING.md }}>
         <View style={styles.filterBox}>
@@ -231,6 +232,7 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
       )}
       {totalPages>1&&<Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={setPage}/>}
     </ScrollView>
+    </View>
     {selectedSeries && (
       <SeriesDetailPanel
         seriesId={selectedSeries.seriesId}

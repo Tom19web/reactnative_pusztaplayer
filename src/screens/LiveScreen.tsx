@@ -135,6 +135,7 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
 
   return (
     <View style={styles.wrapper} testID="live-wrapper">
+      <View focusable={!selectedChannel} style={{ flex: 1 }}>
       <ScrollView style={styles.container} nestedScrollEnabled>
         <RuggedBorder color={COLORS.black} wobbleFactor={0.7} style={{ marginBottom: SPACING.md }}>
           <View style={styles.filterBox} testID="live-filter">
@@ -190,6 +191,7 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
         )}
         {totalPages>1&&<Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={(p) => { _savedPage = p; setPage(p); }}/>}
       </ScrollView>
+      </View>
 
       {/* Live detail panel */}
       {selectedChannel && (

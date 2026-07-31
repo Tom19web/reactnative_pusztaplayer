@@ -145,6 +145,7 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
+    <View focusable={!selectedMovie} style={{ flex: 1 }}>
     <ScrollView style={styles.container} nestedScrollEnabled>
       {aiLoading && (
         <View style={styles.aiProgressWrap}>
@@ -210,6 +211,7 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
       )}
       {totalPages>1&&<Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={setPage}/>}
     </ScrollView>
+    </View>
     {selectedMovie && (
       <MovieDetailPanel
         streamId={selectedMovie.streamId}
