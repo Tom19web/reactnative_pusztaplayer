@@ -8,6 +8,7 @@ import SoundEffect from '../components/SoundEffect';
 import { XtreamEpisode, XtreamSeriesInfo } from '../types';
 import { xtreamGetSeriesInfo, buildEpisodeUrl } from '../services/xtreamApi';
 import { loadXtreamCredentials } from '../services/storage';
+import { addSeriesEpisode } from '../services/playlistService';
 import { fetchEpisodePlot, EpisodePlot } from '../services/aiProxy';
 import { COLORS, FONT, SPACING } from '../constants';
 
@@ -177,10 +178,12 @@ export default function EpisodeScreen({ seriesId, title, onPlayEpisode, onBack }
                             accessibilityLabel={`${ep.title || `Epizód ${ep.episode_num}`}`}
                             accessibilityRole="button"
                             onPress={() => {
-                              loadXtreamCredentials().then(creds => {
+                              loadXtreamCredentials().then(async (creds) => {
                                 if (!creds) return;
                                 const url = buildEpisodeUrl(creds.username, creds.password, ep.id, ext);
-                                onPlayEpisode({ key: epKey, title: ep.title || `Epizód ${ep.episode_num}`, streamUrl: url });
+                                const epTitle = ep.title || `Epizód ${ep.episode_num}`;
+                                await addSeriesEpisode({ key: epKey, title: epTitle, streamUrl: url, seriesId, group: '' });
+                                onPlayEpisode({ key: epKey, title: epTitle, streamUrl: url });
                               });
                             }}
                           >
