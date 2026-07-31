@@ -490,7 +490,8 @@ register_rest_route('pusztaplayer/v1', '/admin/channel-epg/(?P<sid>[^/]+)', [
         return json_decode(wp_remote_retrieve_body($resp), true);
     },
     'permission_callback' => '__return_true',
-]);
+    ]);
+});
 
 // ─── Activation hook — create page ──────────────
 
