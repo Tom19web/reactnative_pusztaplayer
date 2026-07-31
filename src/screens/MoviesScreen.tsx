@@ -145,7 +145,7 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
-    <View focusable={!selectedMovie} style={{ flex: 1 }}>
+    <View focusable={!selectedMovie} accessible={!selectedMovie} style={{ flex: 1 }}>
     <ScrollView style={styles.container} nestedScrollEnabled>
       {aiLoading && (
         <View style={styles.aiProgressWrap}>
