@@ -1,5 +1,5 @@
 ﻿import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, BackHandler } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, BackHandler, Modal } from 'react-native';
 import { useCore } from '../store/AppContext';
 import { useFavorites, useToggleWatchLater, useWatchLater, useToggleFavorite } from '../store/AppContext';
 import SimpleCard from '../components/SimpleCard';
@@ -135,7 +135,6 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
 
   return (
     <View style={styles.wrapper} testID="live-wrapper">
-      <View importantForAccessibility={selectedChannel ? 'no-hide-descendants' : 'auto'} style={{ flex: 1 }}>
       <ScrollView style={styles.container} nestedScrollEnabled>
         <RuggedBorder color={COLORS.black} wobbleFactor={0.7} style={{ marginBottom: SPACING.md }}>
           <View style={styles.filterBox} testID="live-filter">
@@ -191,20 +190,18 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
         )}
         {totalPages>1&&<Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={(p) => { _savedPage = p; setPage(p); }}/>}
       </ScrollView>
-      </View>
 
-      {/* Live detail panel */}
-      {selectedChannel && (
+      <Modal visible={!!selectedChannel} transparent animationType="fade" onRequestClose={handleClose}>
         <LiveDetailPanel
-          channel={selectedChannel}
+          channel={selectedChannel!}
           onPlay={handlePlay}
           onClose={handleClose}
-          isFav={isFav(selectedChannel.key)}
+          isFav={isFav(selectedChannel?.key || '')}
           onToggleFav={handleToggleFav}
           selectedQualityIdx={selectedQualityIdx}
           onQualityChange={setSelectedQualityIdx}
         />
-      )}
+      </Modal>
     </View>
   );
 }
