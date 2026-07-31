@@ -58,6 +58,7 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./static/logos:/app/static/logos
+      - /var/run/docker.sock:/var/run/docker.sock
 
 
 volumes:

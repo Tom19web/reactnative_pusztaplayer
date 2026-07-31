@@ -376,6 +376,122 @@ add_action('rest_api_init', function () {
     ]);
 });
 
+// ─── Docker Management Proxy ────────────────────
+
+$docker_routes = [
+    ['GET',    '/admin/docker/status',            '/admin/docker/status'],
+    ['POST',   '/admin/docker/restart-all',       '/admin/docker/restart-all'],
+    ['POST',   '/admin/docker/stop',              '/admin/docker/stop'],
+    ['POST',   '/admin/docker/cache-clear',       '/admin/docker/cache-clear'],
+    ['GET',    '/admin/docker/scripts',           '/admin/docker/scripts'],
+    ['GET',    '/admin/docker/channel-list',      '/admin/channel-list'],
+];
+
+foreach ($docker_routes as [$method, $route, $backend_path]) {
+    register_rest_route('pusztaplayer/v1', $route, [
+        'methods' => $method,
+        'callback' => function (WP_REST_Request $req) use ($cfg, $backend_path, $method) {
+            $url = $cfg['api_base'] . '/api/v1' . $backend_path;
+            $query = $req->get_query_params();
+            if ($query) $url .= '?' . http_build_query($query);
+            $args = [
+                'method'  => $method,
+                'headers' => ['Authorization' => 'Basic ' . base64_encode($cfg['auth_user'] . ':' . $cfg['auth_pass'])],
+                'timeout' => $method === 'POST' ? 120 : 30,
+            ];
+            if ($method === 'POST' && $req->get_body()) {
+                $args['body'] = $req->get_body();
+                $args['headers']['Content-Type'] = 'application/json';
+            }
+            $resp = wp_remote_request($url, $args);
+            if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
+            return json_decode(wp_remote_retrieve_body($resp), true);
+        },
+        'permission_callback' => '__return_true',
+    ]);
+}
+
+// Docker logs (dynamic container param)
+register_rest_route('pusztaplayer/v1', '/admin/docker/logs/(?P<container>[^/]+)', [
+    'methods' => 'GET',
+    'callback' => function (WP_REST_Request $req) use ($cfg) {
+        $container = $req->get_param('container');
+        $tail = $req->get_param('tail') ?: 200;
+        $url = $cfg['api_base'] . '/api/v1/admin/docker/logs/' . urlencode($container) . '?tail=' . intval($tail);
+        $resp = wp_remote_get($url, [
+            'headers' => ['Authorization' => 'Basic ' . base64_encode($cfg['auth_user'] . ':' . $cfg['auth_pass'])],
+            'timeout' => 30,
+        ]);
+        if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
+        return json_decode(wp_remote_retrieve_body($resp), true);
+    },
+    'permission_callback' => '__return_true',
+]);
+
+// Docker restart (dynamic container param) + script get/save
+register_rest_route('pusztaplayer/v1', '/admin/docker/restart/(?P<container>[^/]+)', [
+    'methods' => 'POST',
+    'callback' => function (WP_REST_Request $req) use ($cfg) {
+        $container = $req->get_param('container');
+        $resp = wp_remote_post($cfg['api_base'] . '/api/v1/admin/docker/restart/' . urlencode($container), [
+            'headers' => ['Authorization' => 'Basic ' . base64_encode($cfg['auth_user'] . ':' . $cfg['auth_pass'])],
+            'timeout' => 30,
+        ]);
+        if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
+        return json_decode(wp_remote_retrieve_body($resp), true);
+    },
+    'permission_callback' => '__return_true',
+]);
+
+// Script get
+register_rest_route('pusztaplayer/v1', '/admin/docker/script/(?P<name>[^/]+)', [
+    'methods' => 'GET',
+    'callback' => function (WP_REST_Request $req) use ($cfg) {
+        $name = $req->get_param('name');
+        $resp = wp_remote_get($cfg['api_base'] . '/api/v1/admin/docker/scripts/' . urlencode($name), [
+            'headers' => ['Authorization' => 'Basic ' . base64_encode($cfg['auth_user'] . ':' . $cfg['auth_pass'])],
+            'timeout' => 15,
+        ]);
+        if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
+        return json_decode(wp_remote_retrieve_body($resp), true);
+    },
+    'permission_callback' => '__return_true',
+]);
+
+// Script save
+register_rest_route('pusztaplayer/v1', '/admin/docker/script/(?P<name>[^/]+)', [
+    'methods' => 'POST',
+    'callback' => function (WP_REST_Request $req) use ($cfg) {
+        $name = $req->get_param('name');
+        $resp = wp_remote_post($cfg['api_base'] . '/api/v1/admin/docker/scripts/' . urlencode($name), [
+            'headers' => [
+                'Authorization' => 'Basic ' . base64_encode($cfg['auth_user'] . ':' . $cfg['auth_pass']),
+                'Content-Type'  => 'application/json',
+            ],
+            'body'    => $req->get_body(),
+            'timeout' => 15,
+        ]);
+        if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
+        return json_decode(wp_remote_retrieve_body($resp), true);
+    },
+    'permission_callback' => '__return_true',
+]);
+
+// Channel list EPG detail
+register_rest_route('pusztaplayer/v1', '/admin/channel-epg/(?P<sid>[^/]+)', [
+    'methods' => 'GET',
+    'callback' => function (WP_REST_Request $req) use ($cfg) {
+        $sid = $req->get_param('sid');
+        $resp = wp_remote_get($cfg['api_base'] . '/api/v1/admin/channel-list/' . urlencode($sid) . '/epg', [
+            'headers' => ['Authorization' => 'Basic ' . base64_encode($cfg['auth_user'] . ':' . $cfg['auth_pass'])],
+            'timeout' => 15,
+        ]);
+        if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
+        return json_decode(wp_remote_retrieve_body($resp), true);
+    },
+    'permission_callback' => '__return_true',
+]);
+
 // ─── Activation hook — create page ──────────────
 
 register_activation_hook(__FILE__, function () {

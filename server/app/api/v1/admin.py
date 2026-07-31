@@ -630,3 +630,275 @@ async def save_hu_mapping(payload: dict):
 
     mapped = sum(1 for c in channels if c.get("xtream_sid"))
     return {"updated": updated, "total": len(channels), "mapped": mapped}
+
+
+# ─── Docker Management ────────────────────────────
+
+import subprocess
+import glob as glob_mod
+
+
+async def _docker_cmd(*args: str) -> tuple[int, str]:
+    """Run docker compose command, return (exit_code, output)."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "docker", "compose", *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        out, _ = await proc.communicate()
+        return (proc.returncode or 0, out.decode(errors="replace"))
+    except FileNotFoundError:
+        return (-1, "Docker CLI not available in container.")
+    except Exception as e:
+        return (-1, str(e))
+
+
+@router.get("/admin/docker/status")
+async def docker_status():
+    code, out = await _docker_cmd("ps", "--format", "json")
+    if code != 0:
+        return {"error": "Docker unavailable", "detail": out}
+
+    containers = []
+    for line in out.strip().split("\n"):
+        if not line.strip():
+            continue
+        try:
+            data = json.loads(line)
+            containers.append({
+                "name": data.get("Name", ""),
+                "image": data.get("Image", ""),
+                "status": data.get("Status", ""),
+                "ports": data.get("Ports", ""),
+                "state": data.get("State", ""),
+            })
+        except Exception:
+            pass
+    return {"containers": containers}
+
+
+@router.post("/admin/docker/restart/{container}")
+async def docker_restart(container: str = "fastapi"):
+    code, out = await _docker_cmd("restart", container)
+    return {"ok": code == 0, "container": container, "output": out.strip()[-500:]}
+
+
+@router.post("/admin/docker/restart-all")
+async def docker_restart_all():
+    code, out = await _docker_cmd("up", "-d")
+    return {"ok": code == 0, "output": out.strip()[-500:]}
+
+
+@router.post("/admin/docker/stop")
+async def docker_stop():
+    code, out = await _docker_cmd("down")
+    return {"ok": code == 0, "output": out.strip()[-500:]}
+
+
+@router.post("/admin/docker/cache-clear")
+async def docker_cache_clear():
+    """Prune Docker builder cache + rebuild fastapi."""
+    steps = []
+    # 1. Prune
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "docker", "builder", "prune", "-f",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+        )
+        out, _ = await proc.communicate()
+        steps.append("prune: ok" if proc.returncode == 0 else f"prune: {out.decode(errors='replace')[:200]}")
+    except Exception as e:
+        steps.append(f"prune error: {e}")
+
+    # 2. Build --no-cache
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "docker", "compose", "build", "--no-cache", "fastapi",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+        )
+        out, _ = await proc.communicate()
+        steps.append("build: ok" if proc.returncode == 0 else f"build: {out.decode(errors='replace')[-300:]}")
+    except Exception as e:
+        steps.append(f"build error: {e}")
+
+    # 3. Up
+    code, out = await _docker_cmd("up", "-d")
+    steps.append("up: ok" if code == 0 else f"up: {out.strip()[-200:]}")
+    return {"steps": steps, "ok": all("ok" in s for s in steps)}
+
+
+@router.get("/admin/docker/logs/{container}")
+async def docker_logs(container: str, tail: int = 200):
+    code, out = await _docker_cmd("logs", f"--tail={tail}", container)
+    return {"container": container, "output": out.strip(), "ok": code == 0}
+
+
+# ─── Script Manager ────────────────────────────────
+
+SCRIPTS_DIR = "/app/scripts"
+
+
+@router.get("/admin/docker/scripts")
+async def docker_scripts():
+    if not os.path.isdir(SCRIPTS_DIR):
+        return {"scripts": [], "error": "Scripts dir not found"}
+
+    files = []
+    for f in sorted(glob_mod.glob(os.path.join(SCRIPTS_DIR, "*.py"))):
+        name = os.path.basename(f)
+        if name.startswith("_"):
+            continue
+        try:
+            stat = os.stat(f)
+            files.append({
+                "name": name,
+                "size": stat.st_size,
+                "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M"),
+            })
+        except Exception:
+            pass
+    return {"scripts": files}
+
+
+@router.get("/admin/docker/scripts/{name}")
+async def docker_script_get(name: str):
+    path = os.path.join(SCRIPTS_DIR, name)
+    if not os.path.isfile(path):
+        raise HTTPException(404, "Script not found.")
+    with open(path, encoding="utf-8") as f:
+        content = f.read()
+    return {"name": name, "content": content}
+
+
+@router.post("/admin/docker/scripts/{name}")
+async def docker_script_save(name: str, payload: dict):
+    """Save script content. payload: {"content": "..."}"""
+    content = payload.get("content", "")
+    path = os.path.join(SCRIPTS_DIR, name)
+    # Safety: only allow .py files in scripts dir
+    if not path.startswith(os.path.realpath(SCRIPTS_DIR)) or not name.endswith(".py"):
+        raise HTTPException(400, "Invalid script path.")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return {"ok": True, "name": name}
+
+
+# ─── Channel List + EPG ────────────────────────────
+
+@router.get("/admin/channel-list")
+async def channel_list(
+    category: str = "",
+    search: str = "",
+    epg_filter: str = "",
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
+):
+    """
+    Full channel list with EPG status.
+    Filters: category, search (name), epg_filter (has_epg | no_epg | all).
+    """
+    async with async_session_factory() as sess:
+        # Get cat_by_id map
+        cats_by_id: dict[int, str] = {}
+        streams: list[dict] = []
+
+        # Read from Redis sessions to get creds
+        try:
+            r = await get_redis()
+            keys = await r.keys("session:*")
+            if keys:
+                data = json.loads(await r.get(keys[0]) or "{}")
+                username = data.get("xtream_user")
+                password = data.get("xtream_pass")
+                if username and password:
+                    import httpx
+                    async with httpx.AsyncClient(verify=False, timeout=15.0) as client:
+                        cat_resp = await client.get(
+                            f"http://movaloget.cc:42310/player_api.php?username={username}&password={password}&action=get_live_categories"
+                        )
+                        if cat_resp.status_code == 200:
+                            for c in cat_resp.json():
+                                cats_by_id[int(c.get("category_id", 0))] = c.get("category_name", "")
+                        stream_resp = await client.get(
+                            f"http://movaloget.cc:42310/player_api.php?username={username}&password={password}&action=get_live_streams"
+                        )
+                        if stream_resp.status_code == 200:
+                            for s in stream_resp.json():
+                                sid = s.get("stream_id", 0)
+                                if not sid:
+                                    continue
+                                name = s.get("name", "")
+                                if search and search.lower() not in name.lower():
+                                    continue
+                                cat_id = int(s.get("category_id", 0))
+                                cat_name = cats_by_id.get(cat_id, s.get("category_name", ""))
+                                if category and cat_name != category:
+                                    continue
+                                streams.append({
+                                    "stream_id": sid,
+                                    "name": name,
+                                    "category": cat_name,
+                                    "logo": s.get("stream_icon", ""),
+                                })
+        except Exception:
+            pass
+
+        if not streams:
+            return {"channels": [], "total": 0, "categories": [], "page": page, "pages": 1}
+
+        # EPG status
+        now_ts = int(time.time())
+        sids = [s["stream_id"] for s in streams]
+        epg_result = await sess.execute(
+            text("SELECT DISTINCT channel_id FROM epg_programs WHERE channel_id = ANY(:ids) AND start_timestamp <= :now AND stop_timestamp >= :now"),
+            {"ids": [str(s) for s in sids], "now": now_ts},
+        )
+        epg_ids = set(r[0] for r in epg_result.fetchall())
+        now_result = await sess.execute(
+            text("SELECT channel_id, title FROM epg_programs WHERE channel_id = ANY(:ids) AND start_timestamp <= :now AND stop_timestamp >= :now"),
+            {"ids": [str(s) for s in sids], "now": now_ts},
+        )
+        now_map = {r[0]: r[1] for r in now_result.fetchall()}
+
+        for s in streams:
+            sid = str(s["stream_id"])
+            s["has_epg"] = sid in epg_ids
+            s["now_playing"] = now_map.get(sid, "")
+
+        # Filter by EPG
+        if epg_filter == "has_epg":
+            streams = [s for s in streams if s["has_epg"]]
+        elif epg_filter == "no_epg":
+            streams = [s for s in streams if not s["has_epg"]]
+
+        total = len(streams)
+        pages = max(1, (total + per_page - 1) // per_page)
+        start = (page - 1) * per_page
+        page_items = streams[start : start + per_page]
+
+        # Categories
+        cats = sorted(set(s["category"] for s in streams if s["category"]))
+
+    return {"channels": page_items, "total": total, "categories": cats, "page": page, "pages": pages}
+
+
+@router.get("/admin/channel-list/{stream_id}/epg")
+async def channel_epg_detail(stream_id: str, count: int = Query(10, ge=1, le=50)):
+    now_ts = int(time.time())
+    async with async_session_factory() as sess:
+        now_r = await sess.execute(
+            text("SELECT title, start_timestamp, stop_timestamp, description FROM epg_programs WHERE channel_id = :cid AND start_timestamp <= :now AND stop_timestamp >= :now LIMIT 1"),
+            {"cid": stream_id, "now": now_ts},
+        )
+        now_prog = now_r.fetchone()
+        up_r = await sess.execute(
+            text("SELECT title, start_timestamp, stop_timestamp, description FROM epg_programs WHERE channel_id = :cid AND stop_timestamp > :now ORDER BY start_timestamp LIMIT :lim"),
+            {"cid": stream_id, "now": now_ts, "lim": count},
+        )
+        upcoming = up_r.fetchall()
+    return {
+        "stream_id": stream_id,
+        "now_playing": {"title": now_prog[0], "start": now_prog[1], "stop": now_prog[2], "desc": (now_prog[3] or "")[:200]} if now_prog else None,
+        "upcoming": [{"title": r[0], "start": r[1], "stop": r[2], "desc": (r[3] or "")[:200]} for r in upcoming],
+    }

@@ -17,6 +17,14 @@ interface EpgCheck { stream_id: string; total: number; now_playing: { title: str
 
 interface HuMapping { name: string; xmltv_id: string; programmes: number; xtream_sid: number | null; }
 
+interface DockerContainer { name: string; image: string; status: string; ports: string; state: string; }
+
+interface ScriptFile { name: string; size: number; modified: string; }
+
+interface ChannelItem { stream_id: number; name: string; category: string; logo: string; has_epg: boolean; now_playing: string; }
+
+interface ChannelEpg { stream_id: string; now_playing: { title: string; start: number; stop: number; desc: string } | null; upcoming: { title: string; start: number; stop: number; desc: string }[]; }
+
 // ─── App ──────────────────────────────────────────
 
 export default function App() {
@@ -71,6 +79,19 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [epgCheck, setEpgCheck] = useState<EpgCheck | null>(null);
   const [huMapping, setHuMapping] = useState<HuMapping[]>([]);
   const [mergeOpen, setMergeOpen] = useState<Logo | null>(null);
+  const [dockerContainers, setDockerContainers] = useState<DockerContainer[]>([]);
+  const [dockerLog, setDockerLog] = useState<string | null>(null);
+  const [scripts, setScripts] = useState<ScriptFile[]>([]);
+  const [scriptContent, setScriptContent] = useState<string | null>(null);
+  const [scriptName, setScriptName] = useState('');
+  const [channels, setChannels] = useState<ChannelItem[]>([]);
+  const [chPage, setChPage] = useState(1);
+  const [chTotal, setChTotal] = useState(0);
+  const [chSearch, setChSearch] = useState('');
+  const [chCategory, setChCategory] = useState('');
+  const [chCategories, setChCategories] = useState<string[]>([]);
+  const [chEpgFilter, setChEpgFilter] = useState('');
+  const [chEpg, setChEpg] = useState<ChannelEpg | null>(null);
   const epgRef = useRef<HTMLDivElement>(null);
 
   const loadStats = useCallback(async () => {
@@ -89,10 +110,25 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const loadHuMapping = useCallback(async () => {
     try { const d = await apiGet('admin/epg-hu-mapping'); setHuMapping(d.channels || []); } catch {}
   }, []);
+  const loadDockerStatus = useCallback(async () => {
+    try { const d = await apiGet('admin/docker/status'); setDockerContainers(d.containers || []); } catch {}
+  }, []);
+  const loadScripts = useCallback(async () => {
+    try { const d = await apiGet('admin/docker/scripts'); setScripts(d.scripts || []); } catch {}
+  }, []);
+  const loadChannels = useCallback(async (page: number, search: string, cat: string, epg: string) => {
+    try {
+      const d = await apiGet('admin/docker/channel-list', { page: String(page), per_page: '50', ...(search ? { search } : {}), ...(cat ? { category: cat } : {}), ...(epg ? { epg_filter: epg } : {}) });
+      setChannels(d.channels || []);
+      setChTotal(d.total || 0);
+      setChCategories(d.categories || []);
+    } catch {}
+  }, []);
 
-  useEffect(() => { loadStats(); loadLogos(1, ''); loadMissing(); loadHuMapping(); }, []);
+  useEffect(() => { loadStats(); loadLogos(1, ''); loadMissing(); loadHuMapping(); loadDockerStatus(); loadScripts(); loadChannels(1, '', '', ''); }, []);
   useEffect(() => { const iv = setInterval(loadStats, 30000); return () => clearInterval(iv); }, [loadStats]);
   useEffect(() => { loadLogos(logoPage, logoS); }, [logoPage, logoS, loadLogos]);
+  useEffect(() => { loadChannels(chPage, chSearch, chCategory, chEpgFilter); }, [chPage, chSearch, chCategory, chEpgFilter, loadChannels]);
 
   const triggerImport = async (path: string, label: string) => {
     try {
@@ -291,6 +327,134 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </section>
+
+        {/* Docker Management */}
+        <section style={card}>
+          <div style={flexRow}>
+            <h2 style={h2}>🐳 Docker Management</h2>
+            <button onClick={loadDockerStatus} style={btn}>Frissítés</button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <button onClick={async () => { await apiPost('admin/docker/restart-all'); loadDockerStatus(); }} style={btn}>🔄 Összes újraindítás</button>
+            <button onClick={async () => { if (confirm('Biztosan leállítod az összes konténert?')) { await apiPost('admin/docker/stop'); loadDockerStatus(); } }} style={{ ...btn, backgroundColor: '#b91c1c' }}>⏹ Összes leállítás</button>
+            <button onClick={async () => { await apiPost('admin/docker/cache-clear'); setTimeout(loadDockerStatus, 3000); }} style={{ ...btn, backgroundColor: '#f6c800', color: '#000' }}>🧹 Cache törlés + Rebuild</button>
+          </div>
+          <table style={tbl}>
+            <thead><tr style={thr}><th>Név</th><th>Image</th><th>Állapot</th><th>Port</th><th></th><th></th></tr></thead>
+            <tbody>
+              {dockerContainers.map(c => (
+                <tr key={c.name} style={tdr}>
+                  <td style={{ color: c.state === 'running' ? '#4ade80' : '#f87171' }}>{c.state === 'running' ? '🟢' : '🔴'} {c.name}</td>
+                  <td style={{ fontSize: 11 }}>{c.image}</td>
+                  <td style={{ fontSize: 11 }}>{c.status}</td>
+                  <td style={{ fontSize: 11 }}>{c.ports || '—'}</td>
+                  <td>
+                    <button onClick={async () => {
+                      try { const d = await apiGet(`admin/docker/logs/${c.name}`, { tail: '200' }); setDockerLog(d.output || ''); } catch {}
+                    }} style={actionSm}>📄</button>
+                    <button onClick={async () => {
+                      await apiPost(`admin/docker/restart/${c.name}`); loadDockerStatus();
+                    }} style={actionSm}>🔄</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {dockerLog !== null && (
+            <div style={{ marginTop: 12 }}>
+              <div style={flexRow}><h3 style={{ color: '#f6c800' }}>Log</h3><button onClick={() => setDockerLog(null)} style={clearBtn}>Bezár</button></div>
+              <pre style={logPre}>{dockerLog}</pre>
+            </div>
+          )}
+        </section>
+
+        {/* Script Editor */}
+        <section style={card}>
+          <div style={flexRow}>
+            <h2 style={h2}>📝 Script Editor</h2>
+            <button onClick={loadScripts} style={btn}>Frissítés</button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <select onChange={async (e) => {
+              if (!e.target.value) return;
+              try { const d = await apiGet(`admin/docker/script/${e.target.value}`); setScriptContent(d.content || ''); setScriptName(d.name || ''); } catch {}
+            }} style={sel}>
+              <option value="">— Válassz scriptet —</option>
+              {scripts.map(s => <option key={s.name} value={s.name}>{s.name} ({Math.round(s.size / 1024)} KB, {s.modified})</option>)}
+            </select>
+          </div>
+          {scriptContent !== null && (
+            <>
+              <textarea value={scriptContent} onChange={e => setScriptContent(e.target.value)}
+                style={{ ...inputS, minHeight: 300, fontFamily: 'monospace', fontSize: 11 }} />
+              <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                <button onClick={async () => {
+                  await apiPost(`admin/docker/script/${scriptName}`, { content: scriptContent });
+                  alert('Mentve!');
+                }} style={btn}>💾 Mentés</button>
+                <button onClick={() => { setScriptContent(null); setScriptName(''); }} style={{ ...btn, backgroundColor: '#333' }}>Bezár</button>
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* Channel List + EPG */}
+        <section style={card}>
+          <div style={flexRow}>
+            <h2 style={h2}>📺 Csatornalista + EPG</h2>
+            <button onClick={() => loadChannels(1, chSearch, chCategory, chEpgFilter)} style={btn}>Keresés</button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <input value={chSearch} onChange={e => { setChSearch(e.target.value); setChPage(1); }} placeholder="Név keresés..." style={{ ...inputS, flex: 1, minWidth: 180 }} />
+            <select value={chCategory} onChange={e => { setChCategory(e.target.value); setChPage(1); }} style={{ ...sel, width: 180 }}>
+              <option value="">Összes kategória</option>
+              {chCategories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select value={chEpgFilter} onChange={e => { setChEpgFilter(e.target.value); setChPage(1); }} style={{ ...sel, width: 140 }}>
+              <option value="">EPG: mind</option>
+              <option value="has_epg">✅ Van EPG</option>
+              <option value="no_epg">❌ Nincs EPG</option>
+            </select>
+          </div>
+          <table style={tbl}>
+            <thead><tr style={thr}><th>ID</th><th>Név</th><th>Kategória</th><th>Now Playing</th><th>EPG</th></tr></thead>
+            <tbody>
+              {channels.map(ch => (
+                <tr key={ch.stream_id} style={{ ...tdr, cursor: 'pointer' }} onClick={async () => {
+                  try { const d = await apiGet(`admin/channel-epg/${ch.stream_id}`); setChEpg(d); } catch {}
+                }}>
+                  <td style={{ fontSize: 11 }}>{ch.stream_id}</td>
+                  <td>{ch.name}</td>
+                  <td style={{ fontSize: 10, color: '#888' }}>{ch.category}</td>
+                  <td style={{ fontSize: 10, color: ch.now_playing ? '#4ade80' : '#888' }}>{ch.now_playing || '—'}</td>
+                  <td>{ch.has_epg ? <span style={{ color: '#4ade80' }}>✅</span> : <span style={{ color: '#f87171' }}>❌</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={() => setChPage(p => Math.max(1, p - 1))} disabled={chPage <= 1} style={btn}>←</button>
+            <span style={{ color: '#888', fontSize: 12 }}>{chPage} / {Math.max(1, Math.ceil(chTotal / 50))} ({chTotal} csatorna)</span>
+            <button onClick={() => setChPage(p => p + 1)} disabled={chPage >= Math.ceil(chTotal / 50)} style={btn}>→</button>
+          </div>
+          {chEpg && (
+            <div style={{ marginTop: 16, padding: 12, backgroundColor: '#0a0a14', borderRadius: 8 }}>
+              <h3 style={{ color: '#00d4ff', marginBottom: 8 }}>EPG: {chEpg.stream_id}</h3>
+              {chEpg.now_playing && <p style={{ color: '#f6c800', fontSize: 13, marginBottom: 8 }}>▶ Most: {chEpg.now_playing.title}</p>}
+              <ul style={{ color: '#888', fontSize: 12, paddingLeft: 16 }}>
+                {chEpg.upcoming.map((u, i) => (
+                  <li key={i} style={{ marginBottom: 4 }}>
+                    <strong style={{ color: '#e2e8f0' }}>{u.title}</strong>
+                    <span style={{ color: '#555', marginLeft: 8 }}>
+                      {new Date(u.start * 1000).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {u.desc && <span style={{ display: 'block', fontSize: 10, color: '#555' }}>{u.desc.slice(0, 120)}</span>}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </section>
