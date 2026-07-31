@@ -71,7 +71,7 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
     (async () => {
       const items = await fetchSimilar(seriesId, 'series', 5);
       if (!c && items.length > 0) {
-        setSimilar(items.filter(s => s.type === 'series'));
+        setSimilar(items);
       }
     })();
     return () => { c = true; };

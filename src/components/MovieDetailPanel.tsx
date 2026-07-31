@@ -70,7 +70,7 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
     (async () => {
       const items = await fetchSimilar(streamId, 'movie', 5);
       if (!c && items.length > 0) {
-        setSimilar(items.filter(s => s.type === 'movie'));
+        setSimilar(items);
       }
     })();
     return () => { c = true; };
