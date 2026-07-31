@@ -128,6 +128,21 @@ export async function createPlaybackSession(
     }
   }
 
+  // Fallback: építsünk URL-t credential-ökből filmekhez
+  const movieMatch = contentId.match(/^movie_(\d+)$/);
+  if (movieMatch) {
+    const creds = await loadXtreamCredentials();
+    if (creds) {
+      const fmt = getLiveFormat();
+      return {
+        contentId, title: contentId,
+        streamType: fmt === 'm3u8' ? 'hls' : 'ts', token: 'xtream-vod',
+        streamUrl: `${XTREAM_SERVER}/movie/${encodeURIComponent(creds.username)}/${encodeURIComponent(creds.password)}/${movieMatch[1]}.${fmt}`,
+        isLive: false,
+      };
+    }
+  }
+
   // Rádió: keresés a radioStations listában
   if (contentId.startsWith('radio_')) {
     const station = radioStations.find(r => r.key === contentId);
