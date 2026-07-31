@@ -9,7 +9,6 @@ import DotPattern from '../components/DotPattern';
 import SimpleCard from '../components/SimpleCard';
 import MovieDetailPanel from '../components/MovieDetailPanel';
 import SeriesDetailPanel from '../components/SeriesDetailPanel';
-import EpisodePanel from '../components/EpisodePanel';
 import ExitDialog from '../components/ExitDialog';
 import { useCore, useFavorites, useHistory, useClearHistory, useProfiles, useBackgroundAudio, useToggleWatchLater, useWatchLater, useToggleFavorite } from '../store/AppContext';
 import { useRecommended, usePopular } from '../hooks/useRecommendations';
@@ -41,7 +40,6 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
   const [showExit, setShowExit] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null);
-  const [showEpisodes, setShowEpisodes] = useState<{ seriesId: number; title: string; group: string } | null>(null);
   const similarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { clear: clearBgAudio } = useBackgroundAudio();
 
@@ -76,9 +74,9 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
   const handleSeriesClose = useCallback(() => setSelectedSeries(null), []);
   const handleShowEpisodes = useCallback(() => {
     if (!selectedSeries) return;
-    setShowEpisodes({ seriesId: selectedSeries.seriesId, title: selectedSeries.title, group: selectedSeries.group || '' });
+    onNavigate('episodes', { seriesId: selectedSeries.seriesId, title: selectedSeries.title });
     setSelectedSeries(null);
-  }, [selectedSeries]);
+  }, [selectedSeries, onNavigate]);
   const handleSeriesToggleFav = useCallback(() => {
     if (!selectedSeries) return;
     toggleFav({ key: selectedSeries.key, title: selectedSeries.title, type: 'series', group: selectedSeries.group || '', logo: selectedSeries.logo || '', streamUrl: '', seriesId: selectedSeries.seriesId.toString() });
@@ -118,7 +116,6 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
 
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (showEpisodes) { setShowEpisodes(null); return true; }
       if (selectedSeries) { setSelectedSeries(null); return true; }
       if (selectedMovie) { setSelectedMovie(null); return true; }
       clearBgAudio();
@@ -126,7 +123,7 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
       return true;
     });
     return () => handler.remove();
-  }, [selectedMovie, selectedSeries, showEpisodes, clearBgAudio]);
+  }, [selectedMovie, selectedSeries, clearBgAudio]);
 
   if (showExit) {
     return (
@@ -360,19 +357,6 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
           onOpenSimilar={handleOpenSimilar}
         />
       </Modal>
-      {showEpisodes && (
-        <View style={styles.epOverlay}>
-          <EpisodePanel
-            seriesId={showEpisodes.seriesId}
-            title={showEpisodes.title}
-            onPlayEpisode={(ep) => {
-              setShowEpisodes(null);
-              onPlayContent(ep.key);
-            }}
-            onBack={() => setShowEpisodes(null)}
-          />
-        </View>
-      )}
     </>
   );
 }

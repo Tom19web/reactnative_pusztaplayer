@@ -286,14 +286,14 @@ const styles = StyleSheet.create({
   qualityBtnTextActive: { color: COLORS.yellow },
   btnPlay: {
     backgroundColor: COLORS.yellow, borderRadius: 10,
-    paddingTop: 8, paddingBottom: 8, alignItems: 'center',
+    paddingTop: 8, paddingBottom: 8, paddingHorizontal: 4, alignItems: 'center',
     borderWidth: 2, borderColor: '#000',
   },
   btnPlayFocus: { backgroundColor: COLORS.cyan },
   btnPlayText: { color: COLORS.black, fontSize: 10, fontWeight: '700', fontFamily: 'Poppins-Bold' },
   btnFav: {
     backgroundColor: COLORS.panel2, borderRadius: 10,
-    paddingTop: 6, paddingBottom: 4, alignItems: 'center',
+    paddingTop: 6, paddingBottom: 4, paddingHorizontal: 4, alignItems: 'center',
     borderWidth: 2, borderColor: 'transparent',
   },
   btnFavActive: { borderColor: COLORS.red },

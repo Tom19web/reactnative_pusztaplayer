@@ -1,5 +1,5 @@
 // ─── Navigációs route-ok ────────────────────────────
-export type RouteName = 'Login' | 'Home' | 'Live' | 'Movies' | 'Series' | 'EPG' | 'Radio' | 'Favorites' | 'WatchLater' | 'Player' | 'UserInfo';
+export type RouteName = 'Login' | 'Home' | 'Live' | 'Movies' | 'Series' | 'EPG' | 'Radio' | 'Favorites' | 'WatchLater' | 'Player' | 'UserInfo' | 'Episodes';
 
 // ─── Live TV csatorna ─────────────────────────────────
 export interface Channel {

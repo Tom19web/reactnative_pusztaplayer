@@ -2,7 +2,6 @@
 import { View, Text, ScrollView, StyleSheet, BackHandler, Modal } from 'react-native';
 import { useCore, useToggleWatchLater, useWatchLater, useFavorites, useToggleFavorite } from '../store/AppContext';
 import SimpleCard from '../components/SimpleCard';
-import EpisodePanel from '../components/EpisodePanel';
 import SeriesDetailPanel from '../components/SeriesDetailPanel';
 import ShadowWrapper from '../components/ShadowWrapper';
 import RuggedBorder from '../components/RuggedBorder';
@@ -12,7 +11,6 @@ import FilterBtn from '../components/FilterBtn';
 import Pagination from '../components/Pagination';
 import FilterItem from '../components/FilterItem';
 import TFPressable from '../components/TFPressable';
-import { addSeriesEpisode } from '../services/playlistService';
 import { Series } from '../types';
 import { COLORS, FONT, SPACING } from '../constants';
 import { getAllMoods, matchesMood } from '../constants/moods';
@@ -23,9 +21,9 @@ const CARD_W = 110;
 const CARD_GAP = 8;
 const PAGE_SIZE = 30;
 
-interface SeriesScreenProps { onPlayContent: (key: string) => void; onBack: () => void; }
+interface SeriesScreenProps { onPlayContent: (key: string) => void; onBack: () => void; onNavigateEpisodes: (seriesId: number, title: string) => void; }
 
-export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProps) {
+export default function SeriesScreen({ onPlayContent, onBack, onNavigateEpisodes }: SeriesScreenProps) {
   const { state: { playlist, searchTerm } } = useCore();
   const toggleWl = useToggleWatchLater();
   const wlItems = useWatchLater();
@@ -39,7 +37,6 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
   const [activeSort, setActiveSort] = useState('Alapértelmezett');
   const [showFilter, setShowFilter] = useState<'group'|'year'|'genre'|'sort'|null>(null);
   const [page, setPage] = useState(0);
-  const [showEpisodes, setShowEpisodes] = useState<Series | null>(null);
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null);
   const [semanticLoading, setSemanticLoading] = useState(false);
   const [semanticMatches, setSemanticMatches] = useState<Array<{key: string; title: string; type: string; similarity: number}>>([]);
@@ -48,9 +45,9 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
 
   const handleShowEpisodes = useCallback(() => {
     if (!selectedSeries) return;
-    setShowEpisodes(selectedSeries);
+    onNavigateEpisodes(selectedSeries.seriesId, selectedSeries.title);
     setSelectedSeries(null);
-  }, [selectedSeries]);
+  }, [selectedSeries, onNavigateEpisodes]);
 
   const handleToggleFav = useCallback(() => {
     if (!selectedSeries) return;
@@ -73,13 +70,12 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
   useEffect(() => {
     const h = BackHandler.addEventListener('hardwareBackPress', () => {
       if (showFilter) { setShowFilter(null); return true; }
-      if (showEpisodes) { setShowEpisodes(null); return true; }
       if (selectedSeries) { setSelectedSeries(null); return true; }
       onBack();
       return true;
     });
     return () => h.remove();
-  }, [onBack, showEpisodes, selectedSeries, showFilter]);
+  }, [onBack, selectedSeries, showFilter]);
 
   useEffect(() => {
     if (!searchTerm || searchTerm.length < 3) { setSemanticMatches([]); return; }
@@ -146,21 +142,6 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
 
   const sortOptions = ['Alapértelmezett', 'A-Z', 'Z-A', 'Dátum \u2193', 'Dátum \u2191'];
   const filterOptions = showFilter==='group'?seriesGroups:showFilter==='year'?years:showFilter==='genre'?moods:showFilter==='sort'?sortOptions:[];
-
-  if (showEpisodes) {
-    return (
-      <View style={styles.epOverlay}>
-        <View style={styles.epPanel}>
-          <EpisodePanel seriesId={showEpisodes.seriesId} title={showEpisodes.title}
-            onPlayEpisode={async (ep) => {
-              await addSeriesEpisode({ key: ep.key, title: ep.title, streamUrl: ep.streamUrl, seriesId: showEpisodes.seriesId, group: showEpisodes.group });
-              setShowEpisodes(null); onPlayContent(ep.key);
-            }}
-            onBack={() => setShowEpisodes(null)} />
-        </View>
-      </View>
-    );
-  }
 
   if (!playlist) return <View style={styles.empty}><Text style={styles.emptyText}>Jelentkezz be a tartalmak eléréséhez.</Text></View>;
 
@@ -257,8 +238,6 @@ const styles = StyleSheet.create({
   filterOverlay:{backgroundColor:'rgba(0,0,0,0.92)',borderRadius:10,borderWidth:1,borderColor:'rgba(255,255,255,0.08)',padding:SPACING.xs,maxHeight:300,minWidth:200,maxWidth:350},
   gridPanel:{position:'relative',backgroundColor:'transparent',borderRadius:14,padding:SPACING.sm,marginBottom:SPACING.sm},gridWrap:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:SPACING.md},
   empty:{flex:1,alignItems:'center',justifyContent:'center',padding:SPACING.xl},emptyText:{color:COLORS.muted,fontSize:FONT.md},
-  epOverlay:{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:COLORS.bg,zIndex:1000,elevation:30},
-  epPanel:{flex:1,margin:SPACING.md},
   aiProgressWrap:{height:4,backgroundColor:'rgba(0,255,255,0.15)',marginBottom:SPACING.sm,borderRadius:2,overflow:'hidden'},
   aiProgressBar:{height:4,backgroundColor:COLORS.cyan,borderRadius:2},
   aiResults:{marginBottom:SPACING.sm,padding:SPACING.sm,backgroundColor:'rgba(0,255,255,0.06)',borderRadius:8,borderWidth:1,borderColor:'rgba(0,255,255,0.15)'},
