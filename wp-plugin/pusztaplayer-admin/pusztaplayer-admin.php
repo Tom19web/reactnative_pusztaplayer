@@ -102,65 +102,6 @@ add_shortcode('pusztaplayer_admin', function () {
 add_action('rest_api_init', function () {
     $cfg = ppadmin_get_credentials();
 
-    $register = function (string $method, string $route, string $backend_path, callable $req_handler = null) use ($cfg) {
-        register_rest_route('pusztaplayer/v1', $route, [
-            'methods'             => $method,
-            'callback'            => function (WP_REST_Request $request) use ($cfg, $backend_path, $method, $req_handler) {
-                $url = $cfg['api_base'] . '/api/v1' . $backend_path;
-
-                // Replace path params
-                foreach ($request->get_url_params() as $k => $v) {
-                    $url = str_replace('{' . $k . '}', $v, $url);
-                }
-
-                // Add query params
-                $query = $request->get_query_params();
-                if ($query) $url .= '?' . http_build_query($query);
-
-                $args = [
-                    'method'  => $method,
-                    'headers' => [
-                        'Authorization' => 'Basic ' . base64_encode($cfg['auth_user'] . ':' . $cfg['auth_pass']),
-                        'Content-Type'  => 'application/json',
-                        'User-Agent'    => 'PusztaPlayer-WP-Admin/' . PPADMIN_VERSION,
-                    ],
-                    'timeout' => 120,
-                ];
-
-                $body = $request->get_body();
-                if ($body) $args['body'] = $body;
-
-                $resp = wp_remote_request($url, $args);
-
-                if (is_wp_error($resp)) {
-                    return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
-                }
-
-                $status = wp_remote_retrieve_response_code($resp);
-                $body   = wp_remote_retrieve_body($resp);
-                $headers = wp_remote_retrieve_headers($resp);
-
-                $response = new WP_REST_Response(
-                    json_decode($body, true) ?: $body,
-                    $status
-                );
-
-                if ($headers && isset($headers['content-type'])) {
-                    $response->header('Content-Type', $headers['content-type']);
-                }
-
-                return $response;
-            },
-            'permission_callback' => function () use ($req_handler) {
-                return true; // public REST, real auth is on the backend
-            },
-        ]);
-    };
-
-    $method = fn (string $m) => [
-        'methods' => strtoupper($m) === 'GET' ? \WP_REST_Server::READABLE : \WP_REST_Server::CREATABLE,
-    ];
-
     // Stats
     register_rest_route('pusztaplayer/v1', '/admin/stats', [
         'methods' => 'GET',
@@ -374,9 +315,8 @@ add_action('rest_api_init', function () {
         },
         'permission_callback' => '__return_true',
     ]);
-});
 
-// ─── Docker Management Proxy ────────────────────
+    // ─── Docker Management Proxy ────────────────────
 
 $docker_routes = [
     ['GET',    '/admin/docker/status',            '/admin/docker/status'],
@@ -492,8 +432,6 @@ register_rest_route('pusztaplayer/v1', '/admin/channel-epg/(?P<sid>[^/]+)', [
     'permission_callback' => '__return_true',
     ]);
 });
-
-// ─── Activation hook — create page ──────────────
 
 register_activation_hook(__FILE__, function () {
     $cfg = ppadmin_get_credentials();
