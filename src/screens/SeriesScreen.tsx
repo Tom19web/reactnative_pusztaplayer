@@ -1,5 +1,5 @@
 ﻿import { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, BackHandler } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, BackHandler, Modal } from 'react-native';
 import { useCore, useToggleWatchLater, useWatchLater, useFavorites, useToggleFavorite } from '../store/AppContext';
 import SimpleCard from '../components/SimpleCard';
 import EpisodePanel from '../components/EpisodePanel';
@@ -166,8 +166,7 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
-    <View importantForAccessibility={selectedSeries ? 'no-hide-descendants' : 'auto'} style={{ flex: 1 }}>
-    <ScrollView style={styles.container} nestedScrollEnabled>
+      <ScrollView style={styles.container} nestedScrollEnabled>
       <RuggedBorder color={COLORS.black} wobbleFactor={0.7} style={{ marginBottom: SPACING.md }}>
         <View style={styles.filterBox}>
           <DotPattern dotColor="#000" dotOpacity={0.15} spacing={6} dotRadius={1.5} />
@@ -232,20 +231,19 @@ export default function SeriesScreen({ onPlayContent, onBack }: SeriesScreenProp
       )}
       {totalPages>1&&<Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={setPage}/>}
     </ScrollView>
-    </View>
-    {selectedSeries && (
+
+    <Modal visible={!!selectedSeries} transparent animationType="fade" onRequestClose={handleClose}>
       <SeriesDetailPanel
-        seriesId={selectedSeries.seriesId}
-        title={selectedSeries.title}
+        seriesId={selectedSeries?.seriesId}
+        title={selectedSeries?.title}
         onClose={handleClose}
         onShowEpisodes={handleShowEpisodes}
-        isFav={isFav(selectedSeries.key)}
+        isFav={isFav(selectedSeries?.key || '')}
         onToggleFav={handleToggleFav}
-        isWatchLater={isWl(selectedSeries.key)}
+        isWatchLater={isWl(selectedSeries?.key || '')}
         onToggleWatchLater={handleToggleWl}
-        onOpenSimilar={handleOpenSimilar}
       />
-    )}
+    </Modal>
     </View>
   );
 }

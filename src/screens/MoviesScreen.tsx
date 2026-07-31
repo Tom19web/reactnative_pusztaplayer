@@ -1,5 +1,5 @@
 ﻿import { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, BackHandler } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, BackHandler, Modal } from 'react-native';
 import { useCore, useToggleWatchLater, useWatchLater, useFavorites, useToggleFavorite } from '../store/AppContext';
 import SimpleCard from '../components/SimpleCard';
 import TFPressable from '../components/TFPressable';
@@ -145,8 +145,7 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
-    <View importantForAccessibility={selectedMovie ? 'no-hide-descendants' : 'auto'} style={{ flex: 1 }}>
-    <ScrollView style={styles.container} nestedScrollEnabled>
+      <ScrollView style={styles.container} nestedScrollEnabled>
       {aiLoading && (
         <View style={styles.aiProgressWrap}>
           <View style={[styles.aiProgressBar, { width: `${Math.round(aiProgress * 100)}%` }]} />
@@ -211,20 +210,19 @@ export default function MoviesScreen({ onPlayContent, onBack }: MoviesScreenProp
       )}
       {totalPages>1&&<Pagination page={page} totalPages={totalPages} pageNumbers={pageNumbers} onPageChange={setPage}/>}
     </ScrollView>
-    </View>
-    {selectedMovie && (
+
+    <Modal visible={!!selectedMovie} transparent animationType="fade" onRequestClose={handleClose}>
       <MovieDetailPanel
-        streamId={selectedMovie.streamId}
-        title={selectedMovie.title}
+        streamId={selectedMovie?.streamId}
+        title={selectedMovie?.title}
         onClose={handleClose}
         onPlay={handlePlay}
-        isFav={isFav(selectedMovie.key)}
+        isFav={isFav(selectedMovie?.key || '')}
         onToggleFav={handleToggleFav}
-        isWatchLater={isWl(selectedMovie.key)}
+        isWatchLater={isWl(selectedMovie?.key || '')}
         onToggleWatchLater={handleToggleWl}
-        onOpenSimilar={handleOpenSimilar}
       />
-    )}
+    </Modal>
     </View>
   );
 }

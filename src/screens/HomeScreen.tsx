@@ -177,7 +177,6 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
 
   return (
     <>
-      <View importantForAccessibility={(selectedMovie || selectedSeries) ? 'no-hide-descendants' : 'auto'} style={{ flex: 1 }}>
       <ScrollView style={styles.container}>
       <View style={{ marginBottom: 10 }}>
         <HomeHero history={watchHistory} playlist={playlist} onPlayContent={onPlayContent} />
@@ -334,34 +333,33 @@ export default function HomeScreen({ onNavigate, onPlayContent }: HomeScreenProp
         </View>
       )}
     </ScrollView>
-      </View>
 
-      {selectedMovie && (
+      <Modal visible={!!selectedMovie} transparent animationType="fade" onRequestClose={handleMovieClose}>
         <MovieDetailPanel
-          streamId={selectedMovie.streamId}
-          title={selectedMovie.title}
+          streamId={selectedMovie?.streamId}
+          title={selectedMovie?.title}
           onClose={handleMovieClose}
           onPlay={handleMoviePlay}
-          isFav={favorites.some(f => f.key === selectedMovie.key)}
+          isFav={favorites.some(f => f.key === selectedMovie?.key)}
           onToggleFav={handleMovieToggleFav}
-          isWatchLater={isWl(selectedMovie.key)}
+          isWatchLater={isWl(selectedMovie?.key || '')}
           onToggleWatchLater={handleMovieToggleWl}
           onOpenSimilar={handleOpenSimilar}
         />
-      )}
-      {selectedSeries && (
+      </Modal>
+      <Modal visible={!!selectedSeries} transparent animationType="fade" onRequestClose={handleSeriesClose}>
         <SeriesDetailPanel
-          seriesId={selectedSeries.seriesId}
-          title={selectedSeries.title}
+          seriesId={selectedSeries?.seriesId}
+          title={selectedSeries?.title}
           onClose={handleSeriesClose}
           onShowEpisodes={handleShowEpisodes}
-          isFav={favorites.some(f => f.key === selectedSeries.key)}
+          isFav={favorites.some(f => f.key === selectedSeries?.key)}
           onToggleFav={handleSeriesToggleFav}
-          isWatchLater={isWl(selectedSeries.key)}
+          isWatchLater={isWl(selectedSeries?.key || '')}
           onToggleWatchLater={handleSeriesToggleWl}
           onOpenSimilar={handleOpenSimilar}
         />
-      )}
+      </Modal>
       {showEpisodes && (
         <View style={styles.epOverlay}>
           <EpisodePanel
