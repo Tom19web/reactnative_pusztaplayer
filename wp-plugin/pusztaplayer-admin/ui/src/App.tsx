@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiGet, apiPost, apiDelete, streamImportLog } from './api';
+import { apiGet, apiPost, apiDelete, pollImportLog } from './api';
 
 const ADMIN_PASS = (window as any).PPADMIN_CONFIG?.adminPass || '';
 
@@ -135,10 +135,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       const d = await apiPost(path);
       if (!d.task_id) return;
       setLogLines(prev => [...prev, `[${label}] Indítva: ${d.task_id}`]);
-      streamImportLog(d.task_id,
-        (line) => setLogLines(prev => [...prev, line]),
-        (exit) => { setLogLines(prev => [...prev, `[${label}] Kész (exit: ${exit})`]); loadStats(); }
-      );
+      pollImportLog(d.task_id,
+        (lines) => setLogLines(prev => [...prev, ...lines]),
+      ).then(() => {
+        setLogLines(prev => [...prev, `[${label}] Kész`]);
+        loadStats();
+      });
     } catch (e: any) { setLogLines(prev => [...prev, `HIBA: ${e.message}`]); }
   };
 

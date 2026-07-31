@@ -3,10 +3,12 @@ PusztaPlayer Admin API
 Védett végpontok, statisztika, import trigger, log streaming, logo file manager.
 """
 import asyncio
+import glob
 import json
 import logging
 import os
 import secrets
+import subprocess
 import sys
 import time
 
@@ -894,6 +896,199 @@ async def channel_epg_detail(stream_id: str, count: int = Query(10, ge=1, le=50)
         now_prog = now_r.fetchone()
         up_r = await sess.execute(
             text("SELECT title, start_timestamp, stop_timestamp, description FROM epg_programs WHERE channel_id = :cid AND stop_timestamp > :now ORDER BY start_timestamp LIMIT :lim"),
+            {"cid": stream_id, "now": now_ts, "lim": count},
+        )
+        upcoming = up_r.fetchall()
+    return {
+        "stream_id": stream_id,
+        "now_playing": {"title": now_prog[0], "start": now_prog[1], "stop": now_prog[2], "desc": (now_prog[3] or "")[:200]} if now_prog else None,
+        "upcoming": [{"title": r[0], "start": r[1], "stop": r[2], "desc": (r[3] or "")[:200]} for r in upcoming],
+    }
+
+
+# ─── Docker Management ────────────────────────────
+
+DOCKER_COMPOSE_DIR = "/opt/pusztaplayer"
+
+
+def _run_docker(args: list[str], timeout: int = 30) -> dict:
+    try:
+        r = subprocess.run(
+            ["docker"] + args,
+            capture_output=True, text=True, timeout=timeout, cwd=DOCKER_COMPOSE_DIR,
+        )
+        return {"ok": r.returncode == 0, "stdout": r.stdout, "stderr": r.stderr}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "stdout": "", "stderr": "Timeout"}
+    except FileNotFoundError:
+        return {"ok": False, "stdout": "", "stderr": "Docker not available"}
+
+
+@router.get("/admin/docker/status")
+async def docker_status():
+    r = _run_docker(["ps", "--format", "{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}|{{.State}}"])
+    containers = []
+    for line in (r.get("stdout", "") or "").strip().split("\n"):
+        if not line.strip():
+            continue
+        parts = line.split("|", 4)
+        if len(parts) >= 5:
+            containers.append({"name": parts[0], "image": parts[1], "status": parts[2], "ports": parts[3], "state": parts[4]})
+    return {"containers": containers}
+
+
+@router.post("/admin/docker/restart-all")
+async def docker_restart_all():
+    r = _run_docker(["compose", "restart"], timeout=60)
+    return r
+
+
+@router.post("/admin/docker/stop")
+async def docker_stop():
+    r = _run_docker(["compose", "stop"], timeout=60)
+    return r
+
+
+@router.post("/admin/docker/cache-clear")
+async def docker_cache_clear():
+    r1 = _run_docker(["compose", "exec", "-T", "redis", "redis-cli", "FLUSHDB"], timeout=15)
+    r2 = _run_docker(["compose", "restart", "fastapi"], timeout=60)
+    return {"redis_flush": r1, "fastapi_restart": r2}
+
+
+@router.get("/admin/docker/logs/{container}")
+async def docker_logs(container: str, tail: int = Query(200, ge=1, le=2000)):
+    r = _run_docker(["logs", "--tail", str(tail), container], timeout=30)
+    return {"output": r.get("stdout", "") + "\n" + r.get("stderr", "")}
+
+
+@router.post("/admin/docker/restart/{container}")
+async def docker_restart(container: str):
+    r = _run_docker(["restart", container], timeout=30)
+    return r
+
+
+@router.get("/admin/docker/scripts")
+async def docker_scripts():
+    scripts_dir = os.path.join(DOCKER_COMPOSE_DIR, "scripts")
+    files = []
+    if os.path.isdir(scripts_dir):
+        for f in sorted(os.listdir(scripts_dir)):
+            if f.endswith(".py"):
+                fp = os.path.join(scripts_dir, f)
+                try:
+                    st = os.stat(fp)
+                    files.append({"name": f, "size": st.st_size, "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(st.st_mtime))})
+                except Exception:
+                    pass
+    return {"scripts": files}
+
+
+@router.get("/admin/docker/scripts/{name}")
+async def docker_script_get(name: str):
+    fp = os.path.join(DOCKER_COMPOSE_DIR, "scripts", name)
+    if not os.path.isfile(fp) or not name.endswith(".py"):
+        raise HTTPException(404, "Script not found")
+    with open(fp, encoding="utf-8") as f:
+        content = f.read()
+    return {"name": name, "content": content}
+
+
+@router.post("/admin/docker/scripts/{name}")
+async def docker_script_save(name: str, payload: dict):
+    fp = os.path.join(DOCKER_COMPOSE_DIR, "scripts", name)
+    if not name.endswith(".py"):
+        raise HTTPException(400, "Only .py files allowed")
+    content = payload.get("content", "")
+    with open(fp, "w", encoding="utf-8") as f:
+        f.write(content)
+    return {"name": name, "saved": True}
+
+
+# ─── Channel List ────────────────────────────────
+
+@router.get("/admin/channel-list")
+async def channel_list(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=500),
+    search: str = Query("", max_length=100),
+    category: str = Query("", max_length=100),
+    epg_filter: str = Query("", max_length=20),
+):
+    offset = (page - 1) * per_page
+    async with async_session_factory() as sess:
+        from sqlalchemy import text as sa_text
+        # Get categories
+        cat_result = await sess.execute(sa_text("SELECT DISTINCT category_name FROM live_categories ORDER BY category_name"))
+        categories = [r[0] for r in cat_result.fetchall() if r[0]]
+
+        # Get streams
+        base_q = """
+            SELECT ls.stream_id, ls.name, COALESCE(lc.category_name, 'Egyéb') as category,
+                   CASE WHEN epg.channel_id IS NOT NULL THEN true ELSE false END as has_epg
+            FROM live_streams ls
+            LEFT JOIN live_categories lc ON ls.category_id = lc.category_id
+            LEFT JOIN (SELECT DISTINCT channel_id FROM epg_programs WHERE stop_timestamp > :now) epg ON epg.channel_id = CAST(ls.stream_id AS TEXT)
+            WHERE 1=1
+        """
+        params: dict = {"now": int(time.time()), "limit": per_page, "offset": offset}
+
+        if search:
+            base_q += " AND ls.name ILIKE :search"
+            params["search"] = f"%{search}%"
+        if category:
+            base_q += " AND COALESCE(lc.category_name, 'Egyéb') = :cat"
+            params["cat"] = category
+        if epg_filter == "has_epg":
+            base_q += " AND epg.channel_id IS NOT NULL"
+        elif epg_filter == "no_epg":
+            base_q += " AND epg.channel_id IS NULL"
+
+        count_q = f"SELECT COUNT(*) FROM ({base_q}) AS sub"
+        result = await sess.execute(sa_text(count_q), params)
+        total = result.scalar() or 0
+
+        data_q = base_q + " ORDER BY ls.name LIMIT :limit OFFSET :offset"
+        result = await sess.execute(sa_text(data_q), params)
+        rows = result.fetchall()
+
+        # Now playing
+        sids = [str(r[0]) for r in rows if r[0]]
+        epg_map = {}
+        if sids:
+            epg_r = await sess.execute(
+                sa_text("SELECT DISTINCT ON (channel_id) channel_id, title FROM epg_programs WHERE channel_id = ANY(:ids) AND start_timestamp <= :now AND stop_timestamp >= :now ORDER BY channel_id, start_timestamp DESC"),
+                {"ids": sids, "now": int(time.time())},
+            )
+            for er in epg_r.fetchall():
+                epg_map[er[0]] = er[1]
+
+    channels = []
+    for r in rows:
+        sid = r[0]
+        channels.append({
+            "stream_id": sid,
+            "name": r[1] or "",
+            "category": r[2] or "",
+            "has_epg": bool(r[3]),
+            "now_playing": epg_map.get(str(sid), ""),
+        })
+
+    return {"channels": channels, "total": total, "categories": categories}
+
+
+@router.get("/admin/channel-list/{stream_id}/epg")
+async def channel_epg(stream_id: str, count: int = Query(5, ge=1, le=20)):
+    now_ts = int(time.time())
+    async with async_session_factory() as sess:
+        from sqlalchemy import text as sa_text
+        now_r = await sess.execute(
+            sa_text("SELECT title, start_timestamp, stop_timestamp, description FROM epg_programs WHERE channel_id = :cid AND start_timestamp <= :now AND stop_timestamp >= :now LIMIT 1"),
+            {"cid": stream_id, "now": now_ts},
+        )
+        now_prog = now_r.fetchone()
+        up_r = await sess.execute(
+            sa_text("SELECT title, start_timestamp, stop_timestamp, description FROM epg_programs WHERE channel_id = :cid AND stop_timestamp > :now ORDER BY start_timestamp LIMIT :lim"),
             {"cid": stream_id, "now": now_ts, "lim": count},
         )
         upcoming = up_r.fetchall()

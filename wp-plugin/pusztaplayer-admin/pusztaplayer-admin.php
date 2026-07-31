@@ -115,7 +115,7 @@ add_action('rest_api_init', function () {
             if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
             return json_decode(wp_remote_retrieve_body($resp), true);
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 
     // Logo list
@@ -130,7 +130,7 @@ add_action('rest_api_init', function () {
             if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
             return json_decode(wp_remote_retrieve_body($resp), true);
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 
     // Logo delete
@@ -146,7 +146,7 @@ add_action('rest_api_init', function () {
             if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
             return json_decode(wp_remote_retrieve_body($resp), true);
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 
     // Logo merge
@@ -161,7 +161,7 @@ add_action('rest_api_init', function () {
             if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
             return json_decode(wp_remote_retrieve_body($resp), true);
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 
     // XMLTV names
@@ -179,7 +179,7 @@ add_action('rest_api_init', function () {
             if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
             return json_decode(wp_remote_retrieve_body($resp), true);
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 
     // Import triggers (non-streaming, returns task_id)
@@ -194,7 +194,7 @@ add_action('rest_api_init', function () {
                 if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
                 return json_decode(wp_remote_retrieve_body($resp), true);
             },
-            'permission_callback' => '__return_true',
+            'permission_callback' => fn () => current_user_can('manage_options'),
         ]);
     }
 
@@ -209,7 +209,7 @@ add_action('rest_api_init', function () {
             if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
             return json_decode(wp_remote_retrieve_body($resp), true);
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 
     // Missing analysis
@@ -223,7 +223,7 @@ add_action('rest_api_init', function () {
             if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
             return json_decode(wp_remote_retrieve_body($resp), true);
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 
     // Delete category
@@ -238,7 +238,7 @@ add_action('rest_api_init', function () {
             if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
             return json_decode(wp_remote_retrieve_body($resp), true);
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 
     // EPG check
@@ -253,7 +253,7 @@ add_action('rest_api_init', function () {
             if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
             return json_decode(wp_remote_retrieve_body($resp), true);
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 
     // HU EPG mapping GET
@@ -267,7 +267,7 @@ add_action('rest_api_init', function () {
             if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
             return json_decode(wp_remote_retrieve_body($resp), true);
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 
     // HU EPG mapping POST
@@ -285,25 +285,21 @@ add_action('rest_api_init', function () {
             if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
             return json_decode(wp_remote_retrieve_body($resp), true);
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 
-    // SSE Stream proxy (import log)
+    // Import log proxy (JSON polling)
     register_rest_route('pusztaplayer/v1', '/admin/import/stream/(?P<task_id>[^/]+)', [
         'methods' => 'GET',
         'callback' => function (WP_REST_Request $req) use ($cfg) {
             $task_id = $req->get_param('task_id');
             $url = $cfg['api_base'] . '/api/v1/admin/import/stream/' . urlencode($task_id);
 
-            // Passthrough SSE — read via WordPress HTTP API
             $resp = wp_remote_get($url, [
                 'headers' => [
                     'Authorization' => 'Basic ' . base64_encode($cfg['auth_user'] . ':' . $cfg['auth_pass']),
-                    'Accept' => 'text/event-stream',
                 ],
-                'timeout' => 600,
-                'stream'  => true,
-                'filename' => null,
+                'timeout' => 30,
             ]);
 
             if (is_wp_error($resp)) {
@@ -311,9 +307,10 @@ add_action('rest_api_init', function () {
             }
 
             $body = wp_remote_retrieve_body($resp);
-            return new WP_REST_Response($body, 200, ['Content-Type' => 'text/event-stream']);
+            $lines = array_values(array_filter(explode("\n", trim($body))));
+            return ['lines' => $lines, 'status' => 'done'];
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 
     // ─── Docker Management Proxy ────────────────────
@@ -347,7 +344,7 @@ foreach ($docker_routes as [$method, $route, $backend_path]) {
             if (is_wp_error($resp)) return new WP_Error('proxy_error', $resp->get_error_message(), ['status' => 502]);
             return json_decode(wp_remote_retrieve_body($resp), true);
         },
-        'permission_callback' => '__return_true',
+        'permission_callback' => fn () => current_user_can('manage_options'),
     ]);
 }
 

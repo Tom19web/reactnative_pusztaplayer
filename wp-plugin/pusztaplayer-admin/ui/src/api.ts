@@ -29,21 +29,18 @@ export async function apiDelete(path: string): Promise<any> {
   return res.json();
 }
 
-export function streamImportLog(taskId: string, onLine: (line: string) => void, onDone: (exitCode: string) => void): EventSource {
-  const src = new EventSource(`${BASE}/admin/import/stream/${taskId}`);
-  src.addEventListener('done', (e: any) => {
+export async function pollImportLog(taskId: string, onLines: (lines: string[]) => void): Promise<void> {
+  let done = false;
+  while (!done) {
     try {
-      const data = JSON.parse(e.data);
-      onDone(data.exit_code || '0');
-    } catch { onDone('0'); }
-    src.close();
-  });
-  src.onmessage = (e) => {
-    try {
-      const d = JSON.parse(e.data);
-      if (d.line) onLine(d.line);
-    } catch { onLine(e.data); }
-  };
-  src.onerror = () => src.close();
-  return src;
+      const res = await fetch(`${BASE}/admin/import/stream/${taskId}`);
+      if (!res.ok) break;
+      const data = await res.json();
+      if (data.lines) onLines(data.lines);
+      if (data.status === 'done') done = true;
+    } catch {
+      break;
+    }
+    if (!done) await new Promise(r => setTimeout(r, 1000));
+  }
 }
