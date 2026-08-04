@@ -1193,6 +1193,42 @@ async def purge_deactivated_radio():
     return {"ok": True, "purged": count}
 
 
+@router.get("/admin/radio/check-meta")
+async def check_radio_meta():
+    """Végigiterál az aktív rádiókon és ellenőrzi az ICY meta-t."""
+    from app.core.icy_meta import fetch_metadata_with_fallback
+
+    async with async_session_factory() as sess:
+        result = await sess.execute(
+            select(RadioStationModel).where(RadioStationModel.is_active == True)
+        )
+        stations = result.scalars().all()
+
+    without_meta = []
+    for s in stations:
+        try:
+            meta = await fetch_metadata_with_fallback(s.stream_url)
+            if not meta.get("title"):
+                without_meta.append({
+                    "uuid": s.station_uuid,
+                    "name": s.name,
+                    "stream_url": s.stream_url,
+                })
+        except Exception:
+            without_meta.append({
+                "uuid": s.station_uuid,
+                "name": s.name,
+                "stream_url": s.stream_url,
+                "error": True,
+            })
+
+    return {
+        "total": len(stations),
+        "without_meta": len(without_meta),
+        "stations": without_meta,
+    }
+
+
 @router.post("/admin/radio/{station_uuid}")
 async def update_radio_station(station_uuid: str, payload: dict):
     allowed = {"name", "stream_url", "favicon", "homepage", "tags", "country", "state", "language", "codec", "bitrate", "votes", "is_active"}
