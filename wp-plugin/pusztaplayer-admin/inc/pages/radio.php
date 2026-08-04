@@ -166,7 +166,8 @@ function ppadmin_page_radio() {
     $keep = ['s' => $search, 'tag' => $tag_f]
         + ($active_only ? ['active' => '1'] : [])
         + ($no_logo ? ['nologo' => '1'] : [])
-        + ($dup_only ? ['dup' => '1'] : []);
+        + ($dup_only ? ['dup' => '1'] : [])
+        + (!empty($icy_meta) ? ['icy' => $icy_meta] : []);
     $cols = [
         'name' => 'Név',
         'stream_url' => 'Stream',

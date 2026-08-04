@@ -1,5 +1,6 @@
 import { Channel } from '../types';
 import { xtreamGetLive } from './xtreamApi';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 let AsyncStorage: any;
 try { AsyncStorage = require('@react-native-async-storage/async-storage').default || require('@react-native-async-storage/async-storage'); } catch { AsyncStorage = null; }
@@ -27,11 +28,11 @@ export async function registerSession(
   _apiKey: string = '',
 ): Promise<string | null> {
   try {
-    const res = await fetch(`${SEMANTIC_API}/api/v1/session/register`, {
+    const res = await fetchWithTimeout(`${SEMANTIC_API}/api/v1/session/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ xtream_user: xtreamUser, xtream_pass: xtreamPass }),
-    });
+    }, 15000);
     if (!res.ok) return null;
     const data = await res.json();
     _sessionToken = data.session_token;

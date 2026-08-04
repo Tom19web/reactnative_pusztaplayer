@@ -55,7 +55,7 @@ export default function SeriesScreen({ onPlayContent, onBack, onNavigateEpisodes
 
   const handleToggleFav = useCallback(() => {
     if (!selectedSeries) return;
-    toggleFav({ key: selectedSeries.key, title: selectedSeries.title, type: 'series', group: selectedSeries.group || '', logo: selectedSeries.logo || '', streamUrl: '', seriesId: '' });
+    toggleFav({ key: selectedSeries.key, title: selectedSeries.title, type: 'series', group: selectedSeries.group || '', logo: selectedSeries.logo || '', streamUrl: '', seriesId: selectedSeries.seriesId.toString() });
   }, [selectedSeries, toggleFav]);
 
   const handleToggleWl = useCallback(() => {
