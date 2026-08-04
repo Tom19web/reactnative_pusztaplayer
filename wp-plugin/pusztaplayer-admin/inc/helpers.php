@@ -117,7 +117,7 @@ function ppadmin_self_url(): string {
  */
 function ppadmin_redirect_msg(string $msg, bool $error = false) {
     $url = remove_query_arg(['ppaction', 'pptask', 'ppmsg', 'pperr', '_wpnonce']);
-    $url = add_query_arg($error ? 'pperr' : 'ppmsg', $msg, $url);
+    $url = add_query_arg($error ? 'pperr' : 'ppmsg', urlencode($msg), $url);
     wp_safe_redirect($url);
     exit;
 }

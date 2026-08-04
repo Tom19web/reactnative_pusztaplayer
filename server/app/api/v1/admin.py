@@ -1247,17 +1247,51 @@ async def check_radio_meta(station_uuid: str = Query("")):
         except Exception:
             return {"station_uuid": station_uuid, "name": station.name, "has_meta": False, "title": None, "error": True}
 
-    # Bulk check
-    without_meta = []
+    # Bulk check (cache-first)
+    try:
+        r = await get_redis()
+        cache_keys = [f"icy:check:{s.station_uuid}" for s in stations]
+        cached = await r.mget(cache_keys)
+        cached_map = {}
+        for i, data in enumerate(cached):
+            if data:
+                cached_map[stations[i].station_uuid] = json.loads(data)
+    except Exception:
+        cached_map = {}
+
+    checked = 0
+    with_meta = 0
+    without_meta = 0
+    skipped = len(cached_map)
+
     for s in stations:
+        if s.station_uuid in cached_map:
+            continue
         try:
             meta = await fetch_metadata_with_fallback(s.stream_url)
-            if not meta.get("title"):
-                without_meta.append({"uuid": s.station_uuid, "name": s.name, "stream_url": s.stream_url})
+            title = meta.get("title", "")
+            result_data = {"has_meta": bool(title), "title": title, "ts": int(time.time())}
+            try:
+                r = await get_redis()
+                await r.setex(f"icy:check:{s.station_uuid}", 604800, json.dumps(result_data))
+            except Exception:
+                pass
+            checked += 1
+            if title:
+                with_meta += 1
+            else:
+                without_meta += 1
         except Exception:
-            without_meta.append({"uuid": s.station_uuid, "name": s.name, "stream_url": s.stream_url, "error": True})
+            without_meta += 1
+            checked += 1
 
-    return {"total": len(stations), "without_meta": len(without_meta), "stations": without_meta}
+    return {
+        "total": len(stations),
+        "checked": checked,
+        "skipped_cached": skipped,
+        "with_meta": with_meta,
+        "without_meta": without_meta,
+    }
 
 
 @router.post("/admin/radio/{station_uuid}")
