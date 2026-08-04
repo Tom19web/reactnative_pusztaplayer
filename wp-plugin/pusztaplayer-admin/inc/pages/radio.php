@@ -34,7 +34,7 @@ function ppadmin_page_radio() {
     }
 
     // ICY meta ellenőrzés — single
-    if (isset($_GET['ppaction']) && $_GET['ppaction'] === 'check_single_meta' && check_admin_referer('ppadmin_radio_meta_single')) {
+    if (isset($_GET['ppaction']) && $_GET['ppaction'] === 'check_single_meta') {
         $uuid = sanitize_text_field($_GET['uuid'] ?? '');
         if (!$uuid) ppadmin_redirect_msg('Hiányzó UUID.', true);
         $res = ppadmin_api_get('/admin/radio/check-meta', ['station_uuid' => $uuid]);
@@ -47,7 +47,7 @@ function ppadmin_page_radio() {
     }
 
     // ICY meta ellenőrzés (bulk)
-    if (isset($_GET['ppaction']) && $_GET['ppaction'] === 'check_radio_meta' && check_admin_referer('ppadmin_radio_meta')) {
+    if (isset($_GET['ppaction']) && $_GET['ppaction'] === 'check_radio_meta') {
         $res = ppadmin_api_get('/admin/radio/check-meta');
         if (isset($res['__error'])) {
             ppadmin_redirect_msg($res['__error'], true);
@@ -92,7 +92,7 @@ function ppadmin_page_radio() {
     // Import gomb
     $import_url = wp_nonce_url(add_query_arg(['ppaction' => 'radio_import'], ppadmin_self_url()), 'ppadmin_radio_import');
     $purge_url = wp_nonce_url(add_query_arg(['ppaction' => 'purge_deactivated'], ppadmin_self_url()), 'ppadmin_radio_purge');
-    $meta_url = wp_nonce_url(add_query_arg(['ppaction' => 'check_radio_meta'], ppadmin_self_url()), 'ppadmin_radio_meta');
+    $meta_url = add_query_arg(['ppaction' => 'check_radio_meta'], ppadmin_self_url());
     echo '<div class="ppa-actions">';
     echo '<a href="' . esc_url($import_url) . '" class="ppa-btn ppa-btn-secondary">📻 Rádió import</a>';
     echo '<a href="' . esc_url($meta_url) . '" class="ppa-btn ppa-btn-secondary">🔍 ICY meta ellenőrzés</a>';
@@ -197,7 +197,7 @@ function ppadmin_page_radio() {
         if ($icy !== null) {
             echo $icy['has_meta'] ? '<span class="ppa-green">✅</span>' : '<span class="ppa-red">❌</span>';
         } else {
-            $meta_url = wp_nonce_url(add_query_arg(['ppaction' => 'check_single_meta', 'uuid' => $uuid], ppadmin_self_url()), 'ppadmin_radio_meta_single');
+            $meta_url = add_query_arg(['ppaction' => 'check_single_meta', 'uuid' => $uuid], ppadmin_self_url());
             echo '<a href="' . esc_url($meta_url) . '" class="ppa-btn" style="padding:2px 8px;font-size:11px;">🔍</a>';
         }
         echo '</td>';
