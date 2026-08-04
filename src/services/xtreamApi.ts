@@ -86,7 +86,7 @@ export async function xtreamCheckLogin(
 // ─── Live csatornák ─────────────────────────────────
 
 const _CODES = '(?:hu|ro|de|fr|it|es|ca|uk|cz|sk|pl|nl|bg|rs|gr|at|hr|si|tr)';
-const _RE_PREFIX = new RegExp(`^\\|?${_CODES}\\|?\\s*`, 'i');
+const _RE_PREFIX = new RegExp(`^\\|?${_CODES}\\|?[:|\\s\\-]*\\s*`, 'i');
 const _RE_SUFFIX = new RegExp(`\\s*\\|?${_CODES}\\|?\\s*$`, 'i');
 
 function cleanChannelTitle(raw: string): string {
