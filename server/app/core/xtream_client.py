@@ -18,7 +18,7 @@ async def _api_get(
         url += f"&action={action}"
     url += extra
 
-    async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
+    async with httpx.AsyncClient(timeout=30.0, verify=True) as client:
         resp = await client.get(url, follow_redirects=True)
         resp.raise_for_status()
         return resp.json()
@@ -39,3 +39,47 @@ async def fetch_live_streams(
     else:
         logger.warning("Unexpected categories response: %s", type(cats))
     return streams, cat_by_id
+
+
+async def fetch_vod_streams(
+    username: str,
+    password: str,
+) -> tuple[list[dict[str, Any]], dict[int, str]]:
+    """Fetch VOD movies + categories."""
+    movies, cats = await _api_get(username, password, "get_vod_streams"), await _api_get(
+        username, password, "get_vod_categories"
+    )
+    cat_by_id: dict[int, str] = {}
+    if isinstance(cats, list):
+        for c in cats:
+            cat_by_id[int(c.get("category_id", 0))] = c.get("category_name", "Egyéb")
+    return movies, cat_by_id
+
+
+async def fetch_vod_categories(
+    username: str,
+    password: str,
+) -> list[dict[str, Any]]:
+    return await _api_get(username, password, "get_vod_categories")
+
+
+async def fetch_series(
+    username: str,
+    password: str,
+) -> tuple[list[dict[str, Any]], dict[int, str]]:
+    """Fetch series + categories."""
+    series, cats = await _api_get(username, password, "get_series"), await _api_get(
+        username, password, "get_series_categories"
+    )
+    cat_by_id: dict[int, str] = {}
+    if isinstance(cats, list):
+        for c in cats:
+            cat_by_id[int(c.get("category_id", 0))] = c.get("category_name", "Egyéb")
+    return series, cat_by_id
+
+
+async def fetch_series_categories(
+    username: str,
+    password: str,
+) -> list[dict[str, Any]]:
+    return await _api_get(username, password, "get_series_categories")

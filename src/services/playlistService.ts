@@ -42,6 +42,8 @@ export async function savePlaylistToCache(playlist: PlaylistData): Promise<void>
       liveChannels: playlist.liveChannels.slice(0, CACHE_LIVE),
       movies: playlist.movies.slice(0, CACHE_VOD),
       series: playlist.series.slice(0, CACHE_VOD),
+      tags: playlist.tags,
+      languages: playlist.languages,
       userInfo: playlist.userInfo,
       xtreamUser: playlist.xtreamUser,
     };
@@ -64,6 +66,8 @@ async function loadPlaylistFromCache(): Promise<PlaylistData | null> {
     }
     if (!p.movieGroups) p.movieGroups = ['Összes film'];
     if (!p.seriesGroups) p.seriesGroups = ['Összes sorozat'];
+    if (!p.tags) p.tags = [];
+    if (!p.languages) p.languages = [];
     return p;
   } catch {
     return null;
@@ -81,7 +85,7 @@ export async function clearPlaylistCache(): Promise<void> {
 // ─── Xtream login + cache ──────────────────────────
 
 function loginResultToPlaylistData(result: LoginResult): PlaylistData {
-  return {
+  const playlist: PlaylistData = {
     userInfo: result.userInfo,
     liveChannels: result.liveChannels,
     channels: result.channels,
@@ -90,8 +94,11 @@ function loginResultToPlaylistData(result: LoginResult): PlaylistData {
     groups: result.groups,
     movieGroups: result.movieGroups,
     seriesGroups: result.seriesGroups,
+    tags: [],
+    languages: [],
     xtreamUser: result.xtreamUser,
   };
+  return playlist;
 }
 
 export async function xtreamLogin(
@@ -101,7 +108,7 @@ export async function xtreamLogin(
   const result = await xtreamFullLogin(username, password);
   const playlist = loginResultToPlaylistData(result);
 
-  // Try backend for merged/deduped live channels
+  // Try backend for merged/deduped live channels (tags, logos, qualityVariants)
   try {
     const backendLive = await fetchLiveStreams(username, password);
     if (backendLive.fromBackend && backendLive.channels.length > 0) {
@@ -109,6 +116,9 @@ export async function xtreamLogin(
       playlist.channels = backendLive.channels;
     }
   } catch {}
+
+  playlist.tags = playlist.tags || [...new Set(playlist.liveChannels.flatMap(c => c.tags || [c.group]))];
+  playlist.languages = playlist.languages || [...new Set(playlist.liveChannels.map(c => c.language).filter(Boolean))];
 
   currentPlaylist = playlist;
   await savePlaylistToCache(playlist);
@@ -148,7 +158,6 @@ export async function addSeriesEpisode(episode: {
   if (!currentPlaylist) return;
   const exists = (currentPlaylist.series || []).find(s => s.key === episode.key);
   if (exists) return;
-  const parentLogo = episode.logo || currentPlaylist.series?.find(s => s.seriesId === episode.seriesId)?.logo || '';
   currentPlaylist.series = [
     ...(currentPlaylist.series || []),
     {
@@ -158,13 +167,12 @@ export async function addSeriesEpisode(episode: {
       type: 'series' as const,
       seriesId: episode.seriesId,
       group: episode.group,
-      logo: parentLogo,
+      logo: episode.logo || '',
       status: '',
       genre: '',
       year: '',
     },
   ];
-  await savePlaylistToCache(currentPlaylist);
   await saveEpisodeUrl(episode.key, episode.streamUrl, episode.title);
 }
 

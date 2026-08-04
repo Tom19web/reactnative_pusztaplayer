@@ -55,6 +55,8 @@ export function getSessionToken(): string | null {
 export interface LiveProxyResult {
   channels: Channel[];
   groups: string[];
+  tags: string[];
+  languages: string[];
   fromBackend: boolean;
 }
 
@@ -86,6 +88,8 @@ export async function fetchLiveStreams(
           epg: [],
           type: 'live' as const,
           streamUrl: c.stream_url,
+          tags: c.tags || [c.group],
+          language: c.language || '',
           qualityVariants: c.quality_variants?.map((v: any) => ({
             label: v.label,
             streamId: v.stream_id,
@@ -96,6 +100,8 @@ export async function fetchLiveStreams(
         return {
           channels,
           groups: data.groups || [],
+          tags: data.tags || [],
+          languages: data.languages || [],
           fromBackend: true,
         };
       }
@@ -105,4 +111,25 @@ export async function fetchLiveStreams(
   // Fallback to direct Xtream API
   const result = await xtreamGetLive(username, password);
   return { ...result, fromBackend: false };
+}
+
+export async function patchChannelLogos(
+  channels: { logo: string; streamId: number }[],
+): Promise<void> {
+  const missing = channels.filter(c => !c.logo && c.streamId);
+  if (missing.length === 0) return;
+
+  const ids = missing.map(c => c.streamId).join(',');
+  try {
+    const res = await fetch(`${SEMANTIC_API}/api/v1/channel-logos?ids=${ids}`, {
+      headers: { 'User-Agent': 'PusztaPlayer v1.0' },
+    });
+    if (!res.ok) return;
+    const logoMap: Record<string, string> = await res.json();
+
+    for (const ch of missing) {
+      const url = logoMap[String(ch.streamId)];
+      if (url) ch.logo = url;
+    }
+  } catch {}
 }

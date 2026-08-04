@@ -1,0 +1,386 @@
+/* ============================================================
+   PusztaPlayer Admin — Dark UI
+   Az alkalmazás színpalettáját követi: sötét háttér, sárga/cyan
+   kiemelések, lekerekített sarkok, finom árnyékok.
+   ============================================================ */
+
+/* ─── 1. ALAPOK ─────────────────────────────────────── */
+
+.wrap {
+    color: #f8f4ec;
+}
+
+.wrap h1 {
+    font-size: 1.6rem;
+    color: #ffcc00;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+/* ─── 2. DOBOZOK / KÁRTYÁK ──────────────────────────── */
+
+.ppa-box {
+    background: #202020;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.ppa-box h2 {
+    font-size: 1.15rem;
+    color: #ffcc00;
+    font-weight: 700;
+    margin: 0 0 12px 0;
+}
+
+.ppa-box h3 {
+    font-size: 1rem;
+    color: #f8f4ec;
+    font-weight: 600;
+    margin: 8px 0;
+}
+
+/* ─── 3. STAT KÁRTYÁK ───────────────────────────────── */
+
+.ppa-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin: 12px 0;
+}
+
+.ppa-stat {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+}
+
+.ppa-stat-label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ppa-stat-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+.ppa-stat-value.yellow { color: #ffcc00; }
+.ppa-stat-value.cyan { color: #00FFFF; }
+.ppa-stat-value.green { color: #4caf50; }
+.ppa-stat-value.red { color: #FF4444; }
+
+/* ─── 4. TÁBLÁZATOK ─────────────────────────────────── */
+
+.widefat.ppa-table {
+    border: 1px solid #333 !important;
+    border-radius: 10px !important;
+    border-spacing: 0 !important;
+    background: #1a1a1a !important;
+}
+
+.widefat.ppa-table thead th {
+    background: #202020 !important;
+    color: #white !important;
+    font-weight: 600 !important;
+    border-bottom: 1px solid #333 !important;
+    padding: 10px 12px !important;
+    text-transform: none !important;
+}
+
+.widefat.ppa-table thead th a {
+    color: #f8f4ec !important;
+}
+
+.widefat.ppa-table tbody td {
+    border-bottom: 1px solid #292929 !important;
+    color: #f8f4ec !important;
+    padding: 8px 12px !important;
+    vertical-align: middle !important;
+}
+
+.widefat.ppa-table.striped > tbody > :nth-child(odd) {
+    background: #1a1a1a !important;
+}
+
+.widefat.ppa-table.striped > tbody > :nth-child(even) {
+    background: #202020 !important;
+}
+
+.widefat.ppa-table tr:hover td {
+    background: #2a2a2a !important;
+}
+
+/* ─── 5. GOMBOK ─────────────────────────────────────── */
+
+.ppa-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #00FFFF;
+    color: #0a0a0a !important;
+    border: none !important;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    text-decoration: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+.ppa-btn:hover {
+    background: #ffcc00;
+    color: #0a0a0a !important;
+    transform: none !important;
+}
+
+.ppa-btn:active {
+    background: #e6b800;
+}
+
+.ppa-btn-primary {
+    background: #ffcc00;
+}
+
+.ppa-btn-primary:hover {
+    background: #ffe033;
+}
+
+.ppa-btn-danger {
+    background: #FF4444;
+    color: #fff !important;
+}
+
+.ppa-btn-danger:hover {
+    background: #FF6666;
+}
+
+.ppa-btn-success {
+    background: #4caf50;
+    color: #fff !important;
+}
+
+.ppa-btn-success:hover {
+    background: #5cb860;
+}
+
+.ppa-btn-secondary {
+    background: #333;
+    color: #f8f4ec !important;
+}
+
+.ppa-btn-secondary:hover {
+    background: #444;
+}
+
+.ppa-btn:disabled,
+.ppa-btn.disabled {
+    background: #444 !important;
+    color: #666 !important;
+    cursor: not-allowed;
+}
+
+.ppa-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 12px 0;
+}
+
+/* ─── 6. ÉRTESÍTÉSEK ────────────────────────────────── */
+
+.ppa-notice {
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0 16px;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.ppa-notice-success {
+    background: rgba(76, 175, 80, 0.15);
+    border: 1px solid #4caf50;
+    color: #4caf50;
+}
+
+.ppa-notice-error {
+    background: rgba(255, 68, 68, 0.15);
+    border: 1px solid #FF4444;
+    color: #FF4444;
+}
+
+/* ─── 7. CÍMKÉK / KÓD / LOG ─────────────────────────── */
+
+.ppa-tag {
+    display: inline-block;
+    background: rgba(0, 255, 255, 0.12);
+    color: #00FFFF;
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.ppa-code {
+    background: #0a0a0a;
+    color: #00FFFF;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-family: monospace;
+}
+
+.ppa-log {
+    background: #0a0a0a !important;
+    color: #4caf50 !important;
+    border: 1px solid #333 !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+    max-height: 400px;
+    overflow: auto;
+    font-size: 12px;
+    font-family: monospace;
+    margin: 8px 0 4px;
+}
+
+/* ─── 8. ŰRLAPOK ────────────────────────────────────── */
+
+.ppa-filterbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 12px 0;
+}
+
+.ppa-select,
+.ppa-input,
+.ppa-textarea {
+    background: #1a1a1a;
+    border: 1px solid #333 !important;
+    border-radius: 8px;
+    color: #000 !important;
+    box-shadow: none !important;
+}
+
+.ppa-select:focus,
+.ppa-input:focus,
+.ppa-textarea:focus {
+    border-color: #ffcc00 !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.2) !important;
+}
+
+.ppa-textarea {
+    width: 100%;
+    min-height: 400px;
+    font-family: monospace;
+    font-size: 12px;
+	color: #000
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.ppa-select {
+    padding: 6px 10px;
+}
+
+.ppa-input {
+	padding: 6px 10px;
+	color: #000
+}
+
+/* ─── 9. SEGÉDOSZTÁLYOK ─────────────────────────────── */
+
+.ppa-row {
+    border-bottom: 1px solid #292929;
+    padding: 6px 0;
+}
+
+.ppa-inline { display: inline; }
+.ppa-inline-block { display: inline-block; }
+
+.ppa-muted { color: #888; }
+.ppa-yellow { color: #ffcc00; }
+.ppa-cyan { color: #00FFFF; }
+.ppa-green { color: #4caf50; }
+.ppa-red { color: #FF4444; }
+
+/* ─── 10. PAGINÁCIÓ ─────────────────────────────────── */
+
+.ppa-pagination {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    margin: 12px 0;
+}
+
+.ppa-pagination .ppa-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    min-width: 32px;
+    justify-content: center;
+}
+
+/* ─── 11. DETAILS / SUMMARY ─────────────────────────── */
+
+details.ppa-details > summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+details.ppa-details[open] > summary {
+    margin-bottom: 8px;
+}
+
+details.ppa-details > summary::before {
+    content: '▸ ';
+    color: #888;
+}
+
+details.ppa-details[open] > summary::before {
+    content: '▾ ';
+    color: #ffcc00;
+}
+
+/* ─── 12. BADGE / STÁTUSZ ───────────────────────────── */
+
+.ppa-badge {
+    display: inline-block;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.ppa-badge-active {
+    background: rgba(76, 175, 80, 0.2);
+    color: #4caf50;
+}
+
+.ppa-badge-inactive {
+    background: rgba(255, 68, 68, 0.2);
+    color: #FF4444;
+}
+
+/* ─── 13. EGYÉB WP OVERRIDES ────────────────────────── */
+
+.wrap h1 {
+    text-shadow: none;
+}
+
+#wpbody-content {
+    background: #0a0a0a;
+}

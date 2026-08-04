@@ -18,8 +18,11 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = ["*"]
     DEBUG: bool = False
     PROXY_AUTH_KEY: str = ""
-    ADMIN_USER: str = "puszta_admin"
-    ADMIN_PASS: str = "csodalatos_v8_motor"
+    ADMIN_USER: str = ""
+    ADMIN_PASS: str = ""
+    RAPIDAPI_KEY: str = ""
+    XTREAM_USERNAME: str = ""
+    XTREAM_PASSWORD: str = ""
 
     class Config:
         env_file = ".env"

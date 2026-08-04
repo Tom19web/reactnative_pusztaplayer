@@ -13,7 +13,7 @@ from app.config import settings
 from app.core.auth import require_session
 from app.core.xtream_client import fetch_live_streams, fetch_vod_streams, fetch_series, fetch_vod_categories, fetch_series_categories
 from app.core.channel_merger import clean_channel_title, merge_and_sort
-from app.models.models import ChannelLogoModel, MovieModel, SeriesModel
+from app.models.models import ChannelLogoModel, MovieModel, SeriesModel, ChannelTagModel
 from app.database import async_session_factory
 from app.redis import cache_get, cache_set
 import time
@@ -123,6 +123,22 @@ async def get_playlist_live(session: dict = Depends(require_session)):
                     ch["logo"] = logo_map[ch["stream_id"]]
         except Exception:
             pass
+
+    # Tag & nyelv betöltése
+    try:
+        async with async_session_factory() as sess:
+            sids = [ch["stream_id"] for ch in merged]
+            result = await sess.execute(
+                select(ChannelTagModel.stream_id, ChannelTagModel.tags, ChannelTagModel.language)
+                .where(ChannelTagModel.stream_id.in_(sids))
+            )
+            tag_map = {row.stream_id: {"tags": row.tags or [], "language": row.language or ""} for row in result}
+        for ch in merged:
+            ct = tag_map.get(ch["stream_id"], {})
+            ch["tags"] = ct.get("tags") or [ch["group"]]
+            ch["language"] = ct.get("language") or ""
+    except Exception:
+        pass
 
     # Now playing (single query)
     try:

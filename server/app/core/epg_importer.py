@@ -101,7 +101,7 @@ async def import_programs(
                 start_timestamp=p.get("start_timestamp", 0),
                 stop_timestamp=p.get("stop_timestamp", 0),
                 category=p.get("category", ""),
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(timezone.utc).replace(tzinfo=None),
             ).on_conflict_do_nothing(index_elements=["id"])
             result = await sess.execute(stmt)
             if result.rowcount and result.rowcount > 0:

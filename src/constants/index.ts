@@ -57,9 +57,9 @@ export const QR_POLL_TIMEOUT = 300000;
 
 // ─── Cache ───────────────────────────────────────────
 export const CACHE_TTL_EPG = 30 * 60 * 1000;
-export const CACHE_LIVE = 5000;
-export const CACHE_VOD = 10000;
+export const CACHE_LIVE = 10000;
 
+export const CACHE_VOD = 10000;
 // ─── Élő stream formátum (TS / HLS) ──────────────
 const LIVE_FORMAT_KEY = 'pusztaplay_live_format';
 let _liveFormat: 'ts' | 'm3u8' = 'ts';
@@ -89,7 +89,7 @@ export function useLiveFormat(): ['ts' | 'm3u8', (fmt: 'ts' | 'm3u8') => Promise
 // ─── Minőség érzékelés ───────────────────────────────
 export function qualityLabel(title: string): string {
   const upper = title.toUpperCase();
-  if (/\b(FHD|4K|UHD|2160P)\b/.test(upper)) return 'FHD';
+  if (/\b(FHD|4K|UHD|2160P|HDR|HEVC)\b/.test(upper)) return 'FHD';
   if (/\b(HD|1080P|720P)\b/.test(upper)) return 'HD';
   if (/\bSD\b/.test(upper)) return 'SD';
   return '';
@@ -173,3 +173,22 @@ export const NAV_ITEMS = [
   { key: 'Favorites', label: 'Kedvencek', Icon: FavIcon },
   { key: 'WatchLater', label: 'Megnézendő', Icon: WatchLaterIcon },
 ] as const;
+
+// ─── Csatorna címkék ──────────────────────────────
+export const TAG_LABEL_MAP: Record<string, string> = {
+  sport: 'Sport',
+  film_sorozat: 'Film & Sorozat',
+  zene: 'Zene',
+  hir: 'Hír',
+  dokumentum: 'Dokumentum',
+  szorakozas: 'Szórakozás',
+  eletmod: 'Életmód',
+  gyerek: 'Gyerek',
+  felnott: 'Felnőtt',
+  vallasi: 'Vallási',
+  helyi: 'Helyi',
+};
+
+export function tagLabel(slug: string): string {
+  return TAG_LABEL_MAP[slug] || slug;
+}

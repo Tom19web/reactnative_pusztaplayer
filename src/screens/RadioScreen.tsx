@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, BackHandler } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import RadioCard from '../components/RadioCard';
 import RadioPlayer from '../components/RadioPlayer';
@@ -69,10 +69,16 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
 
   useEffect(() => { setPage(0); }, [searchTerm, activeSort, activeTag]);
 
+  useEffect(() => {
+    if (playing) return;
+    const h = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => h.remove();
+  }, [playing, onBack]);
+
   const tags = useMemo(() => {
     const tagSet = new Set<string>();
     for (const s of stations) {
-      for (const t of s.tags) tagSet.add(t);
+      for (const t of (s.tags || [])) tagSet.add(t);
     }
     return ['Mind', ...Array.from(tagSet).sort()];
   }, [stations]);
@@ -81,7 +87,7 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
 
   const filtered = useMemo(() => {
     let list = [...stations];
-    if (activeTag !== 'Mind') list = list.filter(s => s.tags.includes(activeTag));
+    if (activeTag !== 'Mind') list = list.filter(s => (s.tags || []).includes(activeTag));
     if (activeSort === 'Név ↑') {
       list.sort((a, b) => a.name.localeCompare(b.name));
     } else {
@@ -89,7 +95,7 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
     }
     if (searchTerm) {
       const t = searchTerm.toLowerCase();
-      list = list.filter(s => s.name.toLowerCase().includes(t) || s.tags.some(tg => tg.toLowerCase().includes(t)));
+      list = list.filter(s => s.name.toLowerCase().includes(t) || (s.tags || []).some(tg => tg.toLowerCase().includes(t)));
     }
     return list;
   }, [stations, activeSort, activeTag, searchTerm]);
@@ -134,6 +140,20 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
     setPlaying(null);
   }, []);
 
+  // Prev/next station in current filtered list
+  const currentFilteredIdx = playing ? filtered.findIndex(s => s.key === playing.key) : -1;
+  const prevStation = currentFilteredIdx > 0 ? filtered[currentFilteredIdx - 1] : null;
+  const nextStation = currentFilteredIdx >= 0 && currentFilteredIdx < filtered.length - 1 ? filtered[currentFilteredIdx + 1] : null;
+
+  // Recommended: top 10 by votes, excluding current station
+  const recommendations = useMemo(() => {
+    if (!playing) return [];
+    return [...stations]
+      .filter(s => s.key !== playing.key && s.streamUrl)
+      .sort((a, b) => b.votes - a.votes)
+      .slice(0, 10);
+  }, [stations, playing]);
+
   if (playing) {
     return (
       <RadioPlayer
@@ -141,6 +161,11 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
         onBack={handlePlayerBack}
         isFav={isFav(playing.key)}
         onToggleFav={() => handleToggleFav(playing)}
+        onPrev={prevStation ? () => setPlaying(prevStation) : undefined}
+        onNext={nextStation ? () => setPlaying(nextStation) : undefined}
+        recommendations={recommendations}
+        favStations={favStations}
+        onSelectStation={(s) => setPlaying(s)}
       />
     );
   }

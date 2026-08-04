@@ -1,15 +1,18 @@
 import secrets, string
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Form
+from fastapi import APIRouter, Depends, HTTPException, Form, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.models import QrSessionModel
+from app.redis import get_redis
 
 router = APIRouter(tags=["auth"])
+QR_RATE_LIMIT = 5
+QR_RATE_WINDOW = 60
 
 AUTH_PAGE_HTML = """<!DOCTYPE html>
 <html lang="hu">
@@ -56,9 +59,24 @@ def generate_code(length: int = 8) -> str:
 
 
 @router.post("/auth/qr-request")
-async def qr_request(db: AsyncSession = Depends(get_db)):
+async def qr_request(request: Request, db: AsyncSession = Depends(get_db)):
+    # Rate limit: 5 QR requests per minute per IP
+    client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown").split(",")[0].strip()
+    rate_key = f"rate:qr:{client_ip}"
+    try:
+        redis = await get_redis()
+        count = await redis.incr(rate_key)
+        if count == 1:
+            await redis.expire(rate_key, QR_RATE_WINDOW)
+        if count > QR_RATE_LIMIT:
+            raise HTTPException(status_code=429, detail="Túl sok QR kód kérés. Próbáld újra 1 perc múlva.")
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
     code = generate_code()
-    expires_at = datetime.now(timezone.utc) + timedelta(seconds=300)
+    expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=300)
 
     session = QrSessionModel(
         code=code,
@@ -84,7 +102,7 @@ async def qr_poll(code: str, db: AsyncSession = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    if datetime.now(timezone.utc) > session.expires_at:
+    if datetime.now(timezone.utc).replace(tzinfo=None) > session.expires_at:
         session.status = "expired"
         await db.commit()
         return {"status": "expired"}
@@ -109,7 +127,7 @@ async def auth_page(code: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(stmt)
     session = result.scalar_one_or_none()
 
-    if not session or datetime.now(timezone.utc) > session.expires_at:
+    if not session or datetime.now(timezone.utc).replace(tzinfo=None) > session.expires_at:
         return HTMLResponse(EXPIRED_HTML, status_code=410)
 
     return HTMLResponse(
@@ -130,7 +148,7 @@ async def auth_submit(
     result = await db.execute(stmt)
     session = result.scalar_one_or_none()
 
-    if not session or datetime.now(timezone.utc) > session.expires_at:
+    if not session or datetime.now(timezone.utc).replace(tzinfo=None) > session.expires_at:
         return HTMLResponse(EXPIRED_HTML, status_code=410)
 
     session.status = "authenticated"

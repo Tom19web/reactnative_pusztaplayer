@@ -119,6 +119,8 @@ export async function xtreamGetLive(
       epg: [],
       type: 'live' as const,
       streamUrl: buildLiveUrl(username, password, s.stream_id),
+      tags: [group],
+      language: '',
     };
   });
   const extraGroups = [...new Set(channels.map(c => c.group))].filter(

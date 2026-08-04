@@ -121,7 +121,7 @@ export async function createPlaybackSession(
       const fmt = getLiveFormat();
       return {
         contentId, title: contentId,
-        streamType: fmt === 'm3u8' ? 'hls' : 'ts', token: 'xtream-live',
+        streamType: 'hls', token: 'xtream-live',
         streamUrl: `${XTREAM_SERVER}/live/${encodeURIComponent(creds.username)}/${encodeURIComponent(creds.password)}/${liveMatch[1]}.${fmt}`,
         isLive: true,
       };
@@ -136,7 +136,7 @@ export async function createPlaybackSession(
       const fmt = getLiveFormat();
       return {
         contentId, title: contentId,
-        streamType: fmt === 'm3u8' ? 'hls' : 'ts', token: 'xtream-vod',
+        streamType: 'mp4', token: 'xtream-vod',
         streamUrl: `${XTREAM_SERVER}/movie/${encodeURIComponent(creds.username)}/${encodeURIComponent(creds.password)}/${movieMatch[1]}.${fmt}`,
         isLive: false,
       };

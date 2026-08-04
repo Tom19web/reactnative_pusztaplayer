@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TextInput, StyleSheet, BackHandler, Dimensions, DeviceEventEmitter, ImageBackground, Animated } from 'react-native';
+import { View, Text, ScrollView, TextInput, StyleSheet, BackHandler, Dimensions, DeviceEventEmitter, ImageBackground, Animated, Modal } from 'react-native';
 import TFPressable from '../components/TFPressable';
 import PopArtCard from '../components/PopArtCard';
 import RuggedBorder from '../components/RuggedBorder';
@@ -7,6 +7,7 @@ import SoundEffect from '../components/SoundEffect';
 import { Profile, useCore, useProfiles, useActiveProfile, useSetActiveProfile, useSetProfiles } from '../store/AppContext';
 import { deleteProfile as wpDeleteProfile, restoreProfile as wpRestoreProfile } from '../services/wordpressSync';
 import { COLORS, FONT, SPACING } from '../constants';
+import ExitDialog from '../components/ExitDialog';
 
 const COLORS_PRESET = ['#f6c800', '#1fd6e8', '#ff5b63', '#7c4dff'];
 const AVATARS = ['\uD83D\uDE0E', '\uD83E\uDD8A', '\uD83D\uDC3A', '\uD83E\uDD85', '\uD83D\uDC0E', '\uD83D\uDD25', '\u2B50', '\uD83C\uDFAD', '\uD83D\uDC51', '\uD83D\uDC80', '\uD83E\uDD20', '\uD83E\uDDD9'];
@@ -25,6 +26,7 @@ interface Props { onProfileSelected: () => void; }
 export default function ProfileSelectScreen({ onProfileSelected }: Props) {
   const profiles = useProfiles() as Profile[];
   const activeProfile = useActiveProfile();
+  const [showExit, setShowExit] = useState(false);
   const activeId = activeProfile?.id || '';
   const setActive = useSetActiveProfile();
   const setProfiles = useSetProfiles();
@@ -97,7 +99,8 @@ export default function ProfileSelectScreen({ onProfileSelected }: Props) {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (wizardRef.current) { resetWizard(); return true; }
       if (confirmDeleteRef.current) { setConfirmDelete(false); setDeleteTarget(null); return true; }
-      return false;
+      setShowExit(true);
+      return true;
     });
     return () => handler.remove();
   }, []);
@@ -336,6 +339,9 @@ export default function ProfileSelectScreen({ onProfileSelected }: Props) {
           </View>
         )}
       </ScrollView>
+      <Modal visible={showExit} transparent animationType="fade" onRequestClose={() => setShowExit(false)}>
+        <ExitDialog onDismiss={() => setShowExit(false)} />
+      </Modal>
     </ImageBackground>
   );
 }

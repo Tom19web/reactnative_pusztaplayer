@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db_readonly
+from app.database import get_db_readonly, async_session_factory
 from app.redis import cache_get, cache_set
 from app.models.models import EpgProgramModel
 
@@ -83,15 +83,33 @@ async def get_all_epg(
     result = await db.execute(stmt)
     channel_ids = result.scalars().all()
 
-    # Különálló session nyitása task-onként a koncurrancia elkerülésére!
-    async def fetch_with_new_session(cid: str):
-        async with async_session_factory() as session:
-            return await _fetch_single_channel_epg(cid, session)
+    now_ts = int(time.time())
+    batch_stmt = (
+        select(EpgProgramModel)
+        .where(
+            EpgProgramModel.channel_id.in_(channel_ids),
+            EpgProgramModel.stop_timestamp > now_ts,
+        )
+        .order_by(EpgProgramModel.channel_id.asc(), EpgProgramModel.start_timestamp.asc())
+    )
+    result = await db.execute(batch_stmt)
+    all_programs = result.scalars().all()
 
-    tasks = [fetch_with_new_session(cid) for cid in channel_ids]
-    responses = await asyncio.gather(*tasks)
-    
-    valid_responses = [r for r in responses if r.programs]
+    from collections import defaultdict
+    channel_programs: dict[str, list[EpgProgramModel]] = defaultdict(list)
+    for p in all_programs:
+        if len(channel_programs[p.channel_id]) < 50:
+            channel_programs[p.channel_id].append(p)
+
+    valid_responses = []
+    for cid in channel_ids:
+        programs = channel_programs.get(cid, [])
+        programs_out = [_program_to_out(p) for p in programs]
+        response = EpgResponse(channel_id=cid, programs=programs_out)
+        if programs_out:
+            valid_responses.append(response)
+            cache_key = f"epg:live:{cid}"
+            await cache_set(cache_key, response.model_dump_json(), EPG_MASTER_CACHE_TTL)
     
     await cache_set(master_cache_key, json.dumps([r.model_dump() for r in valid_responses]), EPG_MASTER_CACHE_TTL)
     

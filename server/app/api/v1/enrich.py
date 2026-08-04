@@ -143,7 +143,7 @@ Respond with ONLY a JSON array of objects. Example:
                 return parsed
             if isinstance(parsed, dict):
                 vals = list(parsed.values())
-                return vals if isinstance(vals[0], dict) else []
+                return vals if vals and isinstance(vals[0], dict) else []
         except json.JSONDecodeError:
             logger.warning("DeepSeek returned non-JSON: %s", content[:200])
     return []

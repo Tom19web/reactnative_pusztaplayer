@@ -12,7 +12,7 @@ import Pagination from '../components/Pagination';
 import FilterItem from '../components/FilterItem';
 import LiveDetailPanel from '../components/LiveDetailPanel';
 import { Channel } from '../types';
-import { COLORS, FONT, SPACING, qualityLabel } from '../constants';
+import { COLORS, FONT, SPACING, qualityLabel, tagLabel } from '../constants';
 
 const CARD_W = 120;
 const CARD_GAP = 8;
@@ -20,6 +20,8 @@ const PAGE_SIZE = 30;
 
 // Persist filter/page state across component remounts (navigation back from PlayerScreen)
 let _savedGroup = 'Összes csatorna';
+let _savedTag = 'Mind';
+let _savedLang = 'Mind';
 let _savedPage = 0;
 
 interface LiveScreenProps { onPlayContent: (key: string) => void; onBack: () => void; }
@@ -33,7 +35,11 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
   const isWl = (key: string) => wlItems.some(w => w.key === key);
   const isFav = (key: string) => favItems.some(f => f.key === key);
   const [activeGroup, setActiveGroup] = useState(_savedGroup);
+  const [activeTag, setActiveTag] = useState(_savedTag);
+  const [activeLang, setActiveLang] = useState(_savedLang);
   const [showFilter, setShowFilter] = useState(false);
+  const [showTagFilter, setShowTagFilter] = useState(false);
+  const [showLangFilter, setShowLangFilter] = useState(false);
   const [page, setPage] = useState(_savedPage);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const selectedChannelRef = useRef(selectedChannel);
@@ -42,10 +48,11 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
 
   const handlePlay = useCallback(() => {
     if (selectedChannel) {
-      onPlayContent(selectedChannel.key);
+      const variantKey = selectedChannel.qualityVariants?.[selectedQualityIdx]?.key ?? selectedChannel.key;
+      onPlayContent(variantKey);
       setSelectedChannel(null);
     }
-  }, [selectedChannel, onPlayContent]);
+  }, [selectedChannel, selectedQualityIdx, onPlayContent]);
 
   const handleClose = useCallback(() => { setSelectedChannel(null); setSelectedQualityIdx(0); }, []);
 
@@ -63,16 +70,32 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
     return () => h.remove();
   }, [onBack]);
 
-  useEffect(() => { _savedPage = 0; setPage(0); }, [activeGroup, searchTerm]);
+  useEffect(() => { _savedPage = 0; setPage(0); }, [activeGroup, activeTag, activeLang, searchTerm]);
 
   const channels = playlist?.liveChannels || [];
   const groups = playlist?.groups || ['Összes csatorna'];
+  const allTags = playlist?.tags || [];
+  const allLangs = playlist?.languages || [];
+  const tags = ['Mind', ...allTags.filter(t => t !== 'Összes csatorna')];
+  const langs = ['Mind', ...allLangs];
 
   const filteredChannels = useMemo(() => {
-    let list = activeGroup === 'Összes csatorna' ? channels : channels.filter(ch => ch.group === activeGroup);
+    let list = channels;
+    // Tag filter (uses tags from ChannelTagModel, falls back to group)
+    if (activeTag !== 'Mind') {
+      list = list.filter(ch => (ch.tags || [ch.group]).includes(activeTag));
+    }
+    // Language filter
+    if (activeLang !== 'Mind') {
+      list = list.filter(ch => ch.language === activeLang);
+    }
+    // Keep old group filter as fallback for untagged
+    if (activeTag === 'Mind' && activeLang === 'Mind' && activeGroup !== 'Összes csatorna') {
+      list = list.filter(ch => ch.group === activeGroup);
+    }
     if (searchTerm) list = list.filter(ch => ch.title.toLowerCase().includes(searchTerm.toLowerCase()));
     return list;
-  }, [channels, activeGroup, searchTerm]);
+  }, [channels, activeGroup, activeTag, activeLang, searchTerm]);
 
   // Merge quality variants by base title (SD/HD/FHD → egy kártya)
   function baseTitle(title: string): string {
@@ -137,9 +160,13 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
         <RuggedBorder color={COLORS.black} wobbleFactor={0.7} style={{ marginBottom: SPACING.md }}>
           <View style={styles.filterBox} testID="live-filter">
             <DotPattern dotColor="#000" dotOpacity={0.15} spacing={6} dotRadius={1.5} />
-          <Text style={styles.filterLabel}>Válassz kategóriát! {' '}</Text>
-          <FilterBtn label={activeGroup} onPress={() => setShowFilter(!showFilter)} testID="filter-btn-main" />
-        </View>
+            <Text style={styles.filterLabel}>Szűrés{' '}</Text>
+            <FilterBtn label={activeTag} onPress={() => { setShowTagFilter(!showTagFilter); setShowLangFilter(false); setShowFilter(false); }} />
+            <FilterBtn label={activeLang === 'Mind' ? '🌐' : activeLang.toUpperCase()} onPress={() => { setShowLangFilter(!showLangFilter); setShowTagFilter(false); setShowFilter(false); }} />
+            {allTags.length === 0 && (
+              <FilterBtn label={activeGroup} onPress={() => { setShowFilter(!showFilter); setShowTagFilter(false); setShowLangFilter(false); }} />
+            )}
+          </View>
           <SoundEffect text="LIVE!" textColor={COLORS.white} bgColor={COLORS.red} top={-3} right={72} rotate={8} fontSize={28} />
         </RuggedBorder>
         {showFilter && (
@@ -153,7 +180,45 @@ export default function LiveScreen({ onPlayContent, onBack }: LiveScreenProps) {
                     key={g}
                     label={g}
                     isActive={g === activeGroup}
-                    onPress={() => { _savedGroup = g; _savedPage = 0; setActiveGroup(g); setShowFilter(false); setPage(0); }}
+                    onPress={() => { _savedGroup = g; _savedTag = 'Mind'; _savedLang = 'Mind'; setActiveGroup(g); setActiveTag('Mind'); setActiveLang('Mind'); setShowFilter(false); setShowTagFilter(false); }}
+                  />
+                ))}
+              </ScrollView>
+            </ShadowWrapper>
+          </View>
+          </>
+        )}
+        {showTagFilter && (
+          <>
+            <View style={styles.filterBgOverlay} pointerEvents="none" />
+            <View style={[styles.filterOverlayWrap, { top: filterTop }]}>
+              <ShadowWrapper offset={6} borderRadius={12}>
+                <ScrollView style={styles.filterOverlay} nestedScrollEnabled>
+                {tags.map(t => (
+                  <FilterItem
+                    key={t}
+                    label={t === 'Mind' ? 'Mind' : tagLabel(t)}
+                    isActive={t === activeTag}
+                    onPress={() => { _savedTag = t; _savedPage = 0; setActiveTag(t); setShowTagFilter(false); if (t !== 'Mind') { setActiveGroup('Összes csatorna'); _savedGroup = 'Összes csatorna'; } }}
+                  />
+                ))}
+              </ScrollView>
+            </ShadowWrapper>
+          </View>
+          </>
+        )}
+        {showLangFilter && (
+          <>
+            <View style={styles.filterBgOverlay} pointerEvents="none" />
+            <View style={[styles.filterOverlayWrap, { top: filterTop }]}>
+              <ShadowWrapper offset={6} borderRadius={12}>
+                <ScrollView style={styles.filterOverlay} nestedScrollEnabled>
+                {langs.map(l => (
+                  <FilterItem
+                    key={l}
+                    label={l === 'Mind' ? 'Mind' : l.toUpperCase()}
+                    isActive={l === activeLang}
+                    onPress={() => { _savedLang = l; _savedPage = 0; setActiveLang(l); setShowLangFilter(false); }}
                   />
                 ))}
               </ScrollView>

@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
 
 revision: str = "005_add_series_and_episodes"
-down_revision: Union[str, None] = "003_add_radio_stations"
+down_revision: Union[str, None] = "004_add_qr_sessions"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

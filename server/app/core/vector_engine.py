@@ -61,7 +61,7 @@ class VectorEngine:
             literal_column("similarity"),
         ).select_from(
             union_all(movie_stmt, series_stmt, episode_stmt).subquery()
-        ).order_by(literal_column("similarity")).limit(limit)
+        ).order_by(literal_column("similarity").desc()).limit(limit)
 
         result = await self.session.execute(union_stmt)
         return [
@@ -159,5 +159,6 @@ class VectorEngine:
 def _rewrite_image_url(raw_url: str, size: int = 200) -> str:
     if not raw_url or "movaloget.cc" not in raw_url:
         return raw_url
-    path = raw_url.split("movaloget.cc", 1)[-1].lstrip(":42310").lstrip("/")
+    import re
+    path = re.sub(r'^.*movaloget\.cc:?\d*/?', '', raw_url)
     return f"https://live.pusztaplay.eu/img/{size}/{path}"

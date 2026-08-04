@@ -29,7 +29,7 @@ let isTouch = true;
 try { isTouch = !Platform.isTV; } catch {}
 const screenH = Dimensions.get('window').height;
 
-export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isFav, onToggleFav, isWatchLater, onToggleWatchLater, onOpenSimilar }: MovieDetailPanelProps) {
+export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isFav, onToggleFav, isWatchLater, onToggleWatchLater, onOpenSimilar, onCastPress }: MovieDetailPanelProps) {
   const [info, setInfo] = useState<VodInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [similar, setSimilar] = useState<EmbeddingRecommendation[]>([]);
@@ -155,7 +155,7 @@ export default function MovieDetailPanel({ streamId, title, onClose, onPlay, isF
                           key={`${trimmed}-${i}`}
                           style={styles.castChip}
                           focusedStyle={styles.castChipFocus}
-                          onPress={() => onCastPress?.(trimmed)}
+                          onPress={() => { if (typeof onCastPress === 'function') onCastPress(trimmed); }}
                         >
                           <Text style={styles.castChipText}>{trimmed}</Text>
                         </TFPressable>

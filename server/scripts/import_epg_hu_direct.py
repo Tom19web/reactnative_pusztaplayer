@@ -13,7 +13,7 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -79,7 +79,7 @@ async def main():
 
     # Mark mapping as last imported
     mapping_meta = {
-        "last_import": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "last_import": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
         "programmes_imported": total,
         "channels_mapped": sum(1 for e in mapping if e.get("xtream_sid")),
         "channels_total": len(mapping),

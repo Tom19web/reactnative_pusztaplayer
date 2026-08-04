@@ -3,13 +3,13 @@ from typing import Any
 
 # Country prefixes to strip (same as RN client cleanChannelTitle)
 _COUNTRY_CODES = (
-    "HU|RO|DE|FR|IT|ES|CA|UK|CZ|SK|PL|NL|BG|RS|GR|AT|HR|SI|TR"
+    "HU|RO|DE|FR|IT|ES|CA|UK|CZ|SK|PL|NL|BG|RS|GR|AT|HR|SI|TR|swiss"
 )
 _RE_PREFIX = re.compile(
-    rf"^\|?(?:{_COUNTRY_CODES})\|?(?:\s+|:)", re.IGNORECASE
+    rf"^\|?(?:{_COUNTRY_CODES})\|?[:\|\s\-]+", re.IGNORECASE
 )
 _RE_SUFFIX = re.compile(
-    rf"\s*\|?(?:{_COUNTRY_CODES})\|?\s*$", re.IGNORECASE
+    rf"[:\|\s\-]*\|?(?:{_COUNTRY_CODES})\|?[:\|\s\-]*$", re.IGNORECASE
 )
 
 _QUALITY_SUFFIX_RE = re.compile(
@@ -30,8 +30,8 @@ def base_title(title: str) -> str:
 
 def quality_label(title: str) -> str:
     upper = title.upper()
-    for kw, label in [("FHD", "FHD"), ("4K", "FHD"), ("UHD", "FHD"), ("2160P", "FHD"),
-                       ("HD", "HD"), ("1080P", "HD"), ("720P", "HD")]:
+    for kw, label in [("4K", "4K"), ("UHD", "4K"), ("2160P", "4K"),
+                       ("FHD", "FHD"), ("HD", "HD"), ("1080P", "HD"), ("720P", "HD")]:
         if kw in upper:
             return label
     if "SD" in upper:
@@ -40,7 +40,7 @@ def quality_label(title: str) -> str:
 
 
 def merge_and_sort(channels: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Merge quality variants (SD/HD/FHD) into single entries with `quality_variants` array."""
+    """Merge quality variants (4K/FHD/HD/SD) into single entries with `quality_variants` array."""
     groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
     order: list[tuple[str, str]] = []
 
@@ -71,7 +71,7 @@ def merge_and_sort(channels: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
             for c in items
         ]
-        quality_order = {"FHD": 0, "HD": 1, "SD": 2}
+        quality_order = {"4K": 0, "FHD": 1, "HD": 2, "SD": 3}
         variants.sort(key=lambda v: quality_order.get(v["label"], 99))
         best["quality_variants"] = variants
         result.append(best)

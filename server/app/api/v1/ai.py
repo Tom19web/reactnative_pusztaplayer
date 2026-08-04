@@ -73,7 +73,9 @@ def _hash_items(items: list) -> str:
     return hashlib.md5(serialized.encode("utf-8")).hexdigest()
 
 def _verify_api_key(x_api_key: str | None = Header(default=None)):
-    if settings.PROXY_AUTH_KEY and x_api_key != settings.PROXY_AUTH_KEY:
+    if not settings.PROXY_AUTH_KEY:
+        return  # Proxy auth not configured — allow all
+    if x_api_key != settings.PROXY_AUTH_KEY:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
 
@@ -84,13 +86,13 @@ async def _call_deepseek_json(system_prompt: str, user_prompt: str) -> dict | li
     client = get_http_client()
     try:
         response = await client.post(
-            "https://api.deepseek.com/chat/completions",
+            f"{settings.DEEPSEEK_BASE_URL}/chat/completions",
             headers={
                 "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}",
                 "Content-Type": "application/json",
             },
             json={
-                "model": settings.DEEPSEEK_MODEL or "deepseek-chat",
+                "model": getattr(settings, 'DEEPSEEK_MODEL', 'deepseek-chat'),
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -166,7 +168,7 @@ async def ai_search(req: AISearchRequest, x_api_key: str | None = Header(default
     return {"keys": keys_result, "cached": False}
 
 
-@router.post("/recommend")
+@router.post("/ai/recommend")
 async def ai_recommend(req: AIRecommendRequest, x_api_key: str | None = Header(default=None)):
     _verify_api_key(x_api_key)
 

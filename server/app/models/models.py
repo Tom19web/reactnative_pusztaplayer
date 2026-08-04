@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Index, Float
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 
@@ -59,12 +59,24 @@ class EpgProgramModel(Base):
     genre = Column(String(500))
     cast = Column(Text)
     ai_enriched = Column(JSONB)
-    created_at = Column(DateTime, default=lambda: datetime.utcnow().replace(tzinfo=None))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     __table_args__ = (
-        # JAVÍTVA: Kompozit index a villámgyors "Mi megy most?" lekérdezésekhez!
         Index('ix_epg_time', 'channel_id', 'start_timestamp', 'stop_timestamp'),
     )
+
+
+class ChannelTagModel(Base):
+    __tablename__ = "channel_tags"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    stream_id = Column(Integer, unique=True, nullable=False, index=True)
+    name = Column(String(300))
+    tags = Column(JSONB, default=lambda: [])
+    language = Column(String(20), default="")
+    confidence = Column(Float, default=0.0)
+    auto_tagged = Column(Boolean, default=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 
 class UserProfileModel(Base):
@@ -178,4 +190,4 @@ class ChannelLogoModel(Base):
     source = Column(String(100), default="xmltv")
     channel_name = Column(String(300))
     matched_name = Column(String(300))
-    created_at = Column(DateTime, default=lambda: datetime.utcnow().replace(tzinfo=None))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

@@ -12,6 +12,8 @@ export interface Channel {
   epg: EpgEntry[];
   type: 'live';
   streamUrl: string;
+  tags: string[];
+  language: string;
   /** Quality variants (SD/HD/FHD) merged from duplicate logo channels */
   qualityVariants?: { label: string; streamId: number; streamUrl: string; key: string }[];
   /** Raw API response fields for debugging */
@@ -69,6 +71,8 @@ export interface PlaylistData {
   groups: string[];
   movieGroups: string[];
   seriesGroups: string[];
+  tags: string[];
+  languages: string[];
   userInfo: UserInfo | null;
   xtreamUser: string;
 }
@@ -90,7 +94,7 @@ export interface UserInfo {
 export interface Favorite {
   key: string;
   title: string;
-  type: 'live' | 'movie' | 'series' | 'episode';
+  type: 'live' | 'movie' | 'series' | 'episode' | 'radio';
   group: string;
   logo: string;
   streamUrl: string;

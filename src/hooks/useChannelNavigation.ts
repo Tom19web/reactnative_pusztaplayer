@@ -11,7 +11,14 @@ export function useChannelNavigation(
   currentContentId: string,
   playContent: (key: string) => void,
 ) {
-  const idx = useMemo(() => channels.findIndex(c => c.key === currentContentId), [channels, currentContentId]);
+  const idx = useMemo(() => {
+    const direct = channels.findIndex(c => c.key === currentContentId);
+    if (direct >= 0) return direct;
+    for (let i = 0; i < channels.length; i++) {
+      if (channels[i].qualityVariants?.some(v => v.key === currentContentId)) return i;
+    }
+    return -1;
+  }, [channels, currentContentId]);
   const inList = idx >= 0;
 
   const prev: NavItem = inList && idx > 0

@@ -1,10 +1,11 @@
 """Cast-based search across movies and series."""
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
-from sqlalchemy import select, union_all, literal, literal_column, text
+from sqlalchemy import select, union_all, literal
 
 from app.database import async_session_factory
 from app.models.models import MovieModel, SeriesModel
+from app.core.vector_engine import _rewrite_image_url
 
 router = APIRouter(tags=["cast search"])
 
@@ -33,7 +34,7 @@ async def cast_search(
                 MovieModel.stream_id,
                 literal(None).label("series_id"),
                 MovieModel.year,
-                MovieModel.poster_full,
+                MovieModel.poster_full.label("poster"),
             )
             .where(MovieModel.cast.ilike(f"%{q}%"))
             .limit(limit)
@@ -46,15 +47,14 @@ async def cast_search(
                 literal(None).label("stream_id"),
                 SeriesModel.series_id,
                 SeriesModel.year,
-                SeriesModel.cover,
+                SeriesModel.cover.label("poster"),
             )
             .where(SeriesModel.cast.ilike(f"%{q}%"))
             .limit(limit)
         )
 
         union = union_all(movie_stmt, series_stmt).alias()
-        final = text(f"SELECT * FROM ({str(union.compile(compile_kwargs={'literal_binds': True}))}) AS results ORDER BY year DESC NULLS LAST LIMIT :limit")
-        
+
         result = await sess.execute(
             select(union.c.title, union.c.type, union.c.stream_id, union.c.series_id, union.c.year, union.c.poster)
             .order_by(union.c.year.desc().nullslast())
@@ -70,7 +70,7 @@ async def cast_search(
             stream_id=r.stream_id,
             series_id=r.series_id,
             year=r.year or "",
-            poster=r.poster or "",
+            poster=_rewrite_image_url(r.poster or ""),
         )
         for r in rows
     ]

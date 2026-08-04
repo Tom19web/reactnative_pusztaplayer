@@ -1,6 +1,6 @@
 """
 PusztaPlayer EPG Import — Közös segédfüggvények.
-Használja: import_logos.py, import_epg.py
+Használja: import_epg.py
 """
 import asyncio
 import json
@@ -13,7 +13,6 @@ from datetime import datetime
 
 import httpx
 import redis.asyncio as aioredis
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -21,7 +20,6 @@ from app.core.channel_matcher import match_best
 from app.core.epg_importer import parse_xmltv, import_programs
 from app.config import settings
 from app.database import async_session_factory
-from app.models.models import ChannelLogoModel
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("epg_import")
@@ -395,69 +393,6 @@ async def scan_redis_sessions() -> list[tuple[str, str]]:
 
     logger.info("Found %d active sessions → %d unique credentials.", len(session_keys), len(cred_list))
     return cred_list
-
-
-async def import_logos_batch(logo_data: list[dict]):
-    if not logo_data:
-        return
-    deduped: dict[int, dict] = {}
-    for entry in logo_data:
-        deduped[entry["stream_id"]] = entry
-    unique = list(deduped.values())
-    async with async_session_factory() as sess:
-        try:
-            stmt = pg_insert(ChannelLogoModel).values(unique)
-            stmt = stmt.on_conflict_do_update(
-                index_elements=['stream_id'],
-                set_={
-                    'logo_url': stmt.excluded.logo_url,
-                    'source': stmt.excluded.source,
-                    'channel_name': stmt.excluded.channel_name,
-                    'matched_name': stmt.excluded.matched_name,
-                }
-            )
-            await sess.execute(stmt)
-            await sess.commit()
-            logger.info("  Batch inserted/updated %d logos.", len(unique))
-        except Exception as e:
-            await sess.rollback()
-            logger.error("  Logo batch insert failed: %s", e)
-
-
-async def download_and_cache_logos(logo_data: list[dict]):
-    os.makedirs("/app/static/logos", exist_ok=True)
-    count = 0
-    async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
-        for entry in logo_data:
-            logo_url = entry.get("logo_url", "")
-            stream_id = entry.get("stream_id", 0)
-            if not logo_url or "nologo" in logo_url.lower():
-                continue
-            try:
-                resp = await client.get(logo_url)
-                if resp.status_code == 200 and resp.content:
-                    filepath = f"/app/static/logos/{stream_id}.png"
-                    with open(filepath, "wb") as f:
-                        f.write(resp.content)
-                    count += 1
-                    entry["logo_url"] = f"https://{settings.SERVER_DOMAIN}/logos/{stream_id}.png"
-            except Exception:
-                pass
-
-    if count:
-        async with async_session_factory() as sess:
-            try:
-                from sqlalchemy import text
-                for entry in logo_data:
-                    await sess.execute(
-                        text("UPDATE channel_logos SET logo_url = :url WHERE stream_id = :sid"),
-                        {"url": entry.get("logo_url", ""), "sid": entry["stream_id"]},
-                    )
-                await sess.commit()
-                logger.info("  Downloaded + cached %d logo images locally.", count)
-            except Exception as e:
-                await sess.rollback()
-                logger.warning("  Logo cache download partially failed: %s", e)
 
 
 _CHANNEL_MATCH_CACHE_FILE = "/tmp/channel_match_cache.json"

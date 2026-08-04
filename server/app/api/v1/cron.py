@@ -1,27 +1,35 @@
+import asyncio
 import logging
+import secrets
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
+from app.config import settings
 from app.services.epg_matcher import run_epg_golf_match
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["cron"])
 
-
-def _run_epg_import_sync():
-    import asyncio
-    from scripts.import_epg_xmltv import main as epg_main
-    try:
-        asyncio.get_event_loop()
-    except RuntimeError:
-        asyncio.run(epg_main())
-    else:
-        import nest_asyncio  # type: ignore
-        nest_asyncio.apply()
-        asyncio.get_event_loop().run_until_complete(epg_main())
+_basic = HTTPBasic()
 
 
-@router.post("/cron/epg-enrich-and-match")
+def _verify_cron_auth(credentials: HTTPBasicCredentials = Depends(_basic)):
+    if not secrets.compare_digest(credentials.username, settings.ADMIN_USER or ""):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    if not secrets.compare_digest(credentials.password, settings.ADMIN_PASS or ""):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+
+
+async def _run_epg_import_async():
+    proc = await asyncio.create_subprocess_exec(
+        "python3", "/app/scripts/import_epg.py",
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+    )
+    await proc.wait()
+
+
+@router.post("/cron/epg-enrich-and-match", dependencies=[Depends(_verify_cron_auth)])
 async def cron_epg_enrich_and_match():
     """Scheduled job: enrich upcoming EPG then run Golf-Riaszto matching."""
     logger.info("Cron: EPG enrich + Golf match started")
@@ -33,9 +41,8 @@ async def cron_epg_enrich_and_match():
     return {"status": "ok", "message": "Golf-Riaszto scan completed"}
 
 
-@router.post("/cron/epg-import")
+@router.post("/cron/epg-import", dependencies=[Depends(_verify_cron_auth)])
 async def cron_epg_import(background_tasks: BackgroundTasks):
-    """Scheduled job: check Xtream EPG coverage, fill gaps via XMLTV."""
     logger.info("Cron: EPG XMLTV import started (background)")
-    background_tasks.add_task(_run_epg_import_sync)
+    background_tasks.add_task(_run_epg_import_async)
     return {"status": "ok", "message": "EPG import started in background"}

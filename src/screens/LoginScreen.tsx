@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, Dimensions, StyleSheet, ActivityIndicator, ScrollView, Platform, Linking, ImageBackground, Animated } from 'react-native';
+import { View, Text, Dimensions, StyleSheet, ActivityIndicator, ScrollView, Platform, Linking, ImageBackground, Animated, BackHandler } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import TFPressable from '../components/TFPressable';
 import RuggedBorder from '../components/RuggedBorder';
@@ -13,7 +13,7 @@ import { requestQRCode, pollQRCode, stopPolling } from '../services/qrAuth';
 let isTV = false;
 try { isTV = Platform.isTV; } catch {}
 
-interface LoginScreenProps { onLoginSuccess: () => void; }
+interface LoginScreenProps { onLoginSuccess: () => void; onBack?: () => void; }
 
 const SCREEN_W = Dimensions.get('window').width;
 const CARD_W = Math.min(440, SCREEN_W - 80);
@@ -32,7 +32,7 @@ const pb = StyleSheet.create({
   fill: { height: '100%', borderRadius: 2 },
 });
 
-export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps) {
   const [step, setStep] = useState<'idle' | 'qr' | 'polling' | 'loggingIn' | 'expired' | 'error'>('idle');
   const [qrData, setQrData] = useState<{ code: string; authUrl: string } | null>(null);
   const [verifyCode, setVerifyCode] = useState('');
@@ -47,6 +47,11 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
   // Animated transitions
   const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const h = BackHandler.addEventListener('hardwareBackPress', () => { onBack?.(); return true; });
+    return () => h.remove();
+  }, [onBack]);
   const fadeTo = useCallback((cb: () => void) => {
     Animated.sequence([
       Animated.timing(fadeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),

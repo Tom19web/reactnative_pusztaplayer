@@ -48,7 +48,6 @@ export default function MoviesScreen({ onPlayContent, onBack, onNavigate }: Movi
   const handleClose = useCallback(() => setSelectedMovie(null), []);
 
   const handleCastPress = useCallback((name: string) => {
-    setSelectedMovie(null);
     onNavigate?.('castSearch', { castName: name });
   }, [onNavigate]);
 
@@ -66,7 +65,10 @@ export default function MoviesScreen({ onPlayContent, onBack, onNavigate }: Movi
     setSelectedMovie(null);
     if (item.type === 'movie' && item.streamId) {
       const m = playlist?.movies?.find(m => m.streamId === item.streamId);
-      if (m) setTimeout(() => setSelectedMovie(m), 100);
+      if (m) {
+        const id = setTimeout(() => setSelectedMovie(m), 100);
+        return () => clearTimeout(id);
+      }
     }
   }, [playlist]);
 

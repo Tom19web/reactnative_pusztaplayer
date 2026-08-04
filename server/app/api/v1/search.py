@@ -6,7 +6,7 @@ Optimalizált HTTP kapcsolatokkal és szigorú hibaáramlással.
 import logging
 import httpx
 from fastapi import APIRouter, Query, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.core.vector_engine import VectorEngine
@@ -28,7 +28,7 @@ def get_openai_client() -> httpx.AsyncClient:
 
 class SemanticSearchRequest(BaseModel):
     query: str
-    limit: int = 10
+    limit: int = Field(10, ge=1, le=50)
 
 class SemanticSearchResult(BaseModel):
     title: str

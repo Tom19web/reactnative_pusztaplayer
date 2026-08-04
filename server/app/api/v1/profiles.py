@@ -1,12 +1,24 @@
-from fastapi import APIRouter, Depends
+import secrets
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.models.models import UserProfileModel
 from app.services.epg_matcher import run_epg_golf_match
 
 router = APIRouter(tags=["profiles"])
+_basic = HTTPBasic()
+
+
+def _verify_cron_auth(credentials: HTTPBasicCredentials = Depends(_basic)):
+    if not secrets.compare_digest(credentials.username, settings.ADMIN_USER or ""):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    if not secrets.compare_digest(credentials.password, settings.ADMIN_PASS or ""):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 
 @router.post("/profiles/register")
@@ -39,7 +51,7 @@ async def register_fcm_token(
     return {"status": "ok", "profile_id": profile_id, "interests_count": len(interests_list)}
 
 
-@router.post("/profiles/golf-check")
+@router.post("/profiles/golf-check", dependencies=[Depends(_verify_cron_auth)])
 async def trigger_golf_check(_db: AsyncSession = Depends(get_db)):
     await run_epg_golf_match()
     return {"status": "golf_scan_complete"}

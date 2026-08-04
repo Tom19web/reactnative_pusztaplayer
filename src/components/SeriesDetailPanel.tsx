@@ -29,7 +29,7 @@ let isTouch = true;
 try { isTouch = !Platform.isTV; } catch {}
 const screenH = Dimensions.get('window').height;
 
-export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpisodes, isFav, onToggleFav, isWatchLater, onToggleWatchLater, onOpenSimilar }: SeriesDetailPanelProps) {
+export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpisodes, isFav, onToggleFav, isWatchLater, onToggleWatchLater, onOpenSimilar, onCastPress }: SeriesDetailPanelProps) {
   const [info, setInfo] = useState<SeriesInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [similar, setSimilar] = useState<EmbeddingRecommendation[]>([]);
@@ -161,7 +161,7 @@ export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpis
                           key={`${trimmed}-${i}`}
                           style={styles.castChip}
                           focusedStyle={styles.castChipFocus}
-                          onPress={() => onCastPress?.(trimmed)}
+                          onPress={() => { if (typeof onCastPress === 'function') onCastPress(trimmed); }}
                         >
                           <Text style={styles.castChipText}>{trimmed}</Text>
                         </TFPressable>

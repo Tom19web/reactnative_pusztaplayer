@@ -113,15 +113,15 @@ export default function ExitDialog({ onDismiss }: ExitDialogProps) {
           <View style={styles.buttons}>
             <ShadowWrapper offset={6} borderRadius={12}>
               <TFPressable
-                style={styles.btn}
-                focusedStyle={styles.btnFocus}
+                style={[styles.btn, styles.btnDanger]}
+                focusedStyle={styles.btnDangerFocus}
                 onPress={handleExit}
                 hasTVPreferredFocus
                 testID="exit-btn"
                 accessibilityLabel="Kilépés az alkalmazásból"
                 accessibilityRole="button"
               >
-                <Text style={styles.btnText}>Kilépés</Text>
+                <Text style={[styles.btnText, styles.btnDangerText]}>Kilépés</Text>
               </TFPressable>
             </ShadowWrapper>
             <ShadowWrapper offset={6} borderRadius={12}>
@@ -177,6 +177,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnFocus: { backgroundColor: '#ffcc00', transform: [{ scale: 0.95 }] },
+  btnDanger: { backgroundColor: '#FF4444', borderColor: COLORS.black },
+  btnDangerFocus: { backgroundColor: '#FF6666', transform: [{ scale: 0.95 }] },
+  btnDangerText: { color: '#fff' },
   btnText: {
     color: COLORS.black,
     fontFamily: 'Poppins-Bold',

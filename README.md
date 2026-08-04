@@ -301,7 +301,7 @@ A formátum a Beállítások → Live: TS/HLS menüpontban váltható. A váltá
 
 ### Playlist cache
 
-A lejátszási lista az AsyncStorage-ban van cache-elve (`CACHE_LIVE=5000`, `CACHE_VOD=10000`). Ha az API friss hívása részleges adatot ad vissza, a cache merge logika pótolja a hiányzó elemeket a korábbi cache-ből.
+A lejátszási lista az AsyncStorage-ban van cache-elve (`CACHE_LIVE=10000`, `CACHE_VOD=10000`). Ha az API friss hívása részleges adatot ad vissza, a cache merge logika pótolja a hiányzó elemeket a korábbi cache-ből.
 
 ### Epizód lejátszás (cache-független)
 
@@ -325,6 +325,145 @@ A track kiválasztás nyelv alapú (`SelectedTrackType.LANGUAGE`), nem index ala
 - **Nincs szülői felügyelet / profil PIN** — jelenleg bármelyik profilba át lehet lépni
 - **Nincs többnyelvű UI** — minden szöveg magyar nyelvű
 - **Nincs x86 emulátor támogatás** (csak ARM APK-k)
+
+## API Végpontok
+
+Minden végpont `https://live.pusztaplay.eu/api/v1` base URL alatt érhető el.
+
+### Auth módok
+
+| Auth típus | Header | Használat |
+|-----------|--------|-----------|
+| **Bearer token** | `Authorization: Bearer <token>` | Session regisztráció után — playlist, live/streams, episode plot |
+| **Basic auth** | `Authorization: Basic <base64>` | Admin panel, cron job-ok |
+| **x-api-key** | `x-api-key: <key>` | AI végpontok (PROXY_AUTH_KEY) |
+| **Nincs** | — | Rádió, EPG, cast search, subtitles, QR auth |
+
+### Publikus (auth nélkül)
+
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `GET` | `/radio` | Rádióállomások listája (aktívak, szavazatok szerint) |
+| `GET` | `/radio/metadata` | ICY/Shoutcast meta — aktuális dalcím (SSRF védett) |
+| `GET` | `/search/cast` | Szereplő keresés filmek/sorozatok között |
+| `GET` | `/epg/search` | Műsor keresés cím alapján |
+| `GET` | `/epg` | Összes EPG adat (cache-elve) |
+| `GET` | `/epg/{channel_id}` | Teljes EPG egy csatornához |
+| `GET` | `/epg/{channel_id}/now` | Jelenleg futó műsor |
+| `GET` | `/epg/{channel_id}/upcoming` | Következő műsorok |
+| `GET` | `/channel-logos` | Logo URL-ek batch lekérése stream ID-k alapján |
+| `GET` | `/subtitles/{imdb_id}` | Felirat keresés OpenSubtitles-en |
+| `GET` | `/subtitles/{imdb_id}/download` | Felirat letöltés (302 redirect) |
+
+### Session (Bearer token)
+
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `POST` | `/session/register` | Session regisztráció Xtream credential-ökkel (IP rate limit: 5/perc) |
+| `POST` | `/session/logout` | Session token érvénytelenítése |
+| `GET` | `/playlist/live` | Élő TV csatornalista (logo fallback, tag-ek, EPG now-playing) |
+| `GET` | `/playlist/movies` | Filmek listája (TMDB meta: plot, genre, cast, rating) |
+| `GET` | `/playlist/series` | Sorozatok listája (TMDB meta: plot, genre, cast, rating) |
+| `GET` | `/live/streams` | Élő stream-ek logo-val, tag-ekkel, nyelvvel, quality merge-elve |
+| `GET` | `/episodes/plot` | Epizód plot lekérése (TMDB + OpenAI embedding) |
+
+### AI (x-api-key — PROXY_AUTH_KEY)
+
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `POST` | `/ai/moods` | AI hangulat címkézés (DeepSeek) |
+| `POST` | `/ai/search` | AI szemantikus tartalom keresés (DeepSeek) |
+| `POST` | `/ai/ai/recommend` | AI ajánló nézési előzmények alapján (DeepSeek) |
+| `POST` | `/recommend` | Vektoros ajánló (pgvector cosine similarity) |
+| `GET` | `/recommend/similar` | Hasonló tartalmak (seed film/sorozat alapján, pgvector) |
+| `POST` | `/search/semantic` | Szemantikus keresés (POST, OpenAI embedding) |
+| `GET` | `/search/semantic` | Szemantikus keresés (GET, OpenAI embedding) |
+| `POST` | `/enrich` | EPG programok AI dúsítása (DeepSeek: genre, cast, POW leírás) |
+
+### QR Auth
+
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `POST` | `/auth/qr-request` | QR kód session generálása TV login-hoz |
+| `GET` | `/auth/qr-poll` | QR session státusz lekérdezése |
+| `GET` | `/auth` | QR auth HTML oldal |
+| `POST` | `/auth/submit` | Xtream credential beküldése QR auth form-ból |
+
+### Profilok
+
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `POST` | `/profiles/register` | FCM token + érdeklődési körök regisztrálása |
+| `POST` | `/profiles/golf-check` | Golf-Riaszto EPG match indítása (Basic auth) |
+
+### Admin (Basic auth — ADMIN_USER / ADMIN_PASS)
+
+**Statisztikák és EPG:**
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `GET` | `/admin/stats` | Rendszer statisztikák (session, logo, EPG, csatornák) |
+| `GET` | `/admin/channel-list` | Csatornalista EPG státusszal, szűréssel, lapozással |
+| `GET` | `/admin/channel-list/{stream_id}/epg` | Now-playing + következő EPG egy csatornához |
+| `GET` | `/admin/missing-analysis` | Kategóriánkénti hiányzó logo/EPG kimutatás |
+| `GET` | `/admin/epg-check/{stream_id}` | Részletes EPG diagnosztika egy stream_id-re |
+| `POST` | `/admin/epg/import` | EPG XMLTV import indítása (background task) |
+| `POST` | `/admin/epg/hu-direct-import` | HU direkt EPG import indítása |
+| `GET` | `/admin/import/stream/{task_id}` | Import task log stream-elése (SSE) |
+| `POST` | `/admin/delete-category` | Kategória összes logo/EPG törlése |
+| `POST` | `/admin/cache/clear` | Playlist + live stream Redis cache törlése |
+
+**EPG Mapping:**
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `GET` | `/admin/epg-hu-mapping` | HU EPG port.hu mapping lekérése |
+| `POST` | `/admin/epg-hu-mapping` | Kézi xtream_sid hozzárendelés mentése |
+
+**Logo Kezelő:**
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `GET` | `/admin/logos/list` | Logo lista kereséssel, lapozással |
+| `DELETE` | `/admin/logos/{stream_id}` | Logo törlése (DB + cache fájl) |
+| `POST` | `/admin/logos/merge` | Csatornanév → XMLTV név párosítás mentése |
+| `GET` | `/admin/xmltv-names/{country}` | XMLTV display-name lista országonként |
+
+**Címke Kezelő:**
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `GET` | `/admin/channel-tags` | Címke lista (szűrés: search, tag, untagged_only) |
+| `POST` | `/admin/channel-tags` | Kézi címke + nyelv mentése |
+
+**Rádió Kezelő:**
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `GET` | `/admin/radio` | Rádiólista (szűrés: tag, country, no_logo, dup_only) |
+| `POST` | `/admin/radio/{uuid}` | Rádióállomás adatainak szerkesztése |
+| `DELETE` | `/admin/radio/{uuid}` | Rádióállomás deaktiválása |
+| `POST` | `/admin/radio/batch-deactivate` | Tömeges deaktiválás |
+
+**Docker Manager:**
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `GET` | `/admin/docker/status` | Konténerek listája és állapota |
+| `GET` | `/admin/docker/logs/{container}` | Konténer logok |
+| `POST` | `/admin/docker/restart/{container}` | Konténer újraindítása |
+| `POST` | `/admin/docker/restart-all` | Összes konténer újraindítása |
+| `POST` | `/admin/docker/stop` | Összes konténer leállítása |
+| `POST` | `/admin/docker/cache-clear` | Redis cache törlése + FastAPI restart |
+
+**Script Editor:**
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `GET` | `/admin/docker/scripts` | Script fájlok listája |
+| `GET` | `/admin/docker/scripts/{name}` | Script tartalmának olvasása |
+| `POST` | `/admin/docker/scripts/{name}` | Script mentése |
+| `POST` | `/admin/docker/scripts/{name}/run` | Script futtatása (background task, Redis log) |
+
+### Cron (Basic auth)
+
+| Módszer | Útvonal | Leírás |
+|---------|---------|--------|
+| `POST` | `/cron/epg-import` | EPG XMLTV import (background) |
+| `POST` | `/cron/epg-enrich-and-match` | EPG dúsítás + Golf-Riaszto match |
 
 ## Licensz
 

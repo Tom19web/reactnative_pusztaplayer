@@ -44,7 +44,6 @@ export default function SeriesScreen({ onPlayContent, onBack, onNavigateEpisodes
   const handleClose = useCallback(() => setSelectedSeries(null), []);
 
   const handleCastPress = useCallback((name: string) => {
-    setSelectedSeries(null);
     onNavigate?.('castSearch', { castName: name });
   }, [onNavigate]);
 
@@ -68,7 +67,10 @@ export default function SeriesScreen({ onPlayContent, onBack, onNavigateEpisodes
     setSelectedSeries(null);
     if (item.type === 'series' && item.seriesId) {
       const s = playlist?.series?.find(s => s.seriesId === item.seriesId);
-      if (s) setTimeout(() => setSelectedSeries(s), 100);
+      if (s) {
+        const id = setTimeout(() => setSelectedSeries(s), 100);
+        return () => clearTimeout(id);
+      }
     }
   }, [playlist]);
 

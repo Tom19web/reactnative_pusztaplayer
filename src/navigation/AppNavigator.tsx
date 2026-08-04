@@ -168,7 +168,7 @@ export default function AppNavigator() {
   const renderScreen = () => {
     switch (currentRoute) {
       case 'Login':
-        return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+        return <LoginScreen onLoginSuccess={handleLoginSuccess} onBack={() => setCurrentRoute('Home')} />;
       case 'Live':
         return <LiveScreen onPlayContent={playContent} onBack={() => setCurrentRoute('Home')} />;
       case 'Movies':
@@ -213,6 +213,7 @@ export default function AppNavigator() {
             castName={castSearchName}
             onPlayContent={playContent}
             onBack={handleBack}
+            onNavigate={navigate}
           />
         );
       default:

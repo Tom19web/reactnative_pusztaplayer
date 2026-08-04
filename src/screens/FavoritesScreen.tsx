@@ -119,7 +119,7 @@ export default function FavoritesScreen({ onPlayContent, onBack }: FavoritesScre
           </RuggedBorder>
           <View style={styles.grid}>
             {mediaFavorites.map(item => {
-              const type = item.type === 'series' ? 'series' as const : 'movie' as const;
+              const type = item.type === 'series' ? 'series' as const : (item.type === 'radio' ? 'radio' as const : 'movie' as const);
               return (
                 <View key={item.key} style={{ position: 'relative' }}>
                   <TFPressable

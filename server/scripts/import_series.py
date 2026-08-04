@@ -12,10 +12,11 @@ from sqlalchemy import select
 
 from app.database import async_session_factory
 from app.models.models import SeriesModel
+from app.config import settings
 
 XTREAM_URL = "https://live.pusztaplay.eu/player_api.php"
-USERNAME = os.getenv("XTREAM_USERNAME", "Kertesznora")
-PASSWORD = os.getenv("XTREAM_PASSWORD", "Kertesznora.kn")
+USERNAME = settings.XTREAM_USERNAME
+PASSWORD = settings.XTREAM_PASSWORD
 OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com")
 CHECKPOINT_FILE = "/app/scripts/import_series_checkpoint.txt"

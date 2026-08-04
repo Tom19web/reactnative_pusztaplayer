@@ -27,7 +27,9 @@ export function useAIMoods(playlist: PlaylistData | null): UseAIMoodsResult {
     if (!playlist || doneRef.current) return;
 
     const movies = playlist.movies || [];
-    if (movies.length === 0) return;
+    const series = playlist.series || [];
+    const allVod = [...movies, ...series];
+    if (allVod.length === 0) return;
 
     (async () => {
       // Try cache first
@@ -40,11 +42,11 @@ export function useAIMoods(playlist: PlaylistData | null): UseAIMoodsResult {
 
       // Fetch from AI proxy
       setLoading(true);
-      const items = movies.slice(0, 500).map(m => ({
-        key: m.key,
-        title: m.title,
-        genre: m.genre || '',
-        plot: (m as any).plot || m.year || '',
+      const items = allVod.slice(0, 500).map(item => ({
+        key: item.key,
+        title: item.title,
+        genre: item.genre || (item as any).group || '',
+        plot: (item as any).plot || item.year || '',
       }));
 
       try {

@@ -82,68 +82,113 @@ function formatEpgTime(raw: string | number): string {
 }
 
 /**
- * Rövid EPG lekérdezése egy csatornához.
+ * Backend EPG lekérdezése (az epg_programs táblából, channel_id = stream_id).
+ */
+async function fetchBackendEpg(
+  streamId: number | string,
+  limit: number,
+): Promise<EpgEntry[]> {
+  const server = 'https://live.pusztaplay.eu';
+  try {
+    const [nowRes, upcomingRes] = await Promise.all([
+      fetchWithTimeout(`${server}/api/v1/epg/${encodeURIComponent(streamId)}/now`, {}, 8000),
+      fetchWithTimeout(`${server}/api/v1/epg/${encodeURIComponent(streamId)}/upcoming?count=${Math.max(limit - 1, 1)}`, {}, 8000),
+    ]);
+
+    const programs: RawEpgItem[] = [];
+    if (nowRes.ok) {
+      const nowData = await nowRes.json();
+      if (nowData?.title) programs.push(nowData);
+    }
+    if (upcomingRes.ok) {
+      const upcomingData = await upcomingRes.json();
+      if (Array.isArray(upcomingData)) programs.push(...upcomingData);
+    }
+
+    return programs.slice(0, limit).map((p: RawEpgItem) => {
+      const startTs = (Number(p.start_timestamp) || 0) * 1000;
+      const endTs = (Number(p.stop_timestamp) || 0) * 1000;
+      return {
+        time: formatEpgTime(startTs),
+        endTime: formatEpgTime(endTs),
+        title: String(p.title || 'Ismeretlen műsor'),
+        description: String(p.description || ''),
+        startTimestamp: startTs,
+        endTimestamp: endTs,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * EPG lekérdezése egy csatornához — backend DB, Xtream fallback.
  */
 export async function fetchShortEpg(
-  creds: { username: string; password: string; server?: string },
+  creds: { username?: string; password?: string; server?: string } | null,
   streamId: number | string,
   limit = 5,
 ): Promise<EpgEntry[]> {
-  if (!creds?.username || !creds?.password || !streamId) return [];
+  if (!streamId) return [];
   const cacheKey = String(streamId);
   const now = Date.now();
   const cached = _cache.get(cacheKey);
   if (cached && now - cached.ts < CACHE_TTL_EPG) return cached.rows;
 
-  const server = creds.server || XTREAM_SERVER;
-  const url =
-    `${server}/player_api.php` +
-    `?username=${encodeURIComponent(creds.username)}` +
-    `&password=${encodeURIComponent(creds.password)}` +
-    `&action=get_short_epg` +
-    `&stream_id=${encodeURIComponent(streamId)}` +
-    `&limit=${limit}`;
+  // 1. Try backend DB (imported EPG)
+  let rows = await fetchBackendEpg(streamId, limit);
 
-  try {
-    const res = await fetchWithTimeout(url, {}, 10000);
-    if (!res.ok) return [];
-    const data = await res.json();
-    const listings = data?.epg_listings || data?.EPG_Listings || [];
-    const rows: EpgEntry[] = listings.slice(0, limit).map((item: RawEpgItem) => {
-      const rawStart = item.start_timestamp || item.start || '0';
-      const rawEnd = item.stop_timestamp || item.stop || '0';
-      let startTs = typeof rawStart === 'number' ? rawStart : parseInt(String(rawStart), 10) || 0;
-      let endTs = typeof rawEnd === 'number' ? rawEnd : parseInt(String(rawEnd), 10) || 0;
-      // If parseInt didn't work (datetime string like "20250602143000 +0200"), try Date parsing
-      if (!startTs && typeof rawStart === 'string') {
-        const d = new Date(rawStart);
-        if (!isNaN(d.getTime())) startTs = Math.floor(d.getTime() / 1000);
+  // 2. Fallback: Xtream direct
+  if (rows.length === 0 && creds?.username && creds?.password) {
+    const server = creds.server || XTREAM_SERVER;
+    const url =
+      `${server}/player_api.php` +
+      `?username=${encodeURIComponent(creds.username)}` +
+      `&password=${encodeURIComponent(creds.password)}` +
+      `&action=get_short_epg` +
+      `&stream_id=${encodeURIComponent(streamId)}` +
+      `&limit=${limit}`;
+
+    try {
+      const res = await fetchWithTimeout(url, {}, 10000);
+      if (res.ok) {
+        const data = await res.json();
+        const listings = data?.epg_listings || data?.EPG_Listings || [];
+        rows = listings.slice(0, limit).map((item: RawEpgItem) => {
+          const rawStart = item.start_timestamp || item.start || '0';
+          const rawEnd = item.stop_timestamp || item.stop || '0';
+          let startTs = typeof rawStart === 'number' ? rawStart : parseInt(String(rawStart), 10) || 0;
+          let endTs = typeof rawEnd === 'number' ? rawEnd : parseInt(String(rawEnd), 10) || 0;
+          if (!startTs && typeof rawStart === 'string') {
+            const d = new Date(rawStart);
+            if (!isNaN(d.getTime())) startTs = Math.floor(d.getTime() / 1000);
+          }
+          if (!endTs && typeof rawEnd === 'string') {
+            const d = new Date(rawEnd);
+            if (!isNaN(d.getTime())) endTs = Math.floor(d.getTime() / 1000);
+          }
+          if (startTs < 1e10) startTs *= 1000;
+          if (endTs < 1e10) endTs *= 1000;
+          return {
+            time: formatEpgTime(startTs > 0 ? startTs : item.start || item.start_timestamp),
+            endTime: formatEpgTime(endTs > 0 ? endTs : item.stop || item.end_timestamp),
+            title: safeDecodeBase64(item.title) || 'Ismeretlen m\u0171sor',
+            description: safeDecodeBase64(item.description) || '',
+            startTimestamp: startTs,
+            endTimestamp: endTs,
+          };
+        });
       }
-      if (!endTs && typeof rawEnd === 'string') {
-        const d = new Date(rawEnd);
-        if (!isNaN(d.getTime())) endTs = Math.floor(d.getTime() / 1000);
-      }
-      if (startTs < 1e10) startTs *= 1000;
-      if (endTs < 1e10) endTs *= 1000;
-      return {
-        time: formatEpgTime(startTs > 0 ? startTs : item.start || item.start_timestamp),
-        endTime: formatEpgTime(endTs > 0 ? endTs : item.stop || item.end_timestamp),
-        title: safeDecodeBase64(item.title) || 'Ismeretlen m\u0171sor',
-        description: safeDecodeBase64(item.description) || '',
-        startTimestamp: startTs,
-        endTimestamp: endTs,
-      };
-    });
-    _cache.set(cacheKey, { ts: now, rows });
-    // Evict oldest entries if over max
-    if (_cache.size > EPG_CACHE_MAX) {
-      const firstKey = _cache.keys().next().value;
-      if (firstKey !== undefined) _cache.delete(firstKey);
-    }
-    return rows;
-  } catch {
-    return [];
+    } catch {}
   }
+
+  _cache.set(cacheKey, { ts: now, rows });
+  if (_cache.size > EPG_CACHE_MAX) {
+    const firstKey = _cache.keys().next().value;
+    if (firstKey !== undefined) _cache.delete(firstKey);
+  }
+  return rows;
 }
 
 export function invalidateEpgCache(streamId: string | number): void {

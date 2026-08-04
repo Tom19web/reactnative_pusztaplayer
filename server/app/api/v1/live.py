@@ -6,7 +6,7 @@ Optimalizált Redis cache-eléssel és memóriabarát SQL Chunking logikával.
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select  # PEP8 tisztelet: Az import a helyére került!
 
@@ -14,7 +14,7 @@ from app.config import settings
 from app.core.auth import require_session
 from app.core.xtream_client import fetch_live_streams
 from app.core.channel_merger import clean_channel_title, merge_and_sort
-from app.models.models import ChannelLogoModel
+from app.models.models import ChannelLogoModel, ChannelTagModel
 from app.database import async_session_factory
 from app.redis import cache_get, cache_set
 
@@ -37,11 +37,15 @@ class ChannelItem(BaseModel):
     group: str
     logo: str
     stream_url: str
+    tags: list[str] = []
+    language: str = ""
     quality_variants: list[QualityVariant] = []
 
 class LiveStreamsResponse(BaseModel):
     channels: list[ChannelItem]
     groups: list[str]
+    tags: list[str] = []
+    languages: list[str] = []
 
 
 # --- Végpont ---
@@ -114,10 +118,42 @@ async def get_live_streams(
         except Exception as e:
             logger.debug("Logo fallback lookup failed: %s", e)
 
+    # Tag & nyelv betöltése
+    tag_map: dict[int, dict] = {}
+    try:
+        async with async_session_factory() as sess:
+            sids = [ch["stream_id"] for ch in merged]
+            result = await sess.execute(
+                select(ChannelTagModel.stream_id, ChannelTagModel.tags, ChannelTagModel.language)
+                .where(ChannelTagModel.stream_id.in_(sids))
+            )
+            for row in result:
+                tag_map[row.stream_id] = {"tags": row.tags or [], "language": row.language or ""}
+    except Exception as e:
+        logger.debug("Tag lookup failed: %s", e)
+
+    all_tags: set[str] = set()
+    all_langs: set[str] = set()
+    for ch in merged:
+        ct = tag_map.get(ch["stream_id"], {})
+        ch_tags = ct.get("tags") or []
+        ch_lang = ct.get("language") or ""
+        if not ch_tags:
+            ch["tags"] = [ch["group"]]  # fallback: régi group mint egyetlen tag
+        else:
+            ch["tags"] = ch_tags
+        ch["language"] = ch_lang
+        for t in ch["tags"]:
+            all_tags.add(t)
+        if ch_lang:
+            all_langs.add(ch_lang)
+
     # Válasz objektum összeállítása
     response_obj = LiveStreamsResponse(
         channels=[ChannelItem(**ch) for ch in merged],
         groups=sorted(groups),
+        tags=sorted(all_tags),
+        languages=sorted(all_langs),
     )
 
     # 4. 💾 MENTÉS A REDIS CACHE-BE (TTL: 30 perc = 1800 másodperc)
@@ -127,3 +163,23 @@ async def get_live_streams(
         logger.warning("Nem sikerült elmenteni a live streameket a Redisbe a(z) %s felhasználónak: %s", xtream_user, e)
 
     return response_obj
+
+
+# --- Publikus logo endpoint (nincs auth) ---
+
+@router.get("/channel-logos")
+async def get_channel_logos(ids: str = Query(...)):
+    stream_ids = [int(x.strip()) for x in ids.split(",") if x.strip().isdigit()]
+    if not stream_ids:
+        return {}
+    async with async_session_factory() as sess:
+        chunk_size = 1000
+        logo_map: dict[str, str] = {}
+        for i in range(0, len(stream_ids), chunk_size):
+            chunk = stream_ids[i:i + chunk_size]
+            result = await sess.execute(
+                select(ChannelLogoModel.stream_id, ChannelLogoModel.logo_url)
+                .where(ChannelLogoModel.stream_id.in_(chunk))
+            )
+            logo_map.update({str(row.stream_id): row.logo_url for row in result})
+    return logo_map
