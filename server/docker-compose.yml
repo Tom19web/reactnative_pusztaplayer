@@ -44,8 +44,8 @@ services:
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com}
       TMDB_API_KEY: ${TMDB_API_KEY}
       OPENSUBTITLES_API_KEY: ${OPENSUBTITLES_API_KEY}
-      ADMIN_USER: ${ADMIN_USER:-puszta_admin}
-      ADMIN_PASS: ${ADMIN_PASS:-csodalatos_v8_motor}
+      ADMIN_USER: ${ADMIN_USER}
+      ADMIN_PASS: ${ADMIN_PASS}
       PROXY_AUTH_KEY: ${PROXY_AUTH_KEY:-}
       RAPIDAPI_KEY: ${RAPIDAPI_KEY:-}
       XTREAM_USERNAME: ${XTREAM_USERNAME:-}

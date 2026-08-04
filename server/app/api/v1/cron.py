@@ -15,9 +15,11 @@ _basic = HTTPBasic()
 
 
 def _verify_cron_auth(credentials: HTTPBasicCredentials = Depends(_basic)):
-    if not secrets.compare_digest(credentials.username, settings.ADMIN_USER or ""):
+    if not settings.ADMIN_USER or not settings.ADMIN_PASS:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Admin auth not configured")
+    if not secrets.compare_digest(credentials.username, settings.ADMIN_USER):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-    if not secrets.compare_digest(credentials.password, settings.ADMIN_PASS or ""):
+    if not secrets.compare_digest(credentials.password, settings.ADMIN_PASS):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 

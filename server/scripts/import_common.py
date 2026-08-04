@@ -424,7 +424,7 @@ async def _call_deepseek(system_prompt: str, user_prompt: str) -> dict:
     if not settings.DEEPSEEK_API_KEY:
         return {}
     try:
-        async with httpx.AsyncClient(verify=False, timeout=30.0) as c:
+        async with httpx.AsyncClient(verify=True, timeout=30.0) as c:
             resp = await c.post(
                 getattr(settings, 'DEEPSEEK_BASE_URL', 'https://api.deepseek.com') + "/chat/completions",
                 headers={

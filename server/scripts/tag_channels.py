@@ -83,7 +83,7 @@ async def call_deepseek_tag(channels: list[dict]) -> dict[int, dict]:
     )
 
     try:
-        async with httpx.AsyncClient(verify=False, timeout=60.0) as c:
+        async with httpx.AsyncClient(verify=True, timeout=60.0) as c:
             resp = await c.post(
                 getattr(settings, "DEEPSEEK_BASE_URL", "https://api.deepseek.com") + "/chat/completions",
                 headers={

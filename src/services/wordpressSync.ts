@@ -11,6 +11,8 @@ export interface WpProfile {
   favorites: Favorite[];
   watch_later: WatchLaterItem[];
   watch_progress: HistoryItem[];
+  radio_recents: string[];
+  radio_plays: Record<string, number>;
   deleted?: boolean;
   deletedAt?: number;
 }

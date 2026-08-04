@@ -256,6 +256,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
         }
         if (!cancelled && profiles.length > 0) {
+          // Normalize: add missing radio fields for old profiles
+          profiles = profiles.map(p => ({
+            ...p,
+            radio_recents: p.radio_recents || [],
+            radio_plays: p.radio_plays || {},
+          }));
           dispatch({ type: 'SET_PROFILES', payload: profiles });
         }
       } catch {}

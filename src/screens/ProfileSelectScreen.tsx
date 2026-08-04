@@ -117,6 +117,7 @@ export default function ProfileSelectScreen({ onProfileSelected }: Props) {
       id, name, color: wizColor, avatar: wizAvatar,
       preferences: { live: [], movies: [], series: [] },
       favorites: [], watch_later: [], watch_progress: [],
+      radio_recents: [], radio_plays: {},
     };
     const updated = [...(profiles || []), newProfile];
     setProfiles(updated);
