@@ -166,7 +166,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return updateActiveProfile(state, p => ({ ...p, watch_progress: [] }));
     }
     case 'SET_RADIO_RECENTS': {
-      return updateActiveProfile(state, p => ({ ...p, radio_recents: action.payload.slice(0, 5) }));
+      return updateActiveProfile(state, p => ({ ...p, radio_recents: (action.payload || []).slice(0, 5) }));
     }
     case 'SET_RADIO_PLAYS': {
       return updateActiveProfile(state, p => ({ ...p, radio_plays: action.payload }));
@@ -174,7 +174,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'INCREMENT_RADIO_PLAY': {
       return updateActiveProfile(state, p => ({
         ...p,
-        radio_plays: { ...p.radio_plays, [action.payload]: (p.radio_plays[action.payload] || 0) + 1 },
+        radio_plays: { ...(p.radio_plays || {}), [action.payload]: ((p.radio_plays || {})[action.payload] || 0) + 1 },
       }));
     }
     case 'SET_PROFILES': return { ...state, profiles: action.payload };
