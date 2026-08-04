@@ -44,11 +44,17 @@ XTREAM_TIMEOUT = 20.0
 async def get_xtream_credentials() -> tuple[str, str] | tuple[None, None]:
     try:
         r = await get_redis()
-        keys = await r.keys("session:*")
-        if not keys:
-            return None, None
-        data = json.loads(await r.get(keys[0]) or "{}")
-        return data.get("xtream_user"), data.get("xtream_pass")
+        keys = [k async for k in r.scan_iter(match="session:*")]
+        if keys:
+            data = json.loads(await r.get(keys[0]) or "{}")
+            u = data.get("xtream_user")
+            p = data.get("xtream_pass")
+            if u and p:
+                return u, p
+        if settings.XTREAM_USERNAME and settings.XTREAM_PASSWORD:
+            logger.info("No sessions — using admin credentials from config.")
+            return settings.XTREAM_USERNAME, settings.XTREAM_PASSWORD
+        return None, None
     except Exception:
         return None, None
 
@@ -130,7 +136,7 @@ async def main():
     logger.info("Fetching Xtream credentials...")
     username, password = await get_xtream_credentials()
     if not username:
-        logger.error("No Xtream session found in Redis. Login first!")
+        logger.error("No Xtream credentials — no session and no admin creds in .env.")
         return
 
     logger.info("Fetching live streams from Xtream API...")

@@ -26,6 +26,7 @@ from sqlalchemy import text
 from app.core.xtream_client import fetch_live_streams
 from app.database import async_session_factory
 from app.redis import get_redis
+from app.config import settings
 
 LOG_DIR = "/var/log/pusztaplayer"
 
@@ -57,11 +58,17 @@ def run_script(name: str, args: list[str] | None = None) -> int:
 async def get_xtream_credentials() -> tuple[str, str] | tuple[None, None]:
     try:
         r = await get_redis()
-        keys = await r.keys("session:*")
-        if not keys:
-            return None, None
-        data = json.loads(await r.get(keys[0]) or "{}")
-        return data.get("xtream_user"), data.get("xtream_pass")
+        keys = [k async for k in r.scan_iter(match="session:*")]
+        if keys:
+            data = json.loads(await r.get(keys[0]) or "{}")
+            u = data.get("xtream_user")
+            p = data.get("xtream_pass")
+            if u and p:
+                return u, p
+        if settings.XTREAM_USERNAME and settings.XTREAM_PASSWORD:
+            logger.info("  Nincs aktív session — admin credential a .env-ből.")
+            return settings.XTREAM_USERNAME, settings.XTREAM_PASSWORD
+        return None, None
     except Exception:
         return None, None
 
@@ -71,7 +78,7 @@ async def purge_dead_channels() -> int:
     a jelenlegi Xtream live stream listában (halott/kivezetett csatornák)."""
     username, password = await get_xtream_credentials()
     if not username:
-        logger.warning("  Nincs Xtream session — purge kihagyva.")
+        logger.warning("  Nincs Xtream credential — purge kihagyva.")
         return 0
 
     streams, _ = await fetch_live_streams(username, password)

@@ -46,11 +46,19 @@ MATCH_THRESHOLD = 0.6
 async def get_xtream_credentials() -> tuple[str, str] | tuple[None, None]:
     try:
         r = await get_redis()
-        keys = await r.keys("session:*")
-        if not keys:
-            return None, None
-        data = json.loads(await r.get(keys[0]) or "{}")
-        return data.get("xtream_user"), data.get("xtream_pass")
+        keys = [k async for k in r.scan_iter(match="session:*")]
+        if keys:
+            data = json.loads(await r.get(keys[0]) or "{}")
+            u = data.get("xtream_user")
+            p = data.get("xtream_pass")
+            if u and p:
+                return u, p
+        # Fallback: admin credentials from config
+        if settings.XTREAM_USERNAME and settings.XTREAM_PASSWORD:
+            logger.info("No sessions — using admin credentials from config.")
+            return settings.XTREAM_USERNAME, settings.XTREAM_PASSWORD
+        logger.error("Nincs Xtream session a Redisben és admin credential sincs.")
+        return None, None
     except Exception:
         return None, None
 
@@ -65,7 +73,7 @@ async def download_xmltv(username: str, password: str, refresh: bool = False) ->
 
     url = f"{settings.XTREAM_API_BASE}/xmltv.php?username={username}&password={password}"
     logger.info("XMLTV letöltés: %s", url)
-    async with httpx.AsyncClient(verify=False, timeout=120.0) as client:
+    async with httpx.AsyncClient(verify=True, timeout=120.0) as client:
         resp = await client.get(url)
         resp.raise_for_status()
     text = resp.text
@@ -90,7 +98,7 @@ def stream_category(stream: dict, cat_by_id: dict) -> str:
 async def main(args: argparse.Namespace):
     username, password = await get_xtream_credentials()
     if not username:
-        logger.error("Nincs Xtream session a Redisben. Jelentkezz be előbb!")
+        logger.error("Nincs Xtream credential — se aktív session, se ADMIN_USER/PASS a .env-ben.")
         return
 
     # 1. XMLTV letöltés / cache

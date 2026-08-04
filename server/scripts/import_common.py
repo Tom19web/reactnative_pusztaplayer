@@ -362,11 +362,15 @@ async def _fetch_streams_by_category(
 async def scan_redis_sessions() -> list[tuple[str, str]]:
     try:
         redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-        session_keys = await redis.keys("session:*")
+        session_keys = [k async for k in redis.scan_iter(match="session:*")]
 
         if not session_keys:
-            logger.warning("No active sessions found.")
             await redis.aclose()
+            # Fallback: use admin credentials from .env
+            if settings.XTREAM_USERNAME and settings.XTREAM_PASSWORD:
+                logger.info("No active sessions — using admin credentials from config.")
+                return [(settings.XTREAM_USERNAME, settings.XTREAM_PASSWORD)]
+            logger.warning("No active sessions found and no admin credentials in config.")
             return []
 
         raw_sessions = await redis.mget(session_keys)
