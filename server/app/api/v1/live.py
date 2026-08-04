@@ -158,7 +158,7 @@ async def get_live_streams(
 
     # 4. 💾 MENTÉS A REDIS CACHE-BE (TTL: 30 perc = 1800 másodperc)
     try:
-        await cache_set(cache_key, response_obj.model_dump_json(), ttl=1800)
+        await cache_set(cache_key, response_obj.model_dump_json(), ttl_seconds=1800)
     except Exception as e:
         logger.warning("Nem sikerült elmenteni a live streameket a Redisbe a(z) %s felhasználónak: %s", xtream_user, e)
 
