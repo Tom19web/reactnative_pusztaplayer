@@ -773,15 +773,15 @@ async def docker_scripts():
             if not name.endswith(".py"):
                 continue
             fp = os.path.join(SCRIPTS_DIR, name)
-                try:
-                    stat = os.stat(fp)
-                    files.append({
-                        "name": name,
-                        "size": stat.st_size,
-                        "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M"),
-                    })
-                except Exception:
-                    pass
+            try:
+                stat = os.stat(fp)
+                files.append({
+                    "name": name,
+                    "size": stat.st_size,
+                    "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M"),
+                })
+            except Exception:
+                pass
     except Exception as e:
         return {"scripts": [], "error": str(e)}
     return {"scripts": files, "dir": SCRIPTS_DIR}
