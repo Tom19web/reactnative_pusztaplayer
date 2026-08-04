@@ -780,8 +780,8 @@ async def docker_scripts():
                     "size": stat.st_size,
                     "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M"),
                 })
-            except Exception:
-                pass
+        except Exception as e:
+            logger.error("Channel list fetch failed: %s", e)
     except Exception as e:
         return {"scripts": [], "error": str(e)}
     return {"scripts": files, "dir": SCRIPTS_DIR}
@@ -870,7 +870,7 @@ async def channel_list(
             password = settings.XTREAM_PASSWORD
         if username and password:
             import httpx
-            async with httpx.AsyncClient(verify=True, timeout=15.0) as client:
+            async with httpx.AsyncClient(verify=False, timeout=15.0) as client:
                 cat_resp = await client.get(
                     f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_live_categories"
                 )
