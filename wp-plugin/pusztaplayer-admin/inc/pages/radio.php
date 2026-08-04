@@ -33,6 +33,13 @@ function ppadmin_page_radio() {
         ppadmin_redirect_msg('Nincs kijelölt rádió.', true);
     }
 
+    // Deaktiváltak fizikai törlése
+    if (isset($_GET['ppaction']) && $_GET['ppaction'] === 'purge_deactivated' && check_admin_referer('ppadmin_radio_purge')) {
+        $res = ppadmin_api_post('/admin/radio/purge-deactivated');
+        if (isset($res['__error'])) ppadmin_redirect_msg($res['__error'], true);
+        else ppadmin_redirect_msg((int) ($res['purged'] ?? 0) . ' deaktivált rádió fizikailag törölve az adatbázisból.');
+    }
+
     // Szerkesztés
     if (isset($_POST['pp_update_radio']) && check_admin_referer('ppadmin_radio_update')) {
         $uuid = sanitize_text_field($_POST['station_uuid']);
@@ -60,8 +67,10 @@ function ppadmin_page_radio() {
 
     // Import gomb
     $import_url = wp_nonce_url(add_query_arg(['ppaction' => 'radio_import'], ppadmin_self_url()), 'ppadmin_radio_import');
+    $purge_url = wp_nonce_url(add_query_arg(['ppaction' => 'purge_deactivated'], ppadmin_self_url()), 'ppadmin_radio_purge');
     echo '<div class="ppa-actions">';
     echo '<a href="' . esc_url($import_url) . '" class="ppa-btn ppa-btn-secondary">📻 Rádió import</a>';
+    echo '<a href="' . esc_url($purge_url) . '" class="ppa-btn ppa-btn-danger" onclick="return confirm(\'Biztosan törlöd az ÖSSZES deaktivált rádiót az adatbázisból?\')">🗑 Deaktiváltak törlése</a>';
     $last_task = get_option('ppadmin_last_task', '');
     if ($last_task) {
         $dash_url = admin_url('admin.php?page=ppadmin');

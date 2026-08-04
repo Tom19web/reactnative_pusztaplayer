@@ -1207,3 +1207,18 @@ async def delete_radio_station(station_uuid: str):
         station.is_active = False
         await sess.commit()
     return {"station_uuid": station_uuid, "deactivated": True}
+
+
+@router.post("/admin/radio/purge-deactivated")
+async def purge_deactivated_radio():
+    """Fizikailag törli az összes deaktivált rádióállomást az adatbázisból."""
+    async with async_session_factory() as sess:
+        result = await sess.execute(
+            select(RadioStationModel).where(RadioStationModel.is_active == False)
+        )
+        stations = result.scalars().all()
+        count = len(stations)
+        for s in stations:
+            await sess.delete(s)
+        await sess.commit()
+    return {"ok": True, "purged": count}
