@@ -1,18 +1,18 @@
 """Bulk ICY meta checker — standalone script.
-Eredmény Redis-ben cache-elve 7 napig, a WP plugin /admin/radio táblázata
-automatikusan mutatja a ✅/❌ jeleket a cache-ből.
+Eredmény a radio_stations táblába mentve (icy_meta_title, icy_meta_checked_at).
+A WP plugin /admin/radio táblázata automatikusan mutatja a ✅/❌ jeleket.
 
 Futtatás: docker compose exec fastapi python /app/scripts/check_radio_icy.py
 """
 import sys; sys.path.insert(0, "/app")
-import asyncio, json, time
-from sqlalchemy import select
+import asyncio, time
+from datetime import datetime, timezone
+from sqlalchemy import select, update, text
 from app.database import async_session_factory
 from app.models.models import RadioStationModel
 from app.core.icy_meta import fetch_metadata_with_fallback
-from app.redis import get_redis
 
-ICY_CACHE_TTL = 604800  # 7 nap
+ICY_CHECK_TTL = 604800  # 7 nap
 
 
 async def main():
@@ -26,51 +26,57 @@ async def main():
         print("No active stations found.")
         return
 
-    r = await get_redis()
-    cache_keys = [f"icy:check:{s.station_uuid}" for s in stations]
-    cached = await r.mget(cache_keys)
-    cached_set = {stations[i].station_uuid for i, d in enumerate(cached) if d}
-
-    checked = with_meta = without_meta = 0
-    skipped = len(cached_set)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     total = len(stations)
-    to_check = total - skipped
+    cached = skipped = 0
+    checked = with_meta = without_meta = 0
 
-    print(f"Total: {total}, already cached: {skipped}, to check: {to_check}")
-    if to_check == 0:
-        print("All stations already cached. Done.")
-        return
+    print(f"Total: {total}")
 
     for s in stations:
-        if s.station_uuid in cached_set:
+        # Skip if already checked within 7 days
+        if s.icy_meta_checked_at and (now - s.icy_meta_checked_at).total_seconds() < ICY_CHECK_TTL:
+            skipped += 1
             continue
+
         n = checked + 1
-        print(f"[{n}/{to_check}] {s.name}")
+        print(f"[{n}/{total - skipped}] {s.name}")
         try:
             meta = await asyncio.wait_for(
                 fetch_metadata_with_fallback(s.stream_url),
                 timeout=15.0,
             )
             title = meta.get("title", "")
-            await r.setex(f"icy:check:{s.station_uuid}", ICY_CACHE_TTL,
-                          json.dumps({"has_meta": bool(title), "title": title, "ts": int(time.time())}))
             checked += 1
             if title:
                 with_meta += 1
             else:
                 without_meta += 1
         except asyncio.TimeoutError:
-            print(f"  TIMEOUT (15s)")
-            await r.setex(f"icy:check:{s.station_uuid}", ICY_CACHE_TTL,
-                          json.dumps({"has_meta": False, "title": "", "ts": int(time.time())}))
+            print("  TIMEOUT (15s)")
+            title = ""
             without_meta += 1
             checked += 1
         except Exception as e:
             print(f"  ERROR: {e}")
+            title = ""
             without_meta += 1
             checked += 1
 
-    print(f"\nDone. Total: {total}, Checked: {checked}, Cached(skipped): {skipped}, With meta: {with_meta}, Without: {without_meta}")
+        # Persist to DB
+        try:
+            async with async_session_factory() as sess:
+                stmt = (
+                    update(RadioStationModel)
+                    .where(RadioStationModel.station_uuid == s.station_uuid)
+                    .values(icy_meta_title=title or None, icy_meta_checked_at=now)
+                )
+                await sess.execute(stmt)
+                await sess.commit()
+        except Exception as e:
+            print(f"  DB SAVE ERROR: {e}")
+
+    print(f"\nDone. Total: {total}, Checked: {checked}, Skipped(cached): {skipped}, With meta: {with_meta}, Without: {without_meta}")
 
 
 if __name__ == "__main__":

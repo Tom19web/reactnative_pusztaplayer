@@ -1089,7 +1089,7 @@ async def list_radio_stations(
 
     async with async_session_factory() as sess:
         count_q = "SELECT COUNT(*) FROM radio_stations WHERE 1=1"
-        data_q = "SELECT id, station_uuid, name, stream_url, favicon, homepage, tags, country, state, language, codec, bitrate, votes, is_active, created_at FROM radio_stations WHERE 1=1"
+        data_q = "SELECT id, station_uuid, name, stream_url, favicon, homepage, tags, country, state, language, codec, bitrate, votes, is_active, created_at, icy_meta_title, icy_meta_checked_at FROM radio_stations WHERE 1=1"
         params: dict = {"limit": per_page, "offset": offset}
 
         if search:
@@ -1155,23 +1155,12 @@ async def list_radio_stations(
             "votes": r[12],
             "is_active": bool(r[13]),
             "created_at": str(r[14]) if r[14] else None,
-            "icy_meta": None,
+            "icy_meta": {
+                "has_meta": bool(r[15]) if r[16] else None,
+                "title": r[15],
+                "checked_at": str(r[16]) if r[16] else None,
+            } if r[16] else None,
         })
-
-    # Egyedi ICY meta cache betöltése
-    try:
-        r = await get_redis()
-        cache_keys = [f"icy:check:{s['station_uuid']}" for s in stations]
-        cached = await r.mget(cache_keys)
-        for i, data in enumerate(cached):
-            if data:
-                parsed = json.loads(data)
-                stations[i]["icy_meta"] = {
-                    "has_meta": parsed.get("has_meta"),
-                    "title": parsed.get("title"),
-                }
-    except Exception:
-        pass
 
     # Poszt-filter: icy_meta
     if icy_meta == "has":
@@ -1220,8 +1209,11 @@ async def purge_deactivated_radio():
 
 @router.get("/admin/radio/check-meta")
 async def check_radio_meta(station_uuid: str = Query("")):
-    """Single or bulk ICY meta check. Eredmény Redis-ben cache-elve 7 napig."""
+    """Single or bulk ICY meta check. Eredmény DB-be mentve (7 napig cache-elve)."""
     from app.core.icy_meta import fetch_metadata_with_fallback
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     async with async_session_factory() as sess:
         result = await sess.execute(
@@ -1234,65 +1226,51 @@ async def check_radio_meta(station_uuid: str = Query("")):
         station = next((s for s in stations if s.station_uuid == station_uuid), None)
         if not station:
             return {"error": "Station not found"}
-        cache_key = f"icy:check:{station_uuid}"
-        try:
-            r = await get_redis()
-            cached = await r.get(cache_key)
-            if cached:
-                data = json.loads(cached)
-                return {"station_uuid": station_uuid, "name": station.name, "has_meta": data["has_meta"], "title": data.get("title"), "cached": True}
-        except Exception:
-            pass
+        # Check if already cached in DB (< 7 days)
+        if station.icy_meta_checked_at and (now - station.icy_meta_checked_at).total_seconds() < 604800:
+            return {"station_uuid": station_uuid, "name": station.name,
+                    "has_meta": bool(station.icy_meta_title), "title": station.icy_meta_title, "cached": True}
         try:
             meta = await fetch_metadata_with_fallback(station.stream_url)
             title = meta.get("title", "")
-            result_data = {"has_meta": bool(title), "title": title, "ts": int(time.time())}
-            try:
-                r = await get_redis()
-                await r.setex(cache_key, 604800, json.dumps(result_data))
-            except Exception:
-                pass
-            return {"station_uuid": station_uuid, "name": station.name, "has_meta": bool(title), "title": title or None, "cached": False}
         except Exception:
-            return {"station_uuid": station_uuid, "name": station.name, "has_meta": False, "title": None, "error": True}
+            title = ""
+        async with async_session_factory() as sess:
+            stmt = select(RadioStationModel).where(RadioStationModel.station_uuid == station_uuid)
+            r2 = await sess.execute(stmt)
+            s = r2.scalar_one_or_none()
+            if s:
+                s.icy_meta_title = title or None
+                s.icy_meta_checked_at = now
+                await sess.commit()
+        return {"station_uuid": station_uuid, "name": station.name,
+                "has_meta": bool(title), "title": title or None, "cached": False}
 
-    # Bulk check (cache-first)
-    try:
-        r = await get_redis()
-        cache_keys = [f"icy:check:{s.station_uuid}" for s in stations]
-        cached = await r.mget(cache_keys)
-        cached_map = {}
-        for i, data in enumerate(cached):
-            if data:
-                cached_map[stations[i].station_uuid] = json.loads(data)
-    except Exception:
-        cached_map = {}
-
-    checked = 0
-    with_meta = 0
-    without_meta = 0
-    skipped = len(cached_map)
+    # Bulk check (DB cache-first)
+    checked = with_meta = without_meta = 0
+    skipped = sum(1 for s in stations if s.icy_meta_checked_at and (now - s.icy_meta_checked_at).total_seconds() < 604800)
 
     for s in stations:
-        if s.station_uuid in cached_map:
+        if s.icy_meta_checked_at and (now - s.icy_meta_checked_at).total_seconds() < 604800:
             continue
         try:
             meta = await fetch_metadata_with_fallback(s.stream_url)
             title = meta.get("title", "")
-            result_data = {"has_meta": bool(title), "title": title, "ts": int(time.time())}
-            try:
-                r = await get_redis()
-                await r.setex(f"icy:check:{s.station_uuid}", 604800, json.dumps(result_data))
-            except Exception:
-                pass
             checked += 1
-            if title:
-                with_meta += 1
-            else:
-                without_meta += 1
+            if title: with_meta += 1
+            else: without_meta += 1
         except Exception:
             without_meta += 1
+            title = ""
             checked += 1
+        async with async_session_factory() as sess:
+            stmt = select(RadioStationModel).where(RadioStationModel.station_uuid == s.station_uuid)
+            r2 = await sess.execute(stmt)
+            sobj = r2.scalar_one_or_none()
+            if sobj:
+                sobj.icy_meta_title = title or None
+                sobj.icy_meta_checked_at = now
+                await sess.commit()
 
     return {
         "total": len(stations),

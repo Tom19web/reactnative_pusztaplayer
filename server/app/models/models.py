@@ -108,6 +108,8 @@ class RadioStationModel(Base):
     bitrate = Column(Integer)
     votes = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+    icy_meta_title = Column(Text, nullable=True)
+    icy_meta_checked_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 
