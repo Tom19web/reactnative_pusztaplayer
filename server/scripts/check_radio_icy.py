@@ -47,7 +47,10 @@ async def main():
         n = checked + 1
         print(f"[{n}/{to_check}] {s.name}")
         try:
-            meta = await fetch_metadata_with_fallback(s.stream_url)
+            meta = await asyncio.wait_for(
+                fetch_metadata_with_fallback(s.stream_url),
+                timeout=15.0,
+            )
             title = meta.get("title", "")
             await r.setex(f"icy:check:{s.station_uuid}", ICY_CACHE_TTL,
                           json.dumps({"has_meta": bool(title), "title": title, "ts": int(time.time())}))
@@ -56,6 +59,12 @@ async def main():
                 with_meta += 1
             else:
                 without_meta += 1
+        except asyncio.TimeoutError:
+            print(f"  TIMEOUT (15s)")
+            await r.setex(f"icy:check:{s.station_uuid}", ICY_CACHE_TTL,
+                          json.dumps({"has_meta": False, "title": "", "ts": int(time.time())}))
+            without_meta += 1
+            checked += 1
         except Exception as e:
             print(f"  ERROR: {e}")
             without_meta += 1
