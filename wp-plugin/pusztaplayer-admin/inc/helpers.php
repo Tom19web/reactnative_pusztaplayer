@@ -124,10 +124,10 @@ function ppadmin_redirect_msg(string $msg, bool $error = false) {
 
 function ppadmin_render_flash() {
     if (isset($_GET['ppmsg'])) {
-        ppadmin_render_notice('success', wp_unslash($_GET['ppmsg']));
+        ppadmin_render_notice('success', wp_unslash(urldecode($_GET['ppmsg'])));
     }
     if (isset($_GET['pperr'])) {
-        ppadmin_render_notice('error', wp_unslash($_GET['pperr']));
+        ppadmin_render_notice('error', wp_unslash(urldecode($_GET['pperr'])));
     }
 }
 
