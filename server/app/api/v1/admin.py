@@ -1074,6 +1074,7 @@ async def list_radio_stations(
     active_only: bool = Query(False),
     no_logo: bool = Query(False),
     dup_only: bool = Query(False),
+    icy_meta: str = Query("", max_length=10),
     sort: str = Query("votes", max_length=30),
     order: str = Query("desc", max_length=4),
 ):
@@ -1171,6 +1172,14 @@ async def list_radio_stations(
                 }
     except Exception:
         pass
+
+    # Poszt-filter: icy_meta
+    if icy_meta == "has":
+        stations = [s for s in stations if s.get("icy_meta") and s["icy_meta"].get("has_meta")]
+    elif icy_meta == "no":
+        stations = [s for s in stations if not s.get("icy_meta") or s["icy_meta"].get("has_meta") is False]
+    elif icy_meta == "unchecked":
+        stations = [s for s in stations if s.get("icy_meta") is None]
 
     return {"stations": stations, "total": total, "page": page, "pages": max(1, (total + per_page - 1) // per_page)}
 

@@ -123,6 +123,7 @@ function ppadmin_page_radio() {
     $active_only = isset($_GET['active']) ? true : false;
     $no_logo = isset($_GET['nologo']) ? true : false;
     $dup_only = isset($_GET['dup']) ? true : false;
+    $icy_meta = isset($_GET['icy']) ? sanitize_key($_GET['icy']) : '';
     $sort = isset($_GET['sort']) ? sanitize_key($_GET['sort']) : 'votes';
     $order = isset($_GET['order']) && $_GET['order'] === 'asc' ? 'asc' : 'desc';
     $page = isset($_GET['ppage']) ? max(1, intval($_GET['ppage'])) : 1;
@@ -130,6 +131,7 @@ function ppadmin_page_radio() {
     $data = ppadmin_api_get('/admin/radio', [
         'page' => $page, 'per_page' => 50, 'search' => $search, 'tag' => $tag_f,
         'active_only' => $active_only, 'no_logo' => $no_logo, 'dup_only' => $dup_only,
+        'icy_meta' => $icy_meta,
         'sort' => $sort, 'order' => $order,
     ]);
 
@@ -151,6 +153,12 @@ function ppadmin_page_radio() {
     echo '<label><input type="checkbox" name="active"' . checked($active_only, true, false) . ' /> Csak aktív</label> ';
     echo '<label><input type="checkbox" name="nologo"' . checked($no_logo, true, false) . ' /> Csak logó nélküli</label> ';
     echo '<label><input type="checkbox" name="dup"' . checked($dup_only, true, false) . ' /> Csak duplikátumok</label> ';
+    echo '<select name="icy" class="ppa-select" style="width:auto;">';
+    echo '<option value="">ICY: mind</option>';
+    echo '<option value="has"' . selected($icy_meta, 'has', false) . '>✅ Van meta</option>';
+    echo '<option value="no"' . selected($icy_meta, 'no', false) . '>❌ Nincs meta</option>';
+    echo '<option value="unchecked"' . selected($icy_meta, 'unchecked', false) . '>🔍 Nem ellenőrzött</option>';
+    echo '</select> ';
     echo '<button class="ppa-btn">Szűrés</button>';
     echo '</form>';
 
