@@ -12,8 +12,7 @@ import FilterItem from '../components/FilterItem';
 import ShadowWrapper from '../components/ShadowWrapper';
 import { radioStations, RadioStation, USE_RADIO_API } from '../constants/radioStations';
 import { COLORS, FONT, SPACING } from '../constants';
-import { useCore, useFavorites, useToggleFavorite } from '../store/AppContext';
-import { getRadioPlayCounts, incrementRadioPlay, loadRadioRecents, saveRadioRecents } from '../services/radioStorage';
+import { useCore, useFavorites, useToggleFavorite, useRadioRecents, useRadioPlays } from '../store/AppContext';
 import { fetchRadioStations } from '../services/radioService';
 
 interface Props {
@@ -34,7 +33,8 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
   const toggleFav = useToggleFavorite();
   const [page, setPage] = useState(0);
   const [playing, setPlaying] = useState<RadioStation | null>(null);
-  const [playCounts, setPlayCounts] = useState<Record<string, number>>({});
+  const [radioRecents, setRadioRecents] = useRadioRecents();
+  const [radioPlays, incrementRadioPlays] = useRadioPlays();
   const [recents, setRecents] = useState<RadioStation[]>([]);
   const [activeSort, setActiveSort] = useState('Név ↑');
   const [activeTag, setActiveTag] = useState('Mind');
@@ -45,9 +45,6 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
 
   useEffect(() => {
     (async () => {
-      const counts = await getRadioPlayCounts();
-      setPlayCounts(counts);
-
       let list: RadioStation[] = [];
       if (USE_RADIO_API) {
         try {
@@ -60,12 +57,17 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
       }
       setStations(list);
       setLoading(false);
-
-      const recentKeys = await loadRadioRecents();
-      const recentStations = recentKeys.map(k => list.find(s => s.key === k)).filter(Boolean) as RadioStation[];
-      if (recentStations.length > 0) setRecents(recentStations);
     })();
   }, []);
+
+  // Compute recents from profile keys when stations load
+  useEffect(() => {
+    if (stations.length === 0) return;
+    const recentStations = radioRecents
+      .map(k => stations.find(s => s.key === k))
+      .filter(Boolean) as RadioStation[];
+    setRecents(recentStations.slice(0, 7));
+  }, [stations, radioRecents]);
 
   useEffect(() => { setPage(0); }, [searchTerm, activeSort, activeTag]);
 
@@ -128,13 +130,12 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
   }, [toggleFav]);
 
   const handlePress = useCallback(async (station: RadioStation) => {
-    await incrementRadioPlay(station.key);
-    setPlayCounts(prev => ({ ...prev, [station.key]: (prev[station.key] || 0) + 1 }));
+    incrementRadioPlays(station.key);
     const newRecents = [station, ...recents.filter(r => r.key !== station.key)].slice(0, MAX_RECENTS);
     setRecents(newRecents);
-    await saveRadioRecents(newRecents.map(r => r.key));
+    setRadioRecents(newRecents.map(r => r.key));
     setPlaying(station);
-  }, [recents]);
+  }, [recents, incrementRadioPlays, setRadioRecents]);
 
   const handlePlayerBack = useCallback(() => {
     setPlaying(null);

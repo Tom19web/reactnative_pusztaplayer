@@ -19,7 +19,7 @@ class RadioStationOut(BaseModel):
     id: int
     name: str
     stream_url: str
-    favicon: str = ""
+    favicon: str | None = ""
     tags: str = ""
     bitrate: int = 0
     codec: str = ""

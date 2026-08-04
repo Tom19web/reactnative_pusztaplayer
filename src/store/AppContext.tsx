@@ -29,6 +29,8 @@ export interface Profile {
   favorites: Favorite[];
   watch_later: WatchLaterItem[];
   watch_progress: HistoryItem[];
+  radio_recents: string[];
+  radio_plays: Record<string, number>;
   deleted?: boolean;
   deletedAt?: number;
 }
@@ -65,7 +67,7 @@ function generateId(): string {
 }
 
 function createDefaultProfile(name: string, color = '#ffcc00', avatar = 'đź§‘'): Profile {
-  return { id: generateId(), name, color, avatar, preferences: { live: [], movies: [], series: [] }, favorites: [], watch_later: [], watch_progress: [] };
+  return { id: generateId(), name, color, avatar, preferences: { live: [], movies: [], series: [] }, favorites: [], watch_later: [], watch_progress: [], radio_recents: [], radio_plays: {} };
 }
 
 function getActiveProfile(state: AppState): Profile | undefined {
@@ -101,6 +103,9 @@ type AppAction =
   | { type: 'ADD_HISTORY'; payload: HistoryItem }
   | { type: 'TOGGLE_WATCH_LATER'; payload: { key: string; title: string; type: string; group: string; logo: string } }
   | { type: 'CLEAR_HISTORY' }
+  | { type: 'SET_RADIO_RECENTS'; payload: string[] }
+  | { type: 'SET_RADIO_PLAYS'; payload: Record<string, number> }
+  | { type: 'INCREMENT_RADIO_PLAY'; payload: string }
   | { type: 'SET_PROFILES'; payload: Profile[] }
   | { type: 'SET_ACTIVE_PROFILE'; payload: string }
   | { type: 'SET_LOADING'; payload: boolean }
@@ -159,6 +164,18 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'CLEAR_HISTORY': {
       state = ensureActiveProfile(state);
       return updateActiveProfile(state, p => ({ ...p, watch_progress: [] }));
+    }
+    case 'SET_RADIO_RECENTS': {
+      return updateActiveProfile(state, p => ({ ...p, radio_recents: action.payload.slice(0, 5) }));
+    }
+    case 'SET_RADIO_PLAYS': {
+      return updateActiveProfile(state, p => ({ ...p, radio_plays: action.payload }));
+    }
+    case 'INCREMENT_RADIO_PLAY': {
+      return updateActiveProfile(state, p => ({
+        ...p,
+        radio_plays: { ...p.radio_plays, [action.payload]: (p.radio_plays[action.payload] || 0) + 1 },
+      }));
     }
     case 'SET_PROFILES': return { ...state, profiles: action.payload };
     case 'SET_ACTIVE_PROFILE': return { ...state, activeProfileId: action.payload };
@@ -430,4 +447,22 @@ export function useBackgroundAudio() {
     stop: () => d({ type: 'STOP_BACKGROUND_AUDIO' }),
     clear: () => d({ type: 'CLEAR_BACKGROUND_AUDIO' }),
   };
+}
+
+export function useRadioRecents(): [string[], (keys: string[]) => void] {
+  const profile = useActiveProfile();
+  const d = useAppDispatch();
+  return [
+    profile?.radio_recents || [],
+    useCallback((keys: string[]) => d({ type: 'SET_RADIO_RECENTS', payload: keys }), [d]),
+  ];
+}
+
+export function useRadioPlays(): [Record<string, number>, (key: string) => void] {
+  const profile = useActiveProfile();
+  const d = useAppDispatch();
+  return [
+    profile?.radio_plays || {},
+    useCallback((key: string) => d({ type: 'INCREMENT_RADIO_PLAY', payload: key }), [d]),
+  ];
 }
