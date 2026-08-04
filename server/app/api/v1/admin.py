@@ -1178,6 +1178,21 @@ async def batch_deactivate_radio(payload: dict):
     return {"deactivated": updated}
 
 
+@router.post("/admin/radio/purge-deactivated")
+async def purge_deactivated_radio():
+    """Fizikailag törli az összes deaktivált rádióállomást az adatbázisból."""
+    async with async_session_factory() as sess:
+        result = await sess.execute(
+            select(RadioStationModel).where(RadioStationModel.is_active == False)
+        )
+        stations = result.scalars().all()
+        count = len(stations)
+        for s in stations:
+            await sess.delete(s)
+        await sess.commit()
+    return {"ok": True, "purged": count}
+
+
 @router.post("/admin/radio/{station_uuid}")
 async def update_radio_station(station_uuid: str, payload: dict):
     allowed = {"name", "stream_url", "favicon", "homepage", "tags", "country", "state", "language", "codec", "bitrate", "votes", "is_active"}
@@ -1207,18 +1222,3 @@ async def delete_radio_station(station_uuid: str):
         station.is_active = False
         await sess.commit()
     return {"station_uuid": station_uuid, "deactivated": True}
-
-
-@router.post("/admin/radio/purge-deactivated")
-async def purge_deactivated_radio():
-    """Fizikailag törli az összes deaktivált rádióállomást az adatbázisból."""
-    async with async_session_factory() as sess:
-        result = await sess.execute(
-            select(RadioStationModel).where(RadioStationModel.is_active == False)
-        )
-        stations = result.scalars().all()
-        count = len(stations)
-        for s in stations:
-            await sess.delete(s)
-        await sess.commit()
-    return {"ok": True, "purged": count}
