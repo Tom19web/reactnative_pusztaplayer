@@ -21,6 +21,7 @@ from sqlalchemy import select, text
 from app.config import settings
 from app.database import async_session_factory
 from app.models.models import ChannelLogoModel, EpgProgramModel, ChannelTagModel, RadioStationModel
+from app.core.channel_merger import clean_channel_title
 from app.redis import cache_get, cache_set, get_redis
 
 _BG_TASKS: set[asyncio.Task] = set()
@@ -886,7 +887,7 @@ async def channel_list(
                             sid = s.get("stream_id", 0)
                             if not sid:
                                 continue
-                            name = s.get("name", "")
+                            name = clean_channel_title(str(s.get("name", "")))
                             if search and search.lower() not in name.lower():
                                 continue
                             cat_id = int(s.get("category_id", 0))
