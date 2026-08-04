@@ -868,37 +868,38 @@ async def channel_list(
         if not username:
             username = settings.XTREAM_USERNAME
             password = settings.XTREAM_PASSWORD
-        if username and password:
-            import httpx
-            async with httpx.AsyncClient(verify=False, timeout=15.0) as client:
-                cat_resp = await client.get(
-                    f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_live_categories"
-                )
-                if cat_resp.status_code == 200:
-                    for c in cat_resp.json():
-                        cats_by_id[int(c.get("category_id", 0))] = c.get("category_name", "")
-                stream_resp = await client.get(
-                    f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_live_streams"
-                )
-                if stream_resp.status_code == 200:
-                    for s in stream_resp.json():
-                        sid = s.get("stream_id", 0)
-                        if not sid:
-                            continue
-                        name = s.get("name", "")
-                        if search and search.lower() not in name.lower():
-                            continue
-                        cat_id = int(s.get("category_id", 0))
-                        cat_name = cats_by_id.get(cat_id, s.get("category_name", ""))
-                        if category and cat_name != category:
-                            continue
-                        streams.append({
-                            "stream_id": sid,
-                            "name": name,
-                            "category": cat_name,
-                            "logo": s.get("stream_icon", ""),
-                            "epg_channel_id": s.get("epg_channel_id") or "",
-                        })
+        try:
+            if username and password:
+                import httpx
+                async with httpx.AsyncClient(verify=False, timeout=15.0) as client:
+                    cat_resp = await client.get(
+                        f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_live_categories"
+                    )
+                    if cat_resp.status_code == 200:
+                        for c in cat_resp.json():
+                            cats_by_id[int(c.get("category_id", 0))] = c.get("category_name", "")
+                    stream_resp = await client.get(
+                        f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_live_streams"
+                    )
+                    if stream_resp.status_code == 200:
+                        for s in stream_resp.json():
+                            sid = s.get("stream_id", 0)
+                            if not sid:
+                                continue
+                            name = s.get("name", "")
+                            if search and search.lower() not in name.lower():
+                                continue
+                            cat_id = int(s.get("category_id", 0))
+                            cat_name = cats_by_id.get(cat_id, s.get("category_name", ""))
+                            if category and cat_name != category:
+                                continue
+                            streams.append({
+                                "stream_id": sid,
+                                "name": name,
+                                "category": cat_name,
+                                "logo": s.get("stream_icon", ""),
+                                "epg_channel_id": s.get("epg_channel_id") or "",
+                            })
         except Exception as e:
             logger.error("Channel list fetch failed: %s", e)
 
