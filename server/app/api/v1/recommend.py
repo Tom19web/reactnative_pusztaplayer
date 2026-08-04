@@ -43,23 +43,41 @@ async def recommend(request: RecommendRequest):
     if not request.history_items:
         return RecommendResponse(recommendations=[])
 
+    movie_ids: list[int] = []
+    series_ids: list[int] = []
+    for item in request.history_items:
+        try:
+            if item.type == "movie":
+                movie_ids.append(int(item.key))
+            else:
+                series_ids.append(int(item.key))
+        except (ValueError, TypeError):
+            continue
+
+    if not movie_ids and not series_ids:
+        return RecommendResponse(recommendations=[])
+
     embeddings: list[list[float]] = []
     genres: list[str] = []
 
     async with async_session_factory() as session:
-        for item in request.history_items:
-            try:
-                model = MovieModel if item.type == "movie" else SeriesModel
-                id_col = model.stream_id if item.type == "movie" else model.series_id
-                row = (await session.execute(
-                    select(model.embedding, model.genre).where(id_col == int(item.key)).limit(1)
-                )).one_or_none()
-                if row:
+        if movie_ids:
+            for row in (await session.execute(
+                select(MovieModel.embedding, MovieModel.genre).where(MovieModel.stream_id.in_(movie_ids))
+            )).fetchall():
+                if row[0]:
                     embeddings.append(list(row[0]))
                     if row[1]:
                         genres.append(row[1])
-            except (ValueError, TypeError):
-                continue
+
+        if series_ids:
+            for row in (await session.execute(
+                select(SeriesModel.embedding, SeriesModel.genre).where(SeriesModel.series_id.in_(series_ids))
+            )).fetchall():
+                if row[0]:
+                    embeddings.append(list(row[0]))
+                    if row[1]:
+                        genres.append(row[1])
 
         if not embeddings:
             return RecommendResponse(recommendations=[])

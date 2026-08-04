@@ -68,7 +68,7 @@ async def enrich_epg(
 
         for enriched_data in batch_result:
             prog_id = enriched_data.get("program_id", "")
-            prog = next((p for p in batch if p.id == prog_id or prog_id == ""), None)
+            prog = next((p for p in batch if p.id == prog_id), None)
             if prog is None:
                 continue
 
@@ -91,6 +91,7 @@ async def enrich_epg(
             )
 
     await db.flush()
+    await db.commit()  # explicit commit — paranoia against rollback edge cases
     return enriched_results
 
 

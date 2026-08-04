@@ -67,7 +67,6 @@ services:
       - ./tmp:/tmp
       - ./logs:/var/log
       - /var/run/docker.sock:/var/run/docker.sock
-    environment:
 
 
 volumes:

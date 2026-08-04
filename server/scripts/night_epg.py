@@ -89,16 +89,22 @@ async def purge_dead_channels() -> int:
         return 0
 
     async with async_session_factory() as sess:
-        result = await sess.execute(
-            text(
-                "DELETE FROM epg_programs "
-                "WHERE channel_id ~ '^[0-9]+$' "
-                "AND NOT (channel_id = ANY(:ids))"
-            ),
-            {"ids": list(current_ids)},
+        # Pre-compute: get all EPG channel IDs, then delete non-current numeric ones
+        result = await sess.execute(text("SELECT DISTINCT channel_id FROM epg_programs"))
+        all_epg_ids = {str(r[0]) for r in result.fetchall()}
+        to_delete = all_epg_ids - current_ids
+        to_delete = {cid for cid in to_delete if cid.isdigit()}
+
+        if not to_delete:
+            logger.info("  Nincs törlendő halott csatorna.")
+            return 0
+
+        deleted = await sess.execute(
+            text("DELETE FROM epg_programs WHERE channel_id = ANY(:ids)"),
+            {"ids": list(to_delete)},
         )
         await sess.commit()
-        return result.rowcount or 0
+        return deleted.rowcount or 0
 
 
 async def main():

@@ -78,13 +78,16 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
       setSemanticResults([]);
       return;
     }
+    let cancelled = false;
     const timer = setTimeout(async () => {
       setSemanticLoading(true);
       const results = await semanticSearch(localSearch, 5);
-      setSemanticResults(results);
-      setSemanticLoading(false);
+      if (!cancelled) {
+        setSemanticResults(results);
+        setSemanticLoading(false);
+      }
     }, 500);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [localSearch, showInput]);
 
   // Sync debounced local value → global state

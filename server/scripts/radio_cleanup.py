@@ -51,7 +51,7 @@ async def load_stations() -> list[dict]:
         result = await sess.execute(
             text(
                 "SELECT station_uuid, name, stream_url, favicon, tags, language, votes, is_active "
-                "FROM radio_stations"
+                "FROM radio_stations LIMIT 5000"
             )
         )
         rows = result.fetchall()

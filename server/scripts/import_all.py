@@ -23,7 +23,7 @@ def main():
         for script in SCRIPTS:
             log.write(f"--- Running: {script} ---\n")
             result = subprocess.run(
-                ["python", script],
+                [sys.executable, script],
                 capture_output=True, text=True, timeout=7200,
             )
             log.write(result.stdout)
