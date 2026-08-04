@@ -1154,7 +1154,23 @@ async def list_radio_stations(
             "votes": r[12],
             "is_active": bool(r[13]),
             "created_at": str(r[14]) if r[14] else None,
+            "icy_meta": None,
         })
+
+    # Egyedi ICY meta cache betöltése
+    try:
+        r = await get_redis()
+        cache_keys = [f"icy:check:{s['station_uuid']}" for s in stations]
+        cached = await r.mget(cache_keys)
+        for i, data in enumerate(cached):
+            if data:
+                parsed = json.loads(data)
+                stations[i]["icy_meta"] = {
+                    "has_meta": parsed.get("has_meta"),
+                    "title": parsed.get("title"),
+                }
+    except Exception:
+        pass
 
     return {"stations": stations, "total": total, "page": page, "pages": max(1, (total + per_page - 1) // per_page)}
 
@@ -1194,8 +1210,8 @@ async def purge_deactivated_radio():
 
 
 @router.get("/admin/radio/check-meta")
-async def check_radio_meta():
-    """Végigiterál az aktív rádiókon és ellenőrzi az ICY meta-t."""
+async def check_radio_meta(station_uuid: str = Query("")):
+    """Single or bulk ICY meta check. Eredmény Redis-ben cache-elve 7 napig."""
     from app.core.icy_meta import fetch_metadata_with_fallback
 
     async with async_session_factory() as sess:
@@ -1204,29 +1220,44 @@ async def check_radio_meta():
         )
         stations = result.scalars().all()
 
+    # Single station check
+    if station_uuid:
+        station = next((s for s in stations if s.station_uuid == station_uuid), None)
+        if not station:
+            return {"error": "Station not found"}
+        cache_key = f"icy:check:{station_uuid}"
+        try:
+            r = await get_redis()
+            cached = await r.get(cache_key)
+            if cached:
+                data = json.loads(cached)
+                return {"station_uuid": station_uuid, "name": station.name, "has_meta": data["has_meta"], "title": data.get("title"), "cached": True}
+        except Exception:
+            pass
+        try:
+            meta = await fetch_metadata_with_fallback(station.stream_url)
+            title = meta.get("title", "")
+            result_data = {"has_meta": bool(title), "title": title, "ts": int(time.time())}
+            try:
+                r = await get_redis()
+                await r.setex(cache_key, 604800, json.dumps(result_data))
+            except Exception:
+                pass
+            return {"station_uuid": station_uuid, "name": station.name, "has_meta": bool(title), "title": title or None, "cached": False}
+        except Exception:
+            return {"station_uuid": station_uuid, "name": station.name, "has_meta": False, "title": None, "error": True}
+
+    # Bulk check
     without_meta = []
     for s in stations:
         try:
             meta = await fetch_metadata_with_fallback(s.stream_url)
             if not meta.get("title"):
-                without_meta.append({
-                    "uuid": s.station_uuid,
-                    "name": s.name,
-                    "stream_url": s.stream_url,
-                })
+                without_meta.append({"uuid": s.station_uuid, "name": s.name, "stream_url": s.stream_url})
         except Exception:
-            without_meta.append({
-                "uuid": s.station_uuid,
-                "name": s.name,
-                "stream_url": s.stream_url,
-                "error": True,
-            })
+            without_meta.append({"uuid": s.station_uuid, "name": s.name, "stream_url": s.stream_url, "error": True})
 
-    return {
-        "total": len(stations),
-        "without_meta": len(without_meta),
-        "stations": without_meta,
-    }
+    return {"total": len(stations), "without_meta": len(without_meta), "stations": without_meta}
 
 
 @router.post("/admin/radio/{station_uuid}")

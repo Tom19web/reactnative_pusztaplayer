@@ -33,7 +33,20 @@ function ppadmin_page_radio() {
         ppadmin_redirect_msg('Nincs kijelölt rádió.', true);
     }
 
-    // ICY meta ellenőrzés (egyszeri, manuális)
+    // ICY meta ellenőrzés — single
+    if (isset($_GET['ppaction']) && $_GET['ppaction'] === 'check_single_meta' && check_admin_referer('ppadmin_radio_meta_single')) {
+        $uuid = sanitize_text_field($_GET['uuid'] ?? '');
+        if (!$uuid) ppadmin_redirect_msg('Hiányzó UUID.', true);
+        $res = ppadmin_api_get('/admin/radio/check-meta', ['station_uuid' => $uuid]);
+        if (isset($res['__error'])) ppadmin_redirect_msg($res['__error'], true);
+        if ($res['has_meta']) {
+            ppadmin_redirect_msg('✅ ' . esc_html($res['name']) . ': van ICY meta' . ($res['title'] ? ' — ' . esc_html($res['title']) : ''));
+        } else {
+            ppadmin_redirect_msg('❌ ' . esc_html($res['name']) . ': NINCS ICY meta', true);
+        }
+    }
+
+    // ICY meta ellenőrzés (bulk)
     if (isset($_GET['ppaction']) && $_GET['ppaction'] === 'check_radio_meta' && check_admin_referer('ppadmin_radio_meta')) {
         $res = ppadmin_api_get('/admin/radio/check-meta');
         if (isset($res['__error'])) {
@@ -161,12 +174,14 @@ function ppadmin_page_radio() {
         $url = add_query_arg(array_merge($keep, ['sort' => $col_key, 'order' => $next_order, 'ppage' => 1]), ppadmin_self_url());
         echo '<th><a href="' . esc_url($url) . '" style="color:#f8f4ec;text-decoration:none;">' . esc_html($col_label) . $arrow . '</a></th>';
     }
+    echo '<th>ICY</th>';
     echo '<th>Műveletek</th>';
     echo '</tr></thead><tbody>';
-    if (empty($stations)) echo '<tr><td colspan="10">Nincs találat.</td></tr>';
+    if (empty($stations)) echo '<tr><td colspan="11">Nincs találat.</td></tr>';
     foreach ($stations as $st) {
         $uuid = $st['station_uuid'] ?? '';
         $favicon = $st['favicon'] ?? '';
+        $icy = $st['icy_meta'] ?? null;
         echo '<tr>';
         echo '<td><input type="checkbox" name="uuids[]" value="' . esc_attr($uuid) . '" /></td>';
         echo '<td>' . esc_html($st['name'] ?? '') . '<br><code class="ppa-code">' . esc_html($uuid) . '</code></td>';
@@ -178,6 +193,14 @@ function ppadmin_page_radio() {
         echo '<td>' . esc_html($st['bitrate'] ?? '—') . '</td>';
         echo '<td>' . esc_html($st['votes'] ?? '—') . '</td>';
         echo '<td>' . (!empty($st['is_active']) ? '<span class="ppa-badge ppa-badge-active">Aktív</span>' : '<span class="ppa-badge ppa-badge-inactive">Inaktív</span>') . '</td>';
+        echo '<td style="text-align:center;">';
+        if ($icy !== null) {
+            echo $icy['has_meta'] ? '<span class="ppa-green">✅</span>' : '<span class="ppa-red">❌</span>';
+        } else {
+            $meta_url = wp_nonce_url(add_query_arg(['ppaction' => 'check_single_meta', 'uuid' => $uuid], ppadmin_self_url()), 'ppadmin_radio_meta_single');
+            echo '<a href="' . esc_url($meta_url) . '" class="ppa-btn" style="padding:2px 8px;font-size:11px;">🔍</a>';
+        }
+        echo '</td>';
         echo '<td>';
         // Szerkesztés
         echo '<details class="ppa-details" style="margin-bottom:4px;"><summary class="ppa-btn" style="padding:4px 10px;font-size:12px;">Szerkesztés</summary>';
