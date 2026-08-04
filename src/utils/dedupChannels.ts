@@ -1,4 +1,5 @@
 import { Channel } from '../types';
+import { qualityLabel } from '../constants';
 
 /** Strip quality suffix (FHD/HD/SD etc) from channel title for deduplication. */
 function baseTitle(title: string): string {
@@ -6,33 +7,44 @@ function baseTitle(title: string): string {
 }
 
 /**
- * Return a deduplicated channel list — SD/HD/FHD variants merged into one entry.
- * Preserves original order (first-seen variant per dedup key).
+ * Return a deduplicated channel list — SD/HD/FHD variants merged into one entry
+ * with qualityVariants. Preserves original order (first-seen variant per dedup key).
  */
 export function dedupLiveChannels(channels: Channel[]): Channel[] {
-  const seen = new Set<string>();
-  const result: Channel[] = [];
-
-  // Build best-variant map per (baseTitle, group) key
-  const bestMap = new Map<string, Channel>();
+  const groups = new Map<string, Channel[]>();
   const order: string[] = [];
 
   for (const ch of channels) {
     if (ch.group === 'Hungarian Radio') continue;
     const key = `${baseTitle(ch.title)}|${ch.group}`;
-    if (!bestMap.has(key)) {
-      order.push(key);
-      bestMap.set(key, ch);
+    const arr = groups.get(key);
+    if (arr) {
+      arr.push(ch);
     } else {
-      const existing = bestMap.get(key)!;
-      if (ch.streamId > existing.streamId) {
-        bestMap.set(key, ch);
-      }
+      order.push(key);
+      groups.set(key, [ch]);
     }
   }
 
+  const result: Channel[] = [];
   for (const key of order) {
-    result.push(bestMap.get(key)!);
+    const group = groups.get(key)!;
+    const sorted = [...group].sort((a, b) => b.streamId - a.streamId);
+    const best = sorted[0];
+    if (group.length > 1) {
+      const variants = group.map(c => ({
+        label: qualityLabel(c.title),
+        streamId: c.streamId,
+        streamUrl: c.streamUrl,
+        key: c.key,
+      })).sort((a, b) => {
+        const order = ['FHD', 'HD', 'SD'];
+        return order.indexOf(a.label) - order.indexOf(b.label);
+      });
+      result.push({ ...best, qualityVariants: variants });
+    } else {
+      result.push(best);
+    }
   }
 
   return result;

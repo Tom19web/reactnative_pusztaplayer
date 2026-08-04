@@ -366,27 +366,31 @@ async def missing_analysis():
         import redis.asyncio as aioredis
         redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
         session_keys = [k async for k in redis.scan_iter(match="session:*")]
-        if not session_keys:
+        if session_keys:
+            raw = await redis.mget(session_keys)
             await redis.aclose()
-            return {"categories": [], "note": "No active sessions"}
-        raw = await redis.mget(session_keys)
-        await redis.aclose()
 
-        seen = set()
-        creds = []
-        for data in raw:
-            if not data: continue
-            try:
-                s = json.loads(data)
-                u, p = s.get("xtream_user", ""), s.get("xtream_pass", "")
-                if u and p and (u, p) not in seen:
-                    seen.add((u, p)); creds.append((u, p))
-            except Exception: pass
+            seen = set()
+            for data in raw:
+                if not data: continue
+                try:
+                    s = json.loads(data)
+                    seen.add(json.dumps([s.get("xtream_user",""), s.get("xtream_pass","")]))
+                except Exception: pass
+            dedup_creds = [tuple(json.loads(x)) for x in seen]
+        else:
+            await redis.aclose()
+            # Fallback
+            if settings.XTREAM_USERNAME and settings.XTREAM_PASSWORD:
+                dedup_creds = [(settings.XTREAM_USERNAME, settings.XTREAM_PASSWORD)]
+            else:
+                return {"categories": [], "note": "No active sessions and no admin credentials in config."}
 
-        if not creds:
+        if not dedup_creds:
             return {"categories": [], "note": "No valid credentials"}
 
-        u, p = creds[0]
+        # Process per credential pair — use first one only (same as before)
+        u, p = dedup_creds[0]
 
         # Fetch categories
         async with httpx.AsyncClient(verify=False) as client:
@@ -849,7 +853,9 @@ async def channel_list(
         cats_by_id: dict[int, str] = {}
         streams: list[dict] = []
 
-        # Read from Redis sessions to get creds
+        # Read from Redis sessions to get creds, fallback to .env
+        username = None
+        password = None
         try:
             r = await get_redis()
             keys = [k async for k in r.scan_iter(match="session:*")]
@@ -857,37 +863,42 @@ async def channel_list(
                 data = json.loads(await r.get(keys[0]) or "{}")
                 username = data.get("xtream_user")
                 password = data.get("xtream_pass")
-                if username and password:
-                    import httpx
-                    async with httpx.AsyncClient(verify=True, timeout=15.0) as client:
-                        cat_resp = await client.get(
-                            f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_live_categories"
-                        )
-                        if cat_resp.status_code == 200:
-                            for c in cat_resp.json():
-                                cats_by_id[int(c.get("category_id", 0))] = c.get("category_name", "")
-                        stream_resp = await client.get(
-                            f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_live_streams"
-                        )
-                        if stream_resp.status_code == 200:
-                            for s in stream_resp.json():
-                                sid = s.get("stream_id", 0)
-                                if not sid:
-                                    continue
-                                name = s.get("name", "")
-                                if search and search.lower() not in name.lower():
-                                    continue
-                                cat_id = int(s.get("category_id", 0))
-                                cat_name = cats_by_id.get(cat_id, s.get("category_name", ""))
-                                if category and cat_name != category:
-                                    continue
-                                streams.append({
-                                    "stream_id": sid,
-                                    "name": name,
-                                    "category": cat_name,
-                                    "logo": s.get("stream_icon", ""),
-                                    "epg_channel_id": s.get("epg_channel_id") or "",
-                                })
+        except Exception:
+            pass
+        if not username:
+            username = settings.XTREAM_USERNAME
+            password = settings.XTREAM_PASSWORD
+        if username and password:
+            import httpx
+            async with httpx.AsyncClient(verify=True, timeout=15.0) as client:
+                cat_resp = await client.get(
+                    f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_live_categories"
+                )
+                if cat_resp.status_code == 200:
+                    for c in cat_resp.json():
+                        cats_by_id[int(c.get("category_id", 0))] = c.get("category_name", "")
+                stream_resp = await client.get(
+                    f"{settings.XTREAM_API_BASE}/player_api.php?username={username}&password={password}&action=get_live_streams"
+                )
+                if stream_resp.status_code == 200:
+                    for s in stream_resp.json():
+                        sid = s.get("stream_id", 0)
+                        if not sid:
+                            continue
+                        name = s.get("name", "")
+                        if search and search.lower() not in name.lower():
+                            continue
+                        cat_id = int(s.get("category_id", 0))
+                        cat_name = cats_by_id.get(cat_id, s.get("category_name", ""))
+                        if category and cat_name != category:
+                            continue
+                        streams.append({
+                            "stream_id": sid,
+                            "name": name,
+                            "category": cat_name,
+                            "logo": s.get("stream_icon", ""),
+                            "epg_channel_id": s.get("epg_channel_id") or "",
+                        })
         except Exception:
             pass
 
