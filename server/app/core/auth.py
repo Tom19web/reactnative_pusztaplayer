@@ -11,7 +11,7 @@ from app.redis import get_redis
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
 
-SESSION_TTL = 86400  # 24 hours
+SESSION_TTL = 604800  # 7 days
 
 
 async def create_session(xtream_user: str, xtream_pass: str) -> str:

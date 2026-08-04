@@ -1,5 +1,5 @@
 ﻿import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, StyleSheet, useWindowDimensions, Animated } from 'react-native';
+import { View, StyleSheet, useWindowDimensions, Animated, AppState } from 'react-native';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import DotBackground from '../components/DotBackground';
@@ -25,6 +25,7 @@ import { flush as syncFlush, fetchProfiles, setProfilesVersion } from '../servic
 import { clearXtreamCredentials } from '../services/storage';
 import { COLORS, SIZES, USER_STATUS_LOGGED_IN, DEFAULT_PLAYER_CONTENT_ID, useLiveFormat } from '../constants';
 import { useChannelNavigation } from '../hooks/useChannelNavigation';
+import { maybeRefreshSession } from '../services/sessionRefresh';
 import { dedupLiveChannels } from '../utils/dedupChannels';
 import type { RouteName } from '../types';
 
@@ -53,6 +54,15 @@ export default function AppNavigator() {
     if (pl) dispatch({ type: 'SET_PLAYLIST', payload: pl });
     setRefreshing(false);
   }, [liveFormat, setLiveFormat, dispatch]);
+
+  // Session auto-refresh (12h interval)
+  useEffect(() => {
+    maybeRefreshSession();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') maybeRefreshSession();
+    });
+    return () => sub.remove();
+  }, []);
 
   // Screen transition: cross-fade on route change
   const fadeAnim = useRef(new Animated.Value(1)).current;
