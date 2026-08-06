@@ -3,7 +3,8 @@ import { getConfig } from './config';
 
 const Config = getConfig();
 const AI_PROXY_KEY = Config.AI_PROXY_KEY || '';
-const SEMANTIC_API = 'https://live.pusztaplay.eu';
+import { API_BASE_URL } from '../constants';
+const SEMANTIC_API = API_BASE_URL;
 const BATCH_SIZE = 50;
 
 interface AICacheEntry {

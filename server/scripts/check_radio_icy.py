@@ -12,7 +12,7 @@ from app.database import async_session_factory
 from app.models.models import RadioStationModel
 from app.core.icy_meta import fetch_metadata_with_fallback
 
-ICY_CHECK_TTL = 604800  # 7 nap
+from app.core.constants import ICY_CHECK_TTL
 
 
 async def main():

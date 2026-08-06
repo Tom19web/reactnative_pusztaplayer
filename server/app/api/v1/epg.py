@@ -15,12 +15,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_readonly, async_session_factory
 from app.redis import cache_get, cache_set
+from app.core.constants import CACHE_TTL_EPG
 from app.models.models import EpgProgramModel
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["epg"])
 
-EPG_CACHE_TTL = 21600  # 6 hours
+EPG_CACHE_TTL = CACHE_TTL_EPG
 EPG_MASTER_CACHE_TTL = 600  # 10 perc a teljes EPG lekéréshez
 
 
@@ -195,7 +196,7 @@ async def _fetch_single_channel_epg(channel_id: str, db: AsyncSession) -> EpgRes
 
     if programs_out:
         try:
-            await cache_set(cache_key, response.model_dump_json(), EPG_CACHE_TTL)
+            await cache_set(cache_key, response.model_dump_json(), CACHE_TTL_EPG)
         except Exception:
             logger.warning("Redis cache set failed for epg:%s", channel_id)
 

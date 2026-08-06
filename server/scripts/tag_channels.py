@@ -41,22 +41,7 @@ BATCH_SIZE = 15
 XTREAM_TIMEOUT = 20.0
 
 
-async def get_xtream_credentials() -> tuple[str, str] | tuple[None, None]:
-    try:
-        r = await get_redis()
-        keys = [k async for k in r.scan_iter(match="session:*")]
-        if keys:
-            data = json.loads(await r.get(keys[0]) or "{}")
-            u = data.get("xtream_user")
-            p = data.get("xtream_pass")
-            if u and p:
-                return u, p
-        if settings.XTREAM_USERNAME and settings.XTREAM_PASSWORD:
-            logger.info("No sessions — using admin credentials from config.")
-            return settings.XTREAM_USERNAME, settings.XTREAM_PASSWORD
-        return None, None
-    except Exception:
-        return None, None
+from app.services.session_bridge import get_xtream_credentials
 
 
 async def call_deepseek_tag(channels: list[dict]) -> dict[int, dict]:

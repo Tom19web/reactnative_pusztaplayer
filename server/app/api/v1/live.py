@@ -17,6 +17,7 @@ from app.core.channel_merger import clean_channel_title, merge_and_sort
 from app.models.models import ChannelLogoModel, ChannelTagModel
 from app.database import async_session_factory
 from app.redis import cache_get, cache_set
+from app.core.constants import CACHE_TTL_LIVE
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["live"])
@@ -158,7 +159,7 @@ async def get_live_streams(
 
     # 4. 💾 MENTÉS A REDIS CACHE-BE (TTL: 30 perc = 1800 másodperc)
     try:
-        await cache_set(cache_key, response_obj.model_dump_json(), ttl_seconds=1800)
+        await cache_set(cache_key, response_obj.model_dump_json(), ttl_seconds=CACHE_TTL_LIVE)
     except Exception as e:
         logger.warning("Nem sikerült elmenteni a live streameket a Redisbe a(z) %s felhasználónak: %s", xtream_user, e)
 

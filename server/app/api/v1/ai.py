@@ -12,6 +12,7 @@ import httpx
 
 from app.config import settings
 from app.redis import cache_get, cache_set
+from app.core.constants import CACHE_TTL_AI
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["AI Unified Proxy"])
@@ -139,7 +140,7 @@ async def classify_moods(req: MoodsRequest, x_api_key: str | None = Header(defau
     parsed = await _call_deepseek_json(system_prompt, json.dumps(itemList))
     moods_result = parsed if isinstance(parsed, list) else (parsed.get("results") or parsed.get("moods") or [])
 
-    await cache_set(cache_key, json.dumps(moods_result), ttl_seconds=86400)  # 24h TTL Redisben
+    await cache_set(cache_key, json.dumps(moods_result), ttl_seconds=CACHE_TTL_AI)  # 24h TTL Redisben
     return {"moods": moods_result, "cached": False}
 
 
@@ -164,7 +165,7 @@ async def ai_search(req: AISearchRequest, x_api_key: str | None = Header(default
     parsed = await _call_deepseek_json(system_prompt, user_prompt)
     keys_result = parsed if isinstance(parsed, list) else (parsed.get("keys") or parsed.get("results") or [])
 
-    await cache_set(cache_key, json.dumps(keys_result), ttl_seconds=86400)
+    await cache_set(cache_key, json.dumps(keys_result), ttl_seconds=CACHE_TTL_AI)
     return {"keys": keys_result, "cached": False}
 
 
@@ -192,5 +193,5 @@ async def ai_recommend(req: AIRecommendRequest, x_api_key: str | None = Header(d
     parsed = await _call_deepseek_json(system_prompt, user_prompt)
     recs_result = parsed if isinstance(parsed, list) else (parsed.get("recommendations") or parsed.get("results") or [])
 
-    await cache_set(cache_key, json.dumps(recs_result), ttl_seconds=86400)
+    await cache_set(cache_key, json.dumps(recs_result), ttl_seconds=CACHE_TTL_AI)
     return {"recommendations": recs_result, "cached": False}

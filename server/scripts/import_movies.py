@@ -14,7 +14,7 @@ from app.database import async_session_factory
 from app.models.models import MovieModel
 from app.config import settings
 
-XTREAM_URL = "https://live.pusztaplay.eu/player_api.php"
+XTREAM_URL = f"{settings.XTREAM_API_BASE}/player_api.php"
 USERNAME = settings.XTREAM_USERNAME
 PASSWORD = settings.XTREAM_PASSWORD
 OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")

@@ -6,7 +6,8 @@ try { AsyncStorage = require('@react-native-async-storage/async-storage').defaul
 
 const CACHE_KEY = 'pusztaplay_radio_api_cache_v2';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24h
-const API_URL = 'https://live.pusztaplay.eu/api/v1/radio';
+import { API_BASE_URL } from '../constants';
+const API_URL = `${API_BASE_URL}/api/v1/radio`;
 
 interface RawStation {
   id: number;

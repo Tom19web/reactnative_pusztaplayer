@@ -50,6 +50,9 @@ export const STORAGE_KEYS = {
   PLAYLIST: 'pusztaplay_m3u_channels',
 } as const;
 
+// ─── API base URL ──────────────────────────────────
+export const API_BASE_URL = (Config && Config.API_BASE_URL) || 'https://live.pusztaplay.eu';
+
 // ─── QR auth ─────────────────────────────────────────
 export const QR_API_BASE = 'https://pusztaplay.eu/wp-json/pusztaplay/v1';
 export const QR_POLL_INTERVAL = 3000;

@@ -8,7 +8,7 @@ import DotPattern from './DotPattern';
 import AudioVisualizer from './AudioVisualizer';
 import { useBackgroundAudio } from '../store/AppContext';
 import { useAudioVisualizer } from '../hooks/useAudioVisualizer';
-import { COLORS, FONT, SPACING } from '../constants';
+import { COLORS, FONT, SPACING, API_BASE_URL } from '../constants';
 import { RadioStation } from '../constants/radioStations';
 
 const { width: SW } = Dimensions.get('window');
@@ -99,7 +99,7 @@ export default function RadioPlayer({ station, onBack, isFav, onToggleFav, onPre
       let title = '';
       try {
         const icyRes = await fetch(
-          `https://live.pusztaplay.eu/api/v1/radio/metadata?stream_url=${encodeURIComponent(station.streamUrl)}`,
+          `${API_BASE_URL}/api/v1/radio/metadata?stream_url=${encodeURIComponent(station.streamUrl)}`,
           { headers: { 'User-Agent': 'PusztaPlayer v1.0' } },
         );
         if (icyRes.ok) {

@@ -1,4 +1,4 @@
-import { XTREAM_SERVER, CACHE_TTL_EPG } from '../constants';
+import { XTREAM_SERVER, CACHE_TTL_EPG, API_BASE_URL } from '../constants';
 import { EpgEntry } from '../types';
 import { fetchWithTimeout } from './fetchWithTimeout';
 
@@ -88,7 +88,7 @@ async function fetchBackendEpg(
   streamId: number | string,
   limit: number,
 ): Promise<EpgEntry[]> {
-  const server = 'https://live.pusztaplay.eu';
+  const server = API_BASE_URL;
   try {
     const [nowRes, upcomingRes] = await Promise.all([
       fetchWithTimeout(`${server}/api/v1/epg/${encodeURIComponent(streamId)}/now`, {}, 8000),
@@ -212,7 +212,7 @@ export interface EpgEnrichedData {
   }>;
 }
 
-const ENRICH_API = 'https://live.pusztaplay.eu';
+const ENRICH_API = API_BASE_URL;
 
 export async function fetchEnrichedEpg(streamId: number): Promise<EpgEnrichedData | null> {
   try {

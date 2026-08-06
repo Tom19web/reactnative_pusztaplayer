@@ -5,7 +5,8 @@ import { fetchWithTimeout } from './fetchWithTimeout';
 let AsyncStorage: any;
 try { AsyncStorage = require('@react-native-async-storage/async-storage').default || require('@react-native-async-storage/async-storage'); } catch { AsyncStorage = null; }
 
-const SEMANTIC_API = 'https://live.pusztaplay.eu';
+import { API_BASE_URL } from '../constants';
+const SEMANTIC_API = API_BASE_URL;
 const SESSION_TOKEN_KEY = 'pusztaplay_session_token';
 
 let _sessionToken: string | null = null;

@@ -20,9 +20,10 @@ import time
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["playlist"])
+from app.core.constants import CACHE_TTL_LIVE, CACHE_TTL_VOD
 
-LIVE_CACHE_TTL = 1800   # 30 min
-VOD_CACHE_TTL = 3600    # 60 min
+LIVE_CACHE_TTL = CACHE_TTL_LIVE
+VOD_CACHE_TTL = CACHE_TTL_VOD
 
 
 # --- DTOs ---

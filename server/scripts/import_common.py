@@ -181,12 +181,11 @@ _HARD_MATCHES: dict[str, str] = {
     "spektrum home": "Spektrum Home",
 }
 
+from app.core.channel_merger import clean_channel_title
+
+
 def clean_stream_name(name: str) -> str:
-    cleaned = _COUNTRY_PREFIX_RE.sub('', name)
-    cleaned = re.sub(r'^[:\s\-]+', '', cleaned)
-    cleaned = _QUALITY_SUFFIX_RE.sub(' ', cleaned)
-    cleaned = re.sub(r'\s+', ' ', cleaned)
-    return cleaned.strip()
+    return clean_channel_title(name)
 
 
 def _gh_headers() -> dict[str, str]:

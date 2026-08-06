@@ -55,22 +55,7 @@ def run_script(name: str, args: list[str] | None = None) -> int:
     return proc.returncode
 
 
-async def get_xtream_credentials() -> tuple[str, str] | tuple[None, None]:
-    try:
-        r = await get_redis()
-        keys = [k async for k in r.scan_iter(match="session:*")]
-        if keys:
-            data = json.loads(await r.get(keys[0]) or "{}")
-            u = data.get("xtream_user")
-            p = data.get("xtream_pass")
-            if u and p:
-                return u, p
-        if settings.XTREAM_USERNAME and settings.XTREAM_PASSWORD:
-            logger.info("  Nincs aktív session — admin credential a .env-ből.")
-            return settings.XTREAM_USERNAME, settings.XTREAM_PASSWORD
-        return None, None
-    except Exception:
-        return None, None
+from app.services.session_bridge import get_xtream_credentials
 
 
 async def purge_dead_channels() -> int:

@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 from app.database import get_db_readonly
 from app.redis import cache_get, cache_set
+from app.core.constants import CACHE_TTL_ICY, CACHE_TTL_ICY_EMPTY
 from app.models.models import RadioStationModel
 from app.core.icy_meta import fetch_metadata_with_fallback
 
@@ -99,7 +100,7 @@ async def get_radio_metadata(
     title = result.get("title", "")
 
     # Cache successful results 30s, empty results 10s (to allow recovery)
-    ttl = 30 if title else 10
+    ttl = CACHE_TTL_ICY if title else CACHE_TTL_ICY_EMPTY
     await cache_set(cache_key, title, ttl_seconds=ttl)
 
     return RadioMetadataResponse(title=title)
