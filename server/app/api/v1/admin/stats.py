@@ -8,13 +8,14 @@ from app.database import async_session_factory
 from app.redis import get_redis
 
 from ._shared import logger
+from .schemas import AdminStatsResponse
 
 router = APIRouter(tags=["admin"])
 
 
 # ─── Stats ────────────────────────────────────────────
 
-@router.get("/admin/stats")
+@router.get("/admin/stats", response_model=AdminStatsResponse)
 async def get_stats():
     try:
         async with async_session_factory() as sess:
