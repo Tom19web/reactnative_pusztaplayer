@@ -119,7 +119,7 @@ Respond with ONLY a JSON array of objects. Example:
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(
-            f"{settings.DEEPSEEK_BASE_URL}/v1/chat/completions",
+            f"{settings.DEEPSEEK_BASE_URL}/chat/completions",
             headers={
                 "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}",
                 "Content-Type": "application/json",

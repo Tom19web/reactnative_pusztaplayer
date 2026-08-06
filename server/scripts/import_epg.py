@@ -19,6 +19,7 @@ import time
 import httpx
 import redis.asyncio as aioredis
 
+from app.redis import get_redis
 from import_common import (
     logger, clean_stream_name, match_best,
     extract_xmltv_channels, build_epg_index,
@@ -33,22 +34,20 @@ EPG_IMPORT_TTL = 86400  # 24 hours
 
 async def _mark_imported(channel_id: int):
     try:
-        redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        redis = await get_redis()
         await redis.setex(f"epg:imported:{channel_id}", EPG_IMPORT_TTL, "1")
-        await redis.aclose()
     except Exception:
         pass
 
 
 async def _is_already_imported(channel_ids: list[int]) -> set[int]:
     try:
-        redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        redis = await get_redis()
         keys = [f"epg:imported:{cid}" for cid in channel_ids]
         pipe = redis.pipeline()
         for k in keys:
             pipe.exists(k)
         results = await pipe.execute()
-        await redis.aclose()
         return {cid for cid, exists in zip(channel_ids, results) if exists}
     except Exception:
         return set()

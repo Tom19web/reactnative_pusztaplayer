@@ -364,12 +364,10 @@ async def missing_analysis():
 
     categories_data = []
     try:
-        import redis.asyncio as aioredis
-        redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        redis = await get_redis()
         session_keys = [k async for k in redis.scan_iter(match="session:*")]
         if session_keys:
             raw = await redis.mget(session_keys)
-            await redis.aclose()
 
             seen = set()
             for data in raw:
@@ -380,7 +378,6 @@ async def missing_analysis():
                 except Exception: pass
             dedup_creds = [tuple(json.loads(x)) for x in seen]
         else:
-            await redis.aclose()
             # Fallback
             if settings.XTREAM_USERNAME and settings.XTREAM_PASSWORD:
                 dedup_creds = [(settings.XTREAM_USERNAME, settings.XTREAM_PASSWORD)]
@@ -487,8 +484,7 @@ async def delete_category(category_id: int = Query(...)):
     # Get Xtream credentials from Redis
     creds = []
     try:
-        import redis.asyncio as aioredis
-        redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        redis = await get_redis()
         session_keys = [k async for k in redis.scan_iter(match="session:*")]
         if session_keys:
             raw = await redis.mget(session_keys)
@@ -499,7 +495,6 @@ async def delete_category(category_id: int = Query(...)):
                     u, p = s.get("xtream_user", ""), s.get("xtream_pass", "")
                     if u and p: creds.append((u, p)); break
                 except Exception: pass
-        await redis.aclose()
     except Exception as e:
         raise HTTPException(500, f"Redis error: {e}")
 
