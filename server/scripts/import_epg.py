@@ -14,10 +14,13 @@ Usage:
 """
 import asyncio
 import logging
+import sys
 import time
 
 import httpx
 import redis.asyncio as aioredis
+
+sys.path.insert(0, "/app")
 
 from app.redis import get_redis
 from import_common import (

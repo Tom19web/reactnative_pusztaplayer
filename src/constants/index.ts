@@ -1,12 +1,22 @@
-import { Dimensions } from 'react-native';
+import { Dimensions, Platform } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { HomeIcon, LiveIcon, MoviesIcon, SeriesIcon, FavIcon, WatchLaterIcon, EpgIcon, RadioIcon } from '../components/icons/NavIcons';
 
 // ─── Képernyő méret detektálás ──────────────────────
-let SCREEN_WIDTH = 1920;
-try { SCREEN_WIDTH = Dimensions.get('window').width; } catch {}
+let _screenW = 1920;
+try { _screenW = Dimensions.get('window').width; } catch {}
+export const SCREEN_WIDTH = _screenW;
+let _screenH = 1080;
+try { _screenH = Dimensions.get('window').height; } catch {}
+export const SCREEN_HEIGHT = _screenH;
 const REFERENCE_WIDTH = 1920;
 let _scale = Math.max(0.45, Math.min(SCREEN_WIDTH / REFERENCE_WIDTH, 1));
+
+// ─── Platform detektálás ──────────────────────────
+let _isTV = false;
+try { _isTV = Platform.isTV; } catch { _isTV = false; }
+export const IS_TV = _isTV;
+export const IS_TOUCH = !_isTV;
 
 export function useScale(): number {
   const [scale, setScale] = useState(_scale);
@@ -124,6 +134,18 @@ export const COLORS = {
   cream: CREAM,
   darkText: '#1a1a1a',
   brandPink: PINK,
+  neonGreen: '#39ff14',
+  brightYellow: '#ffee00',
+  vividOrange: '#ff6600',
+  hotPink: '#ff0044',
+  statusRed: '#b71c1c',
+  statusRedBorder: '#c62828',
+  statusRedText: '#ef9a9a',
+  statusGreen: '#1b5e20',
+  darkInput: '#0d0d0d',
+  darkNavy: '#1a1a2e',
+  grayDark: '#333333',
+  grayMid: '#222222',
 } as const;
 
 // ─── Betűméretek (skálázva) ─────────────────────────

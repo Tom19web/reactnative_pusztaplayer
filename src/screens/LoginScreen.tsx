@@ -1,22 +1,20 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, Dimensions, StyleSheet, ActivityIndicator, ScrollView, Platform, Linking, ImageBackground, Animated, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Platform, Linking, ImageBackground, Animated } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import TFPressable from '../components/TFPressable';
 import RuggedBorder from '../components/RuggedBorder';
 import SoundEffect from '../components/SoundEffect';
-import { USER_STATUS_LOGGED_IN, COLORS } from '../constants';
+import { USER_STATUS_LOGGED_IN, COLORS, IS_TV, SCREEN_WIDTH } from '../constants';
 import { useSetUser, useSetPlaylist } from '../store/AppContext';
 import { xtreamLogin } from '../services/playlistService';
 import { saveXtreamCredentials } from '../services/storage';
 import { registerSession } from '../services/liveProxy';
 import { requestQRCode, pollQRCode, stopPolling } from '../services/qrAuth';
-let isTV = false;
-try { isTV = Platform.isTV; } catch {}
+import { useHardwareBack } from '../hooks/useHardwareBack';
 
 interface LoginScreenProps { onLoginSuccess: () => void; onBack?: () => void; }
 
-const SCREEN_W = Dimensions.get('window').width;
-const CARD_W = Math.min(440, SCREEN_W - 80);
+const CARD_W = Math.min(440, SCREEN_WIDTH - 80);
 const COUNTDOWN_SECS = 300;
 
 // Progress bar SVG: small inline component
@@ -48,10 +46,7 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
   // Animated transitions
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  useEffect(() => {
-    const h = BackHandler.addEventListener('hardwareBackPress', () => { onBack?.(); return true; });
-    return () => h.remove();
-  }, [onBack]);
+  useHardwareBack(() => { onBack?.(); }, [onBack]);
   const fadeTo = useCallback((cb: () => void) => {
     Animated.sequence([
       Animated.timing(fadeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
@@ -98,7 +93,7 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
       startCountdown();
       setDotsDone(2);
 
-      if (!isTV) {
+      if (!IS_TV) {
         try { Linking.openURL(r.authUrl); } catch {}
       }
 
@@ -154,8 +149,8 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
 
   return (
     <ImageBackground source={require('../../assets/splash-bg.png')} style={s.root} resizeMode="cover">
-      <SoundEffect text="SCAN!" textColor={COLORS.yellow} bgColor={COLORS.red} top={12} right={SCREEN_W * 0.08} rotate={15} fontSize={14} />
-      <SoundEffect text="GO!" textColor={COLORS.red} bgColor={COLORS.yellow} bottom={20} left={SCREEN_W * 0.1} rotate={-10} fontSize={16} />
+      <SoundEffect text="SCAN!" textColor={COLORS.yellow} bgColor={COLORS.red} top={12} right={SCREEN_WIDTH * 0.08} rotate={15} fontSize={14} />
+      <SoundEffect text="GO!" textColor={COLORS.red} bgColor={COLORS.yellow} bottom={20} left={SCREEN_WIDTH * 0.1} rotate={-10} fontSize={16} />
       <ScrollView contentContainerStyle={s.scrollInner} nestedScrollEnabled>
         <RuggedBorder color={COLORS.cyan} wobbleFactor={0.7}>
           <View style={[s.card, { width: CARD_W }]}>
@@ -168,13 +163,13 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
               <>
                 <Text style={s.emoji}>{'\uD83D\uDCFA'}</Text>
                 <Text style={s.desc}>
-                  {isTV
+                  {IS_TV
                     ? <>A Pusztaplayer és a <Text style={s.descBold}>pusztaplay.eu</Text> szolgáltatásainak használatához be kell jelentkezned. Nincs jelszó — csak egy QR kód, amit a telefonoddal beolvasol.</>
                     : <>A Pusztaplayer és a <Text style={s.descBold}>pusztaplay.eu</Text> szolgáltatásainak használatához be kell jelentkezned. Nyomd meg a gombot és jelentkezz be a böngészőben.</>
                   }
                 </Text>
-                <TFPressable style={s.btnPrimary} focusedStyle={s.btnPrimaryFocus} onPress={handleStart} testID="qr-login-btn" accessibilityLabel={isTV ? 'Bejelentkezés QR kóddal' : 'Bejelentkezés'} accessibilityRole="button">
-                  <Text style={s.btnPrimaryText}>{isTV ? 'BEJELENTKEZÉS QR KÓDDAL' : 'BEJELENTKEZÉS'}</Text>
+                <TFPressable style={s.btnPrimary} focusedStyle={s.btnPrimaryFocus} onPress={handleStart} testID="qr-login-btn" accessibilityLabel={IS_TV ? 'Bejelentkezés QR kóddal' : 'Bejelentkezés'} accessibilityRole="button">
+                  <Text style={s.btnPrimaryText}>{IS_TV ? 'BEJELENTKEZÉS QR KÓDDAL' : 'BEJELENTKEZÉS'}</Text>
                 </TFPressable>
                 {errorMsg ? <Text style={s.errText}>{'\u26A0 ' + errorMsg}</Text> : null}
               </>
@@ -186,7 +181,7 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
                   ))}
                 </View>
 
-                {isTV && step !== 'loggingIn' && qrData && (
+                {IS_TV && step !== 'loggingIn' && qrData && (
                   <>
                     <View style={s.qrWrap}>
                       <View style={s.qrInner}>
@@ -199,7 +194,7 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
 
                 <Text style={s.pollText}>
                   {step === 'loggingIn' ? '' :
-                   isTV ? 'Olvasd be a QR kódot a telefonoddal.' :
+                   IS_TV ? 'Olvasd be a QR kódot a telefonoddal.' :
                    'Jóváhagyásra vár a böngészőben…'}
                 </Text>
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import Svg, { Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { COLORS } from '../constants';
 
 const BAR_W = 6;
 const BAR_GAP = 3;
@@ -8,11 +9,11 @@ const BAR_COUNT = 16;
 const MAX_H = 80;
 const SVG_W = BAR_COUNT * (BAR_W + BAR_GAP) - BAR_GAP;
 
-const COLORS = [
-  '#ffcc00', '#ffcc00', '#ffcc00', '#ffcc00',
-  '#00FFFF', '#00FFFF', '#00FFFF', '#00FFFF',
-  '#39FF14', '#39FF14', '#39FF14', '#39FF14',
-  '#39FF14', '#39FF14', '#39FF14', '#39FF14',
+const BAR_COLORS = [
+  COLORS.yellow, COLORS.yellow, COLORS.yellow, COLORS.yellow,
+  COLORS.cyan, COLORS.cyan, COLORS.cyan, COLORS.cyan,
+  COLORS.neonGreen, COLORS.neonGreen, COLORS.neonGreen, COLORS.neonGreen,
+  COLORS.neonGreen, COLORS.neonGreen, COLORS.neonGreen, COLORS.neonGreen,
 ];
 
 interface Props {
@@ -35,7 +36,7 @@ function NativeBar({ anim, x, index }: { anim: Animated.Value; x: number; index:
   return (
     <Rect
       x={x} y={MAX_H - height} width={BAR_W} height={height}
-      fill={COLORS[index]} rx={1}
+      fill={BAR_COLORS[index]} rx={1}
     />
   );
 }
@@ -54,7 +55,7 @@ function FallbackBar({ x, index }: { x: number; index: number }) {
   return (
     <Rect
       x={x} y={MAX_H - height} width={BAR_W} height={height}
-      fill={COLORS[index]} rx={1} opacity={0.5}
+      fill={BAR_COLORS[index]} rx={1} opacity={0.5}
     />
   );
 }
@@ -73,7 +74,7 @@ export default function AudioVisualizer({ animValues, active }: Props) {
       <Svg width={SVG_W} height={MAX_H} viewBox={`0 0 ${SVG_W} ${MAX_H}`}>
         <Defs>
           <LinearGradient id="vizGrad" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#ffcc00" stopOpacity="0.6" />
+            <Stop offset="0" stopColor={COLORS.yellow} stopOpacity="0.6" />
             <Stop offset="1" stopColor="#00FFFF" stopOpacity="0.1" />
           </LinearGradient>
         </Defs>

@@ -305,3 +305,9 @@ export function useRadioPlays(): [Record<string, number>, (key: string) => void]
     useCallback((key: string) => d({ type: 'INCREMENT_RADIO_PLAY', payload: key }), [d]),
   ];
 }
+
+export function useRadioStats() {
+  const [recents, setRecents] = useRadioRecents();
+  const [plays, incrementPlay] = useRadioPlays();
+  return { recents, setRecents, plays, incrementPlay } as const;
+}

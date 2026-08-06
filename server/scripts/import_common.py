@@ -20,6 +20,7 @@ from app.core.channel_matcher import match_best
 from app.core.epg_importer import parse_xmltv, import_programs
 from app.config import settings
 from app.database import async_session_factory
+from app.redis import get_redis
 from app.services.epg_sources import _EPG_SOURCES, _CATEGORY_TO_COUNTRY, COUNTRY_SITE_PREFIXES
 from app.services.deepseek_client import call_deepseek
 

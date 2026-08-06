@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, BackHandler, Modal } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Modal } from 'react-native';
 import SimpleCard from '../components/SimpleCard';
 import MovieDetailPanel from '../components/MovieDetailPanel';
 import { searchByCast, CastSearchResult } from '../services/aiProxy';
@@ -7,6 +7,7 @@ import { loadXtreamCredentials } from '../services/storage';
 import { addSeriesEpisode } from '../services/playlistService';
 import { buildEpisodeUrl, xtreamGetSeriesInfo } from '../services/xtreamApi';
 import { COLORS, FONT, SPACING } from '../constants';
+import { useHardwareBack } from '../hooks/useHardwareBack';
 
 interface Props {
   castName: string;
@@ -20,10 +21,7 @@ export default function CastSearchScreen({ castName, onPlayContent, onBack, onNa
   const [loading, setLoading] = useState(true);
   const [selectedMovie, setSelectedMovie] = useState<CastSearchResult | null>(null);
 
-  useEffect(() => {
-    const handler = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
-    return () => handler.remove();
-  }, [onBack]);
+  useHardwareBack(onBack, [onBack]);
 
   useEffect(() => {
     let c = false;

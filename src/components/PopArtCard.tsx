@@ -2,6 +2,7 @@
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
 import ShadowWrapper from './ShadowWrapper';
+import { COLORS } from '../constants';
 
 let _dotIdCounter = 0;
 
@@ -19,7 +20,7 @@ export default function PopArtCard({ children, style, contentStyle, shadowOffset
   const dotId = useRef(`pp-dot-${++_dotIdCounter}`).current;
   return (
     <ShadowWrapper offset={shadowOffset} borderRadius={borderRadius} style={style}>
-      <View style={[s.card, { borderRadius, borderWidth, borderColor: focused ? '#ffcc00' : '#000' }, contentStyle]}>
+      <View style={[s.card, { borderRadius, borderWidth, borderColor: focused ? COLORS.yellow : '#000' }, contentStyle]}>
         <View style={[s.dots, { borderRadius: borderRadius - borderWidth }]} pointerEvents="none">
           <Svg style={StyleSheet.absoluteFill} viewBox="0 0 14 14" preserveAspectRatio="xMidYMid slice">
             <Defs>

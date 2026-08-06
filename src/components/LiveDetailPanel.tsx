@@ -7,7 +7,7 @@ import SoundEffect from './SoundEffect';
 import { Channel, EpgEntry } from '../types';
 import { fetchShortEpg, fetchEnrichedEpg, EpgEnrichedData } from '../services/epgService';
 import { loadXtreamCredentials } from '../services/storage';
-import { COLORS, FONT, SPACING, SIZES } from '../constants';
+import { COLORS, FONT, SPACING, SIZES, IS_TOUCH, SCREEN_HEIGHT } from '../constants';
 
 interface LiveDetailPanelProps {
   channel: Channel;
@@ -18,10 +18,6 @@ interface LiveDetailPanelProps {
   selectedQualityIdx?: number;
   onQualityChange?: (idx: number) => void;
 }
-
-let isTouch = true;
-try { isTouch = !Platform.isTV; } catch {}
-const screenH = Dimensions.get('window').height;
 
 export default function LiveDetailPanel({ channel, onPlay, onClose, isFav, onToggleFav, selectedQualityIdx = 0, onQualityChange }: LiveDetailPanelProps) {
   const [epg, setEpg] = useState<EpgEntry[]>([]);
@@ -202,25 +198,25 @@ const styles = StyleSheet.create({
   },
   panelWrap: {
     position: 'absolute',
-    top: isTouch ? 0 : 0,
-    right: isTouch ? 0 : 24,
-    left: isTouch ? 0 : undefined,
-    bottom: isTouch ? 0 : undefined,
-    alignItems: isTouch ? 'center' : undefined,
-    justifyContent: isTouch ? 'center' : undefined,
+    top: IS_TOUCH ? 0 : 0,
+    right: IS_TOUCH ? 0 : 24,
+    left: IS_TOUCH ? 0 : undefined,
+    bottom: IS_TOUCH ? 0 : undefined,
+    alignItems: IS_TOUCH ? 'center' : undefined,
+    justifyContent: IS_TOUCH ? 'center' : undefined,
   },
   container: {
-    width: isTouch ? '90%' : 300,
-    maxWidth: isTouch ? 400 : undefined,
-    maxHeight: isTouch ? screenH * 0.85 : 600,
+    width: IS_TOUCH ? '90%' : 300,
+    maxWidth: IS_TOUCH ? 400 : undefined,
+    maxHeight: IS_TOUCH ? SCREEN_HEIGHT * 0.85 : 600,
     backgroundColor: 'rgba(0,0,0,0.92)',
-    borderRadius: isTouch ? 12 : 0,
+    borderRadius: IS_TOUCH ? 12 : 0,
     padding: 10,
   },
-  scroll: { gap: 0, paddingBottom: isTouch ? 40 : 0 },
+  scroll: { gap: 0, paddingBottom: IS_TOUCH ? 40 : 0 },
   closeBtn: {
     position: 'absolute', top: 10, right: 12, zIndex: 10,
-    width: isTouch ? 40 : 20, height: isTouch ? 40 : 20, borderRadius: 4,
+    width: IS_TOUCH ? 40 : 20, height: IS_TOUCH ? 40 : 20, borderRadius: 4,
     backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center',
   },
   closeBtnFocus: { backgroundColor: COLORS.yellow, transform: [{ scale: 1.15 }] },
@@ -272,7 +268,7 @@ const styles = StyleSheet.create({
   },
   genreBadgeText: { color: COLORS.black, fontSize: 8, fontFamily: '007Toontime' },
   aiCast: { color: COLORS.white, fontSize: 8, fontFamily: '007Toontime', marginTop: 4 },
-  aiPow: { color: '#ffcc00', fontSize: 9, fontFamily: '007Toontime', marginTop: 4, fontStyle: 'italic', lineHeight: 13 },
+  aiPow: { color: COLORS.yellow, fontSize: 9, fontFamily: '007Toontime', marginTop: 4, fontStyle: 'italic', lineHeight: 13 },
   buttons: { flexDirection: 'column', gap: 4, marginTop: 8 },
   qualityRow: { flexDirection: 'row', gap: 4, justifyContent: 'center' },
   qualityBtn: {

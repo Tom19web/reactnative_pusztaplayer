@@ -5,7 +5,7 @@ import RuggedBorder from './RuggedBorder';
 import SoundEffect from './SoundEffect';
 import { xtreamGetSeriesInfo } from '../services/xtreamApi';
 import { loadXtreamCredentials } from '../services/storage';
-import { COLORS } from '../constants';
+import { COLORS, IS_TOUCH, SCREEN_HEIGHT } from '../constants';
 import { fetchSimilar, EmbeddingRecommendation } from '../services/aiProxy';
 
 interface SeriesDetailPanelProps {
@@ -24,10 +24,6 @@ interface SeriesDetailPanelProps {
 interface SeriesInfo {
   plot: string; cast: string; genre: string; rating: string; director: string; year: string; cover: string; seasonCount: number;
 }
-
-let isTouch = true;
-try { isTouch = !Platform.isTV; } catch {}
-const screenH = Dimensions.get('window').height;
 
 export default function SeriesDetailPanel({ seriesId, title, onClose, onShowEpisodes, isFav, onToggleFav, isWatchLater, onToggleWatchLater, onOpenSimilar, onCastPress }: SeriesDetailPanelProps) {
   const [info, setInfo] = useState<SeriesInfo | null>(null);
@@ -244,25 +240,25 @@ const styles = StyleSheet.create({
   },
   panelWrap: {
     position: 'absolute',
-    top: isTouch ? 0 : 20,
-    right: isTouch ? 0 : 24,
-    left: isTouch ? 0 : undefined,
-    bottom: isTouch ? 0 : undefined,
-    alignItems: isTouch ? 'center' : undefined,
-    justifyContent: isTouch ? 'center' : undefined,
+    top: IS_TOUCH ? 0 : 20,
+    right: IS_TOUCH ? 0 : 24,
+    left: IS_TOUCH ? 0 : undefined,
+    bottom: IS_TOUCH ? 0 : undefined,
+    alignItems: IS_TOUCH ? 'center' : undefined,
+    justifyContent: IS_TOUCH ? 'center' : undefined,
   },
   container: {
-    width: isTouch ? '90%' : 300,
-    maxWidth: isTouch ? 400 : undefined,
-    maxHeight: isTouch ? screenH * 0.85 : 600,
+    width: IS_TOUCH ? '90%' : 300,
+    maxWidth: IS_TOUCH ? 400 : undefined,
+    maxHeight: IS_TOUCH ? SCREEN_HEIGHT * 0.85 : 600,
     backgroundColor: 'rgba(0,0,0,0.92)',
-    borderRadius: isTouch ? 12 : 0,
+    borderRadius: IS_TOUCH ? 12 : 0,
     padding: 10,
   },
-  scroll: { gap: 0, paddingBottom: isTouch ? 40 : 0 },
+  scroll: { gap: 0, paddingBottom: IS_TOUCH ? 40 : 0 },
   closeBtn: {
     position: 'absolute', top: 10, right: 12, zIndex: 10,
-    width: isTouch ? 40 : 20, height: isTouch ? 40 : 20, borderRadius: 4,
+    width: IS_TOUCH ? 40 : 20, height: IS_TOUCH ? 40 : 20, borderRadius: 4,
     backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center',
   },
   closeBtnFocus: { backgroundColor: COLORS.yellow, transform: [{ scale: 1.15 }] },

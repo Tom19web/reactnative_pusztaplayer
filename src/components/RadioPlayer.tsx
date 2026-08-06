@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, Image, StyleSheet, Animated, Easing, BackHandler, Dimensions, ScrollView } from 'react-native';
+import { View, Text, Image, StyleSheet, Animated, Easing, BackHandler, ScrollView } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import TFPressable from './TFPressable';
 import RuggedBorder from './RuggedBorder';
@@ -8,10 +8,8 @@ import DotPattern from './DotPattern';
 import AudioVisualizer from './AudioVisualizer';
 import { useBackgroundAudio } from '../store/AppContext';
 import { useAudioVisualizer } from '../hooks/useAudioVisualizer';
-import { COLORS, FONT, SPACING, API_BASE_URL } from '../constants';
+import { COLORS, FONT, SPACING, API_BASE_URL, SCREEN_WIDTH } from '../constants';
 import { RadioStation } from '../constants/radioStations';
-
-const { width: SW } = Dimensions.get('window');
 
 interface Props {
   station: RadioStation;
@@ -276,7 +274,7 @@ const styles = StyleSheet.create({
   cardInner: {
     position: 'relative', borderRadius: 16,
     paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm,
-    alignItems: 'center', overflow: 'hidden', width: Math.min(SW * 0.7, 420),
+    alignItems: 'center', overflow: 'hidden', width: Math.min(SCREEN_WIDTH * 0.7, 420),
   },
   headerRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm,
@@ -293,13 +291,13 @@ const styles = StyleSheet.create({
   liveBadgeText: { color: COLORS.white, fontSize: 9, fontWeight: '900', fontFamily: 'Courier New', letterSpacing: 2 },
   // Controls
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: SPACING.xs },
-  sideBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#1a1a2e', borderWidth: 1, borderColor: '#333', alignItems: 'center', justifyContent: 'center' },
+  sideBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#1a1a2e', borderWidth: 1, borderColor: COLORS.grayDark, alignItems: 'center', justifyContent: 'center' },
   sideBtnFocus: { borderColor: COLORS.yellow, backgroundColor: '#222244' },
   sideIcon: { color: COLORS.text, fontSize: 12 },
   playBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: COLORS.cyan, borderWidth: 2, borderColor: '#000', alignItems: 'center', justifyContent: 'center' },
   playBtnFocus: { borderColor: COLORS.yellow, borderWidth: 2, backgroundColor: COLORS.yellow },
   playIcon: { color: '#000', fontSize: 14 },
-  favBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#1a1a2e', borderWidth: 1, borderColor: '#333', alignItems: 'center', justifyContent: 'center' },
+  favBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#1a1a2e', borderWidth: 1, borderColor: COLORS.grayDark, alignItems: 'center', justifyContent: 'center' },
   favBtnFocus: { borderColor: COLORS.yellow, backgroundColor: '#222244' },
   favText: { fontSize: 15 },
   // Meta

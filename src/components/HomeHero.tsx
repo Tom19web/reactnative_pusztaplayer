@@ -105,11 +105,11 @@ function HeroSlideContent({ item, playlist, onPlayContent, isFav, onToggleFav, s
   );
 
   const SFX = [
-    { text: 'BANG!', top: -8, right: 90, textColor: '#FFEE00', bgColor: '#FF0044', rotate: -8 },
-    { text: 'POW!', top: 6, right: 70, textColor: '#FF0000', bgColor: '#FFEE00', rotate: 6 },
-    { text: 'ZAP!', top: -6, right: 100, textColor: '#FFEE00', bgColor: '#39FF14', rotate: -12 },
-    { text: 'BOOM!', top: 10, right: 80, textColor: '#00FFFF', bgColor: '#FF6600', rotate: 10 },
-    { text: 'WHAM!', top: -14, right: 95, textColor: '#FFEE00', bgColor: '#FF0044', rotate: -4 },
+    { text: 'BANG!', top: -8, right: 90, textColor: COLORS.brightYellow, bgColor: COLORS.hotPink, rotate: -8 },
+    { text: 'POW!', top: 6, right: 70, textColor: COLORS.red, bgColor: COLORS.brightYellow, rotate: 6 },
+    { text: 'ZAP!', top: -6, right: 100, textColor: COLORS.brightYellow, bgColor: COLORS.neonGreen, rotate: -12 },
+    { text: 'BOOM!', top: 10, right: 80, textColor: COLORS.cyan, bgColor: COLORS.vividOrange, rotate: 10 },
+    { text: 'WHAM!', top: -14, right: 95, textColor: COLORS.brightYellow, bgColor: COLORS.hotPink, rotate: -4 },
   ];
   const sfx = SFX[slideIndex % SFX.length];
 
@@ -249,7 +249,7 @@ export default function HomeHero({ history, playlist, onPlayContent }: HomeHeroP
               <HeroSlideContent slideIndex={i} item={item} playlist={playlist} onPlayContent={onPlayContent} isFav={favItems.some(f => f.key === item.key)} onToggleFav={() => toggleFav({ key: item.key, title: item.title, type: item.type === 'live' ? 'live' : item.type === 'series' ? 'series' : 'movie', group: item.group || '', logo: item.logo || '', streamUrl: '', seriesId: '' })} />
               {(item.type === 'movie' || item.type === 'series') && (
                 <View style={{ position: 'absolute', top: 20, right: 10 }}>
-                  <ComicStarburst size={22} pointsCount={5} fillColor={['#39FF14', '#FFEE00', '#FF6600', '#FF0044'][i % 4]} borderColor="#000" borderWidth={2} shadowOffset={2} />
+                  <ComicStarburst size={22} pointsCount={5} fillColor={[COLORS.neonGreen, COLORS.brightYellow, COLORS.vividOrange, COLORS.hotPink][i % 4]} borderColor="#000" borderWidth={2} shadowOffset={2} />
                 </View>
               )}
             </View>

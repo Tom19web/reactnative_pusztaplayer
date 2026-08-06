@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, Pressable, Image, StyleSheet, BackHandler, PressableStateCallbackType } from 'react-native';
+import { View, Text, Pressable, Image, StyleSheet, PressableStateCallbackType } from 'react-native';
 import VideoPlayer from '../components/VideoPlayer';
 import { SelectedTrackType } from 'react-native-video';
 import TFPressable from '../components/TFPressable';
@@ -8,6 +8,7 @@ import { addSeriesEpisode, loadXtreamCredentials } from '../services/playlistSer
 import { useFavorites, useAppDispatch, useHistory, useBackgroundAudio } from '../store/AppContext';
 import { COLORS, FONT, SPACING, SIZES } from '../constants';
 import { useAutoPlay } from '../hooks/useAutoPlay';
+import { useHardwareBack } from '../hooks/useHardwareBack';
 import { usePlayerSession } from '../hooks/usePlayerSession';
 import { usePlayerContent } from '../hooks/usePlayerContent';
 import { usePlayerHistory } from '../hooks/usePlayerHistory';
@@ -158,11 +159,7 @@ export default function PlayerScreen({ contentId, onBack, onPrevChannel, onNextC
     }});
   }, [contentId, meta, session, dispatch]);
 
-  // Back button
-  useEffect(() => {
-    const h = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
-    return () => h.remove();
-  }, [onBack]);
+  useHardwareBack(onBack, [onBack]);
 
   if (loading) {
     return (

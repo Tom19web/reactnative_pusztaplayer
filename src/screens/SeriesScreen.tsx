@@ -239,7 +239,7 @@ export default function SeriesScreen({ onPlayContent, onBack, onNavigateEpisodes
 
 const styles = StyleSheet.create({
   container:{flex:1,paddingVertical:SPACING.md,paddingHorizontal:20},
-  filterBox:{position:'relative',backgroundColor:'#ffcc00',borderRadius:0,paddingVertical:SPACING.sm,paddingHorizontal:SPACING.lg,flexDirection:'row',alignItems:'center',gap:SPACING.sm,flexWrap:'wrap',overflow:'hidden'},
+  filterBox:{position:'relative',backgroundColor:COLORS.yellow,borderRadius:0,paddingVertical:SPACING.sm,paddingHorizontal:SPACING.lg,flexDirection:'row',alignItems:'center',gap:SPACING.sm,flexWrap:'wrap',overflow:'hidden'},
   filterLabel:{color:COLORS.black,fontFamily:'Bangers-Regular',fontSize:14},
   filterBgOverlay:{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,0.35)',zIndex:998},
   filterOverlayWrap:{position:'absolute',top:SPACING.md+40,left:SPACING.md,zIndex:999,elevation:20},

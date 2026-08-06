@@ -2,10 +2,8 @@
 import { View, Text, Image, ScrollView, StyleSheet, Platform } from 'react-native';
 import TFPressable from './TFPressable';
 import { PlayIcon, PauseIcon, RewindIcon, ForwardIcon, PrevIcon, NextIcon, RestartIcon, HeartIcon, HeartOutlineIcon, TimerIcon } from '../../assets/icons';
-import { COLORS, FONT, SPACING } from '../constants';
+import { COLORS, FONT, SPACING, IS_TV } from '../constants';
 
-let isTV = false;
-try { isTV = Platform.isTV; } catch {}
 
 interface PlayerControlsProps {
   paused: boolean;
@@ -83,7 +81,7 @@ function PlayerControls({
   const [focusedCtrl, setFocusedCtrl] = useState('');
   const ratio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
   const movieMode = isMovie(isVod, seriesEps);
-  const sF = (sz: number) => isTV ? undefined : { fontSize: Math.max(6, sz - 2) };
+  const sF = (sz: number) => IS_TV ? undefined : { fontSize: Math.max(6, sz - 2) };
   const [showSettings, setShowSettings] = useState(false);
   const [sleepRemaining, setSleepRemaining] = useState(0);
   const sleepEndRef = useRef(0);
@@ -396,7 +394,7 @@ function PlayerControls({
   return (
     <View style={styles.container}>
       {/* Back button — touchscreen only, top-right */}
-      {!isTV && onBack && (
+      {!IS_TV && onBack && (
         <TFPressable style={styles.backBtn} focusedStyle={styles.backBtnFocus} onPress={onBack} accessibilityLabel="Vissza" accessibilityRole="button">
           <Text style={styles.backBtnText}>{'\u2190'}</Text>
         </TFPressable>
@@ -471,7 +469,7 @@ const styles = StyleSheet.create({
   tagBox: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
   tagText: { fontSize: 9, color: COLORS.text },
   tagRating: { fontSize: 9, color: COLORS.yellow },
-  backBtn: { position: 'absolute', top: 20, left: 20, zIndex: 100, width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 2, borderColor: '#333', alignItems: 'center', justifyContent: 'center' },
+  backBtn: { position: 'absolute', top: 20, left: 20, zIndex: 100, width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 2, borderColor: COLORS.grayDark, alignItems: 'center', justifyContent: 'center' },
   backBtnFocus: { backgroundColor: '#f6c800', borderColor: '#000' },
   backBtnText: { color: '#fff', fontSize: 20, fontWeight: '700' },
   settingsOverlay: { backgroundColor: 'rgba(0,0,0,0.9)', borderRadius: 8, padding: 8, marginTop: 4, gap: 6 },

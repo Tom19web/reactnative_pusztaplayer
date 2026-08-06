@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.black,
     alignItems: 'center',
   },
-  btnFocus: { backgroundColor: '#ffcc00', transform: [{ scale: 0.95 }] },
+  btnFocus: { backgroundColor: COLORS.yellow, transform: [{ scale: 0.95 }] },
   btnDanger: { backgroundColor: '#FF4444', borderColor: COLORS.black },
   btnDangerFocus: { backgroundColor: '#FF6666', transform: [{ scale: 0.95 }] },
   btnDangerText: { color: '#fff' },

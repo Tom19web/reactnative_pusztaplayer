@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, BackHandler, Dimensions } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
 import TFPressable from '../components/TFPressable';
@@ -9,12 +9,12 @@ import { useCore, useProfiles, useSetActiveProfile, useActiveProfile } from '../
 import { xtreamGetUserInfo, XtreamUserFullInfo } from '../services/xtreamApi';
 import { loadXtreamCredentials } from '../services/storage';
 import { getSessionToken } from '../services/liveProxy';
-import { COLORS, FONT, SPACING } from '../constants';
+import { COLORS, FONT, SPACING, SCREEN_WIDTH } from '../constants';
+import { useHardwareBack } from '../hooks/useHardwareBack';
 
 interface UserInfoScreenProps { onBack: () => void; onLogout?: () => void; }
 
-const SCREEN_W = Dimensions.get('window').width;
-const CARD_W = Math.min(530, SCREEN_W - 60);
+const CARD_W = Math.min(530, SCREEN_WIDTH - 60);
 
 function CardBg() {
   return (
@@ -48,10 +48,7 @@ export default function UserInfoScreen({ onBack, onLogout }: UserInfoScreenProps
     try { return getSessionToken(); } catch { return null; }
   }, []);
 
-  useEffect(() => {
-    const h = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
-    return () => h.remove();
-  }, [onBack]);
+  useHardwareBack(onBack, [onBack]);
 
   useEffect(() => {
     let c = false;
@@ -79,13 +76,13 @@ export default function UserInfoScreen({ onBack, onLogout }: UserInfoScreenProps
   };
 
   const getSubStatus = (): { label: string; bg: string; text: string; border: string } => {
-    if (!info?.exp_date) return { label: 'INAKTÍV', bg: '#b71c1c', text: '#ef9a9a', border: '#c62828' };
+    if (!info?.exp_date) return { label: 'INAKTÍV', bg: COLORS.statusRed, text: COLORS.statusRedText, border: COLORS.statusRedBorder };
     const exp = /^\d+$/.test(info.exp_date) ? (Number(info.exp_date) < 1e10 ? Number(info.exp_date) * 1000 : Number(info.exp_date)) : Date.parse(info.exp_date);
-    if (isNaN(exp)) return { label: 'INAKTÍV', bg: '#b71c1c', text: '#ef9a9a', border: '#c62828' };
+    if (isNaN(exp)) return { label: 'INAKTÍV', bg: COLORS.statusRed, text: COLORS.statusRedText, border: COLORS.statusRedBorder };
     const daysLeft = (exp - Date.now()) / (1000 * 60 * 60 * 24);
-    if (daysLeft <= 0) return { label: 'LEJÁRT', bg: '#b71c1c', text: '#ef9a9a', border: '#c62828' };
+    if (daysLeft <= 0) return { label: 'LEJÁRT', bg: COLORS.statusRed, text: COLORS.statusRedText, border: COLORS.statusRedBorder };
     if (daysLeft < 7) return { label: 'HAMAROSAN LEJÁR', bg: '#e65100', text: '#ffe0b2', border: '#ef6c00' };
-    return { label: 'AKTÍV', bg: '#1b5e20', text: '#a5d6a7', border: '#2e7d32' };
+    return { label: 'AKTÍV', bg: COLORS.statusGreen, text: '#a5d6a7', border: '#2e7d32' };
   };
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.yellow} /></View>;
@@ -241,8 +238,8 @@ const s = StyleSheet.create({
   miniAvatarText: { color: COLORS.black, fontSize: 9, fontFamily: 'Bangers-Regular' },
   profileChipName: { color: COLORS.text, fontSize: 9, fontFamily: 'Poppins-Bold' },
   profileChipNameActive: { color: COLORS.black },
-  check: { color: '#1b5e20', fontSize: 11, fontWeight: '800' },
-  logoutBtn: { backgroundColor: '#b71c1c', borderRadius: 10, borderWidth: 2, borderColor: COLORS.black, paddingVertical: 6, paddingHorizontal: 6, alignSelf: 'center', alignItems: 'center' },
+  check: { color: COLORS.statusGreen, fontSize: 11, fontWeight: '800' },
+  logoutBtn: { backgroundColor: COLORS.statusRed, borderRadius: 10, borderWidth: 2, borderColor: COLORS.black, paddingVertical: 6, paddingHorizontal: 6, alignSelf: 'center', alignItems: 'center' },
   logoutBtnFoc: { backgroundColor: '#ff4d57' },
   logoutBtnText: { color: COLORS.text, fontSize: 10, fontFamily: 'Poppins-Bold', letterSpacing: 1 },
 });

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TextInput, StyleSheet, BackHandler, Dimensions, DeviceEventEmitter, ImageBackground, Animated, Modal } from 'react-native';
+import { View, Text, ScrollView, TextInput, StyleSheet, BackHandler, DeviceEventEmitter, ImageBackground, Animated, Modal } from 'react-native';
 import TFPressable from '../components/TFPressable';
 import PopArtCard from '../components/PopArtCard';
 import RuggedBorder from '../components/RuggedBorder';
 import SoundEffect from '../components/SoundEffect';
 import { Profile, useCore, useProfiles, useActiveProfile, useSetActiveProfile, useSetProfiles } from '../store/AppContext';
 import { deleteProfile as wpDeleteProfile, restoreProfile as wpRestoreProfile } from '../services/wordpressSync';
-import { COLORS, FONT, SPACING } from '../constants';
+import { COLORS, FONT, SPACING, SCREEN_WIDTH } from '../constants';
 import ExitDialog from '../components/ExitDialog';
 
 const COLORS_PRESET = ['#f6c800', '#1fd6e8', '#ff5b63', '#7c4dff'];
@@ -19,7 +19,6 @@ const SZUPERHOS_NEVEK = [
 ];
 const MAX_PROFILES = 3;
 const DELETED_GRACE_DAYS = 30;
-const SCREEN_W = Dimensions.get('window').width;
 
 interface Props { onProfileSelected: () => void; }
 
@@ -230,7 +229,7 @@ export default function ProfileSelectScreen({ onProfileSelected }: Props) {
 
   return (
     <ImageBackground source={require('../../assets/splash-bg.png')} style={s.root} resizeMode="cover">
-      <SoundEffect text="HEY!" textColor={COLORS.yellow} bgColor={COLORS.red} top={-2} left={SCREEN_W * 0.12} rotate={-8} fontSize={14} />
+      <SoundEffect text="HEY!" textColor={COLORS.yellow} bgColor={COLORS.red} top={-2} left={SCREEN_WIDTH * 0.12} rotate={-8} fontSize={14} />
       <View style={s.gridHeader}>
         <Text style={s.title}>PROFILOK</Text>
         <Text style={s.subtitle}>KIVEL NÉZNÉD MA A PUSZTAPLAYERT?</Text>
@@ -377,11 +376,11 @@ const s = StyleSheet.create({
   addCardFocus: { transform: [{ translateY: -4 }] },
   addCardInner: { width: 150, minHeight: 120, borderRadius: 16, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
   addText: { color: COLORS.muted, fontSize: 44, fontFamily: 'Bangers-Regular' },
-  emptyCard: { width: Math.min(400, SCREEN_W - 120), paddingVertical: 32, paddingHorizontal: 28, alignItems: 'center' },
+  emptyCard: { width: Math.min(400, SCREEN_WIDTH - 120), paddingVertical: 32, paddingHorizontal: 28, alignItems: 'center' },
   emptyTitle: { color: COLORS.text, fontSize: 18, fontFamily: 'Poppins-Bold', textAlign: 'center' },
   emptySub: { color: COLORS.muted, fontSize: 14, fontFamily: 'Poppins-Regular', marginBottom: 24, marginTop: 6 },
 
-  cardWizard: { width: Math.min(440, SCREEN_W - 120), paddingVertical: 24, paddingHorizontal: 28, alignItems: 'center' },
+  cardWizard: { width: Math.min(440, SCREEN_WIDTH - 120), paddingVertical: 24, paddingHorizontal: 28, alignItems: 'center' },
   dotsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   dotDone: { backgroundColor: COLORS.cyan },

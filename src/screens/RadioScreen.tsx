@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, BackHandler } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import RadioCard from '../components/RadioCard';
 import RadioPlayer from '../components/RadioPlayer';
@@ -12,7 +12,8 @@ import FilterItem from '../components/FilterItem';
 import ShadowWrapper from '../components/ShadowWrapper';
 import { radioStations, RadioStation, USE_RADIO_API } from '../constants/radioStations';
 import { COLORS, FONT, SPACING } from '../constants';
-import { useCore, useFavorites, useToggleFavorite, useRadioRecents, useRadioPlays } from '../store/AppContext';
+import { useHardwareBack } from '../hooks/useHardwareBack';
+import { useCore, useFavorites, useToggleFavorite, useRadioStats } from '../store/AppContext';
 import { fetchRadioStations } from '../services/radioService';
 
 interface Props {
@@ -33,8 +34,7 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
   const toggleFav = useToggleFavorite();
   const [page, setPage] = useState(0);
   const [playing, setPlaying] = useState<RadioStation | null>(null);
-  const [radioRecents, setRadioRecents] = useRadioRecents();
-  const [radioPlays, incrementRadioPlays] = useRadioPlays();
+  const { recents: radioRecents, setRecents: setRadioRecents, plays: radioPlays, incrementPlay: incrementRadioPlays } = useRadioStats();
   const [recents, setRecents] = useState<RadioStation[]>([]);
   const [activeSort, setActiveSort] = useState('Név ↑');
   const [activeTag, setActiveTag] = useState('Mind');
@@ -71,11 +71,7 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
 
   useEffect(() => { setPage(0); }, [searchTerm, activeSort, activeTag]);
 
-  useEffect(() => {
-    if (playing) return;
-    const h = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
-    return () => h.remove();
-  }, [playing, onBack]);
+  useHardwareBack(onBack, [playing, onBack], !playing);
 
   const tags = useMemo(() => {
     const tagSet = new Set<string>();
@@ -204,7 +200,7 @@ export default function RadioScreen({ onPlayContent, onBack }: Props) {
                   ))}
                 </ScrollView>
               </View>
-              <SoundEffect text="ON AIR!" textColor="#ffcc00" bgColor={COLORS.red} top={-10} right={-8} rotate={-6} fontSize={18} />
+              <SoundEffect text="ON AIR!" textColor={COLORS.yellow} bgColor={COLORS.red} top={-10} right={-8} rotate={-6} fontSize={18} />
             </RuggedBorder>
           </View>
         )}
@@ -317,7 +313,7 @@ const styles = StyleSheet.create({
   // Filter
   filterBox: {
     position: 'relative',
-    backgroundColor: '#ffcc00',
+    backgroundColor: COLORS.yellow,
     borderRadius: 0,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.lg,

@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet, DeviceEventEmitter, Platform, Pressable,
 import LinearGradient from 'react-native-linear-gradient';
 import Video, { VideoRef, OnProgressData, OnLoadData, OnBufferData, OnVideoErrorData, SelectedTrack } from 'react-native-video';
 import PlayerControls from './PlayerControls';
+import { COLORS } from '../constants';
 
 const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36';
 
@@ -435,5 +436,5 @@ const styles = StyleSheet.create({
   logoTransition: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', zIndex: 60 },
   logoTransitionInner: { alignItems: 'center', gap: 16 },
   logoTransitionImg: { width: 100, height: 100, borderRadius: 20 },
-  logoTransitionText: { color: '#ffcc00', fontSize: 13, fontFamily: 'Poppins-Regular', fontStyle: 'italic', textAlign: 'center', maxWidth: '70%', lineHeight: 18 },
+  logoTransitionText: { color: COLORS.yellow, fontSize: 13, fontFamily: 'Poppins-Regular', fontStyle: 'italic', textAlign: 'center', maxWidth: '70%', lineHeight: 18 },
 });

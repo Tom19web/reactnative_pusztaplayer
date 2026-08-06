@@ -1,11 +1,12 @@
 ﻿import { useState, useRef, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet, Image } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Image } from 'react-native';
 import Svg, { Polygon } from 'react-native-svg';
 import TFPressable from './TFPressable';
 import RuggedBorder from './RuggedBorder';
 import ShadowWrapper from './ShadowWrapper';
 import SpeechBubbleBg from './SpeechBubbleBg';
 import HalftoneHeaderBg from './HalftoneHeaderBg';
+import SearchDropdown from './SearchDropdown';
 import RuggedLine from './RuggedLine';
 import SoundEffect, { starburstPoints } from './SoundEffect';
 import { PlayIcon, PauseIcon } from '../../assets/icons';
@@ -198,35 +199,13 @@ export default function Topbar({ searchTerm, onSearchChange, contentWidth, onPla
             </Text>
           </TFPressable>
         )}
-        {showInput && searchResults.length > 0 && (
-          <View style={styles.searchDropdown}>
-            <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
-              {searchResults.map(item => {
-                const fav = favorites.some(f => f.key === item.key);
-                return (
-                  <TFPressable
-                    key={item.key}
-                    style={styles.dropdownItem}
-                    focusedStyle={styles.dropdownItemFocused}
-                    onPress={() => {
-                      if (item.type === 'semantic') {
-                        setLocalSearch(item.title);
-                        setShowInput(false);
-                      } else {
-                        onPlayContent(item.key); setShowInput(false);
-                      }
-                    }}
-                  >
-                    <Text style={styles.dropdownIcon}>{item.type === 'live' ? '\uD83D\uDCFA' : item.type === 'movie' ? '\uD83C\uDFAC' : '\uD83D\uDCE6'}</Text>
-                    <Text style={styles.dropdownTitle} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.dropdownSub} numberOfLines={1}>{item.group}</Text>
-                    {item.isAi ? <Text style={styles.dropdownAi}>{item.similarity ? `\uD83E\uDD16 ${item.similarity}%` : '\uD83E\uDD16'}</Text> : null}
-                    {fav ? <Text style={styles.dropdownFav}>{'\u2B50'}</Text> : null}
-                  </TFPressable>
-                );
-              })}
-            </ScrollView>
-          </View>
+        {showInput && (
+          <SearchDropdown
+            results={searchResults}
+            favorites={favorites}
+            onSelect={(key) => { onPlayContent(key); setShowInput(false); }}
+            onSemanticSelect={(title) => { setLocalSearch(title); setShowInput(false); }}
+          />
         )}
       </View>
       {/* AI Search button */}
@@ -353,27 +332,6 @@ const styles = StyleSheet.create({
     fontSize: FONT.md - 6,
     fontFamily: '007Toontime',
   },
-  searchDropdown: {
-    position: 'absolute',
-    top: 42,
-    left: 0,
-    width: 400,
-    maxHeight: 320,
-    backgroundColor: COLORS.panel,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: COLORS.yellow,
-    zIndex: 9999,
-    elevation: 30,
-    overflow: 'hidden',
-  },
-  dropdownScroll: { padding: SPACING.xs },
-  dropdownItem: { flexDirection: 'row', alignItems: 'center', padding: SPACING.xs, borderRadius: 8, gap: SPACING.sm },
-  dropdownItemFocused: { backgroundColor: COLORS.cyan },
-  dropdownIcon: { fontSize: 14 },
-  dropdownTitle: { color: COLORS.text, fontSize: FONT.xs, fontWeight: '600', flex: 1 },
-  dropdownSub: { color: COLORS.muted, fontSize: FONT.xs - 4, maxWidth: 100 },
-  dropdownFav: { fontSize: 12 },
   userChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -432,11 +390,10 @@ const styles = StyleSheet.create({
   aiBtn: {
     width: 36, height: 36, borderRadius: RADIUS,
     backgroundColor: 'rgba(0,255,255,0.1)',
-    borderWidth: 1, borderColor: '#333',
+    borderWidth: 1, borderColor: COLORS.grayDark,
     alignItems: 'center', justifyContent: 'center',
   },
   aiBtnLoading: { backgroundColor: 'rgba(255,255,0,0.15)' },
   aiBtnFocused: { borderColor: COLORS.yellow, backgroundColor: 'rgba(0,255,255,0.25)' },
   aiBtnText: { fontSize: 16 },
-  dropdownAi: { fontSize: 11, marginLeft: 2 },
 });

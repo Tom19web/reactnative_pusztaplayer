@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     borderStyle: 'solid',
   },
   btnFocus: {
-    backgroundColor: '#39ff14',
+    backgroundColor: COLORS.neonGreen,
     borderColor: COLORS.black,
   },
   text: { color: COLORS.black, fontFamily: '007Toontime', fontSize: 8 },

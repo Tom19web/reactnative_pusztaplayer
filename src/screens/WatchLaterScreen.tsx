@@ -1,9 +1,10 @@
 import React, { useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, BackHandler } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import SimpleCard from '../components/SimpleCard';
 import RuggedBorder from '../components/RuggedBorder';
 import { useWatchLater, useToggleWatchLater } from '../store/AppContext';
 import { COLORS, FONT, SPACING } from '../constants';
+import { useHardwareBack } from '../hooks/useHardwareBack';
 import { WatchLaterItem } from '../types';
 
 interface WatchLaterScreenProps {
@@ -15,10 +16,7 @@ export default function WatchLaterScreen({ onPlayContent, onBack }: WatchLaterSc
   const wlItems = useWatchLater();
   const toggleWl = useToggleWatchLater();
 
-  useEffect(() => {
-    const h = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
-    return () => h.remove();
-  }, [onBack]);
+  useHardwareBack(onBack, [onBack]);
 
   const liveList = useMemo(() => wlItems.filter(w => w.type === 'live'), [wlItems]);
   const movieList = useMemo(() => wlItems.filter(w => w.type === 'movie' || w.type === 'vod'), [wlItems]);

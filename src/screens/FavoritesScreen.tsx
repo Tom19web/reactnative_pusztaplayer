@@ -1,11 +1,12 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, BackHandler, Platform, DeviceEventEmitter } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, DeviceEventEmitter } from 'react-native';
 import { useCore, useFavorites, useToggleFavorite, useToggleWatchLater, useWatchLater } from '../store/AppContext';
 import SimpleCard from '../components/SimpleCard';
 import RuggedBorder from '../components/RuggedBorder';
 import SoundEffect from '../components/SoundEffect';
 import TFPressable from '../components/TFPressable';
-import { COLORS, FONT, SPACING } from '../constants';
+import { COLORS, FONT, SPACING, IS_TV } from '../constants';
+import { useHardwareBack } from '../hooks/useHardwareBack';
 
 interface FavoritesScreenProps {
   onPlayContent: (key: string) => void;
@@ -23,14 +24,11 @@ export default function FavoritesScreen({ onPlayContent, onBack }: FavoritesScre
   const [sortLive, setSortLive] = useState<'az' | 'za' | 'date'>('date');
   const [sortMedia, setSortMedia] = useState<'az' | 'za' | 'date'>('date');
 
-  useEffect(() => {
-    const h = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
-    return () => h.remove();
-  }, [onBack]);
+  useHardwareBack(onBack, [onBack]);
 
   // TV: menu key unfavorites the focused item
   useEffect(() => {
-    if (!Platform.isTV) return;
+    if (!IS_TV) return;
     const sub = DeviceEventEmitter.addListener('onHWKeyEvent', (ev: { eventType: string; eventKeyAction: number }) => {
       if (ev.eventType === 'menu' && ev.eventKeyAction === 0 && focusedKey) {
         const item = favorites.find(f => f.key === focusedKey);
@@ -83,7 +81,7 @@ export default function FavoritesScreen({ onPlayContent, onBack }: FavoritesScre
                   style={styles.removeBtn}
                   focusedStyle={styles.removeBtnFocus}
                   onPress={() => toggleFav(item)}
-                  {...(Platform.isTV ? { focusable: false } : {})}
+                  {...(IS_TV ? { focusable: false } : {})}
                   accessibilityLabel={`${item.title} eltávolítása a kedvencekből`}
                   accessibilityRole="button"
                 >
@@ -126,7 +124,7 @@ export default function FavoritesScreen({ onPlayContent, onBack }: FavoritesScre
                     style={styles.removeBtn}
                     focusedStyle={styles.removeBtnFocus}
                     onPress={() => toggleFav(item)}
-                    {...(Platform.isTV ? { focusable: false } : {})}
+                    {...(IS_TV ? { focusable: false } : {})}
                   >
                     <Text style={styles.removeBtnText}>{'\u00D7'}</Text>
                   </TFPressable>

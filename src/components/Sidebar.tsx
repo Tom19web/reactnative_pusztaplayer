@@ -1,26 +1,22 @@
 import { useState } from 'react';
-import { View, Text, Image, StyleSheet, Platform, Dimensions, ScrollView } from 'react-native';
+import { View, Text, Image, StyleSheet, Platform, ScrollView } from 'react-native';
 import TFPressable from './TFPressable';
 import RuggedBorder from './RuggedBorder';
 import SoundEffect from './SoundEffect';
 import SidebarBg, { SidebarStars } from './SidebarBg';
 import PanelBg from './PanelBg';
 import ComicStarburst from './ComicStarburst';
-import { COLORS, FONT, SPACING, SIZES, NAV_ITEMS, USER_STATUS_LOGGED_IN } from '../constants';
+import { COLORS, FONT, SPACING, SIZES, NAV_ITEMS, USER_STATUS_LOGGED_IN, IS_TV, IS_TOUCH, SCREEN_WIDTH, SCREEN_HEIGHT } from '../constants';
 import { useCore } from '../store/AppContext';
 import { registerInterests } from '../services/wordpressSync';
 
 const APP_VERSION = '0.7.0';
-let isTV = false;
 let isTablet = false;
 let deviceLabel = 'Fire TV';
 try {
-  isTV = Platform.isTV;
-  const { width: winW, height: winH } = Dimensions.get('window');
-  isTablet = Math.min(winW, winH) >= 600;
-  deviceLabel = Platform.OS === 'windows' ? (isTV ? 'Xbox' : 'Windows') : isTV ? 'Fire TV' : isTablet ? 'Android Tablet' : 'Android Mobile';
+  isTablet = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) >= 600;
+  deviceLabel = Platform.OS === 'windows' ? (IS_TV ? 'Xbox' : 'Windows') : IS_TV ? 'Fire TV' : isTablet ? 'Android Tablet' : 'Android Mobile';
 } catch {}
-const isTouch = !isTV;
 
 interface SidebarProps {
   activeRoute: string;
@@ -68,7 +64,7 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
         </View>
         <View style={styles.sidebarBrandText}>
             <View style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -80 }, { translateY: -70 }, { scaleX: 1.32 }, { scaleY: 0.63 }], zIndex: 0 }}>
-            <ComicStarburst size={160} pointsCount={12} fillColor="#39ff14" borderColor="#FF6600" borderWidth={4} shadowOffset={4} />
+            <ComicStarburst size={160} pointsCount={12} fillColor={COLORS.neonGreen} borderColor={COLORS.vividOrange} borderWidth={4} shadowOffset={4} />
           </View>
           <Text style={styles.sidebarBrandName} numberOfLines={1} adjustsFontSizeToFit testID="sidebar-brand-name">
             pusztaplayer{' '}
@@ -144,7 +140,7 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
               accessibilityLabel={`${item.label} oldal megnyitása`}
               accessibilityRole="button"
             >
-              <item.Icon size={21} color={isActive ? '#ffcc00' : '#888'} />
+              <item.Icon size={21} color={isActive ? COLORS.yellow : '#888'} />
               <Text style={[styles.sidebarNavLabel, isActive && styles.sidebarNavLabelActive]}>{item.label}</Text>
             </TFPressable>
           );
@@ -167,7 +163,7 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
               accessibilityLabel="Beállítások"
               accessibilityRole="button"
             >
-              <Text style={{ fontSize: 17, color: settingsOpen ? '#ffcc00' : '#888' }}>{'\u2699'}</Text>
+              <Text style={{ fontSize: 17, color: settingsOpen ? COLORS.yellow : '#888' }}>{'\u2699'}</Text>
               <Text style={[styles.sidebarNavLabel, settingsOpen && styles.sidebarNavLabelActive]}>Beállítások</Text>
             </TFPressable>
             {settingsOpen && (
@@ -228,7 +224,7 @@ export default function Sidebar({ activeRoute, onNavigate, onLogin, onLogout, on
                   <TFPressable
                     key={int}
                     style={{
-                      backgroundColor: sel ? COLORS.cyan : '#222',
+                      backgroundColor: sel ? COLORS.cyan : COLORS.grayMid,
                       borderRadius: 8,
                       paddingVertical: 4,
                       paddingHorizontal: 10,
@@ -288,7 +284,7 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: 0,
     paddingLeft: 4, paddingRight: 1, paddingTop: 1, paddingBottom: 1,
-    backgroundColor: '#ffcc00',
+    backgroundColor: COLORS.yellow,
     borderRadius: RADIUS,
     overflow: 'hidden',
   },

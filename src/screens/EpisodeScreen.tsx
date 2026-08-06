@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, BackHandler, Dimensions, Animated } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
 import TFPressable from '../components/TFPressable';
@@ -10,7 +10,8 @@ import { xtreamGetSeriesInfo, buildEpisodeUrl } from '../services/xtreamApi';
 import { loadXtreamCredentials } from '../services/storage';
 import { addSeriesEpisode } from '../services/playlistService';
 import { fetchEpisodePlot, EpisodePlot } from '../services/aiProxy';
-import { COLORS, FONT, SPACING } from '../constants';
+import { COLORS, FONT, SPACING, SCREEN_WIDTH } from '../constants';
+import { useHardwareBack } from '../hooks/useHardwareBack';
 
 interface EpisodeScreenProps {
   seriesId: number;
@@ -18,8 +19,6 @@ interface EpisodeScreenProps {
   onPlayEpisode: (episode: { key: string; title: string; streamUrl: string }) => void;
   onBack: () => void;
 }
-
-const SCREEN_W = Dimensions.get('window').width;
 
 function HeaderBg() {
   return (
@@ -55,10 +54,7 @@ export default function EpisodeScreen({ seriesId, title, onPlayEpisode, onBack }
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  useEffect(() => {
-    const handler = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
-    return () => handler.remove();
-  }, [onBack]);
+  useHardwareBack(onBack, [onBack]);
 
   useEffect(() => {
     let cancelled = false;

@@ -3,18 +3,19 @@ import { StyleSheet, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Svg, { Defs, Pattern, Rect, Circle, Polygon, G } from 'react-native-svg';
 import { comicStarburstPoints } from './ComicStarburst';
+import { COLORS } from '../constants';
 
 const CW = 220;
 
 export const STARS: { top: number; left?: number; right?: number; size: number; fill: string }[] = [
-  { top: 30, left: 8, size: 30, fill: '#39FF14' },
-  { top: 120, right: 60, size: 26, fill: '#FF6600' },
-  { top: 210, left: 20, size: 23, fill: '#FFEE00' },
-  { top: 290, right: 25, size: 27, fill: '#FF0044' },
-  { top: 360, right: 54, size: 26, fill: '#FF6600' },
-  { top: 380, left: 6, size: 32, fill: '#39FF14' },
-  { top: 540, left: 16, size: 23, fill: '#FFEE00' },
-  { top: 620, right: 8, size: 30, fill: '#FF0044' },
+  { top: 30, left: 8, size: 30, fill: COLORS.neonGreen },
+  { top: 120, right: 60, size: 26, fill: COLORS.vividOrange },
+  { top: 210, left: 20, size: 23, fill: COLORS.brightYellow },
+  { top: 290, right: 25, size: 27, fill: COLORS.hotPink },
+  { top: 360, right: 54, size: 26, fill: COLORS.vividOrange },
+  { top: 380, left: 6, size: 32, fill: COLORS.neonGreen },
+  { top: 540, left: 16, size: 23, fill: COLORS.brightYellow },
+  { top: 620, right: 8, size: 30, fill: COLORS.hotPink },
 ];
 
 export function useStarData() {
