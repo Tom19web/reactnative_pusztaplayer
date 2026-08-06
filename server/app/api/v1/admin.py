@@ -193,7 +193,7 @@ async def merge_channel(
 
 @router.get("/admin/xmltv-names/{country}")
 async def xmltv_names(country: str, q: str = Query(default="")):
-    from scripts.import_common import _EPG_SOURCES
+    from app.services.epg_sources import _EPG_SOURCES
     if country not in _EPG_SOURCES:
         return {"names": [], "count": 0, "error": f"Unknown country: {country}"}
 
