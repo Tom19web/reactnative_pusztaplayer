@@ -132,7 +132,7 @@ async def recommend_similar(
             logger.error("pgvector similar recommend failed: %s", e)
             raise HTTPException(status_code=500, detail="Similar recommendation error") from e
 
-    filtered = [r for r in results if not (
+    filtered = [r for r in results if r["type"] == seed_type and not (
         r["type"] == seed_type and r["key"] == str(seed_id)
     )][:limit]
 
