@@ -161,4 +161,5 @@ def _rewrite_image_url(raw_url: str, size: int = 200) -> str:
         return raw_url
     import re
     path = re.sub(r'^.*movaloget\.cc:?\d*/?', '', raw_url)
+    path = re.sub(r'^images/', '', path)
     return f"https://live.pusztaplay.eu/images/{path}"
