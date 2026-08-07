@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import select, func
 
 from app.database import async_session_factory
-from app.models.models import SeriesModel
+from app.models.models import SeriesModel, EpisodeModel
 
 router = APIRouter(tags=["admin"])
 
@@ -103,4 +103,34 @@ async def get_series(series_id: int):
             "meta": row.meta,
             "created_at": str(row.created_at) if row.created_at else None,
             "found": True,
+        }
+
+
+@router.get("/admin/vod/series/{series_id}/episodes")
+async def list_episodes(series_id: int):
+    """Get all episodes for a series, grouped by season."""
+    async with async_session_factory() as db:
+        q = select(EpisodeModel).where(
+            EpisodeModel.series_id == series_id
+        ).order_by(EpisodeModel.season, EpisodeModel.episode)
+
+        result = await db.execute(q)
+        rows = result.scalars().all()
+
+        seasons = {}
+        for ep in rows:
+            s = str(ep.season)
+            if s not in seasons:
+                seasons[s] = []
+            seasons[s].append({
+                "episode": ep.episode,
+                "title": ep.title or "",
+                "plot": ep.plot or "",
+                "air_date": ep.air_date or "",
+            })
+
+        return {
+            "series_id": series_id,
+            "seasons": seasons,
+            "total_episodes": len(rows),
         }
