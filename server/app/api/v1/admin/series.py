@@ -5,6 +5,7 @@ from sqlalchemy import select, func
 
 from app.database import async_session_factory
 from app.models.models import SeriesModel, EpisodeModel
+from app.core.vector_engine import _rewrite_image_url
 
 router = APIRouter(tags=["admin"])
 
@@ -70,7 +71,7 @@ async def list_series(
                 "director": row.director,
                 "rating": row.rating,
                 "tmdb_id": row.tmdb_id,
-                "cover": row.cover,
+                "cover": _rewrite_image_url(row.cover or ""),
                 "created_at": str(row.created_at) if row.created_at else None,
             })
 
@@ -99,7 +100,7 @@ async def get_series(series_id: int):
             "director": row.director,
             "rating": row.rating,
             "tmdb_id": row.tmdb_id,
-            "cover": row.cover,
+            "cover": _rewrite_image_url(row.cover or ""),
             "meta": row.meta,
             "created_at": str(row.created_at) if row.created_at else None,
             "found": True,

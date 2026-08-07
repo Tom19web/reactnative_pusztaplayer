@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 
 from app.database import async_session_factory
 from app.models.models import MovieModel
+from app.core.vector_engine import _rewrite_image_url
 
 from ._shared import logger
 
@@ -80,8 +81,8 @@ async def list_movies(
                 "director": row.director,
                 "rating": row.rating,
                 "tmdb_id": row.tmdb_id,
-                "poster_full": row.poster_full,
-                "poster_thumb": row.poster_thumb,
+                "poster_full": _rewrite_image_url(row.poster_full or ""),
+                "poster_thumb": _rewrite_image_url(row.poster_thumb or ""),
                 "duration": row.duration,
                 "country": row.country,
                 "created_at": str(row.created_at) if row.created_at else None,
@@ -112,9 +113,9 @@ async def get_movie(stream_id: int):
             "director": row.director,
             "rating": row.rating,
             "tmdb_id": row.tmdb_id,
-            "poster_full": row.poster_full,
-            "poster_thumb": row.poster_thumb,
-            "backdrop_url": row.backdrop_url,
+            "poster_full": _rewrite_image_url(row.poster_full or ""),
+            "poster_thumb": _rewrite_image_url(row.poster_thumb or ""),
+            "backdrop_url": _rewrite_image_url(row.backdrop_url or ""),
             "duration": row.duration,
             "country": row.country,
             "meta": row.meta,
