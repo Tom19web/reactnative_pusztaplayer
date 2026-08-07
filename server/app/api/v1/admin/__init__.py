@@ -8,6 +8,7 @@ from .docker import router as docker_router
 from .scripts import router as scripts_router
 from .radio import router as radio_router
 from .tags import router as tags_router
+from .vod import router as vod_router
 
 router = APIRouter(tags=["admin"])
 router.include_router(stats_router)
@@ -18,3 +19,4 @@ router.include_router(docker_router)
 router.include_router(scripts_router)
 router.include_router(radio_router)
 router.include_router(tags_router)
+router.include_router(vod_router)
