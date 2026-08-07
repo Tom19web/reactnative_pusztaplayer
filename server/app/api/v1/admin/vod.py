@@ -16,35 +16,53 @@ VOD_PER_PAGE = 50
 
 @router.get("/admin/vod/movies")
 async def list_movies(
-    recent_days: int = Query(14, ge=1, le=365, description="Only movies from last N days"),
+    recent_days: int = Query(14, ge=0, le=3650, description="Days to look back. 0 = all movies"),
     page: int = Query(1, ge=1),
     per_page: int = Query(VOD_PER_PAGE, ge=1, le=200),
 ):
     """Paginated movie list from MovieModel, filtered by recency."""
     async with async_session_factory() as db:
-        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=recent_days)
+        if recent_days > 0:
+            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=recent_days)
+            count_q = select(func.count()).select_from(MovieModel).where(
+                MovieModel.created_at >= cutoff
+            )
+            q = select(
+                MovieModel.stream_id,
+                MovieModel.title,
+                MovieModel.year,
+                MovieModel.plot,
+                MovieModel.genre,
+                MovieModel.cast,
+                MovieModel.director,
+                MovieModel.rating,
+                MovieModel.tmdb_id,
+                MovieModel.poster_full,
+                MovieModel.poster_thumb,
+                MovieModel.duration,
+                MovieModel.country,
+                MovieModel.created_at,
+            ).where(MovieModel.created_at >= cutoff).order_by(MovieModel.created_at.desc())
+        else:
+            count_q = select(func.count()).select_from(MovieModel)
+            q = select(
+                MovieModel.stream_id,
+                MovieModel.title,
+                MovieModel.year,
+                MovieModel.plot,
+                MovieModel.genre,
+                MovieModel.cast,
+                MovieModel.director,
+                MovieModel.rating,
+                MovieModel.tmdb_id,
+                MovieModel.poster_full,
+                MovieModel.poster_thumb,
+                MovieModel.duration,
+                MovieModel.country,
+                MovieModel.created_at,
+            ).order_by(MovieModel.created_at.desc())
 
-        count_q = select(func.count()).select_from(MovieModel).where(
-            MovieModel.created_at >= cutoff
-        )
         total = (await db.execute(count_q)).scalar() or 0
-
-        q = select(
-            MovieModel.stream_id,
-            MovieModel.title,
-            MovieModel.year,
-            MovieModel.plot,
-            MovieModel.genre,
-            MovieModel.cast,
-            MovieModel.director,
-            MovieModel.rating,
-            MovieModel.tmdb_id,
-            MovieModel.poster_full,
-            MovieModel.poster_thumb,
-            MovieModel.duration,
-            MovieModel.country,
-            MovieModel.created_at,
-        ).where(MovieModel.created_at >= cutoff).order_by(MovieModel.created_at.desc())
 
         offset = (page - 1) * per_page
         q = q.limit(per_page).offset(offset)
