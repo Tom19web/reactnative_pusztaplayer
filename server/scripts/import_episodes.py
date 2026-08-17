@@ -58,11 +58,11 @@ async def embed_text(client: httpx.AsyncClient, text: str) -> list[float] | None
             await asyncio.sleep(1.5)
 
 
-async def get_tmdb_season(client: httpx.AsyncClient, series_tmdb_id: int, season_num: int) -> dict | None:
+async def get_tmdb_season(client: httpx.AsyncClient, series_tmdb_id: int, season_num: int, language: str = "hu-HU") -> dict | None:
     """Egy EGÉSZ ÉVAD epizódjainak lekérése 1etlen HTTP kéréssel."""
     url = f"https://api.themoviedb.org/3/tv/{series_tmdb_id}/season/{season_num}"
     try:
-        resp = await client.get(url, params={"api_key": TMDB_KEY, "language": "hu-HU"})
+        resp = await client.get(url, params={"api_key": TMDB_KEY, "language": language})
         if resp.status_code == 200:
             return resp.json()
     except Exception:
@@ -129,6 +129,19 @@ async def main():
 
                     if not season_detail or "episodes" not in season_detail:
                         continue
+
+                    # Angol fallback az üres overview-khoz (hu-HU gyakran hiányos)
+                    if any(not (ep.get("overview") or "").strip() for ep in season_detail["episodes"]):
+                        en_detail = await get_tmdb_season(http_client, series.tmdb_id, snum, "en-US")
+                        await asyncio.sleep(TMDB_RATE_LIMIT)
+                        if en_detail and "episodes" in en_detail:
+                            en_map = {
+                                ep.get("episode_number"): (ep.get("overview") or "").strip()
+                                for ep in en_detail["episodes"]
+                            }
+                            for ep in season_detail["episodes"]:
+                                if not (ep.get("overview") or "").strip():
+                                    ep["overview"] = en_map.get(ep.get("episode_number"), "")
 
                     for ep_data in season_detail["episodes"]:
                         epnum = ep_data.get("episode_number", 0)
