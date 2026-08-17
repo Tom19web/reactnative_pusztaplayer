@@ -89,7 +89,9 @@ async def import_programs(
     async with async_session_factory() as sess:
         inserted = 0
         for p in programs:
-            prog_id = p.get("id", f"xmltv_{xml_channel}_{p.get('start_timestamp', 0)}")
+            # id MUST include stream_id: az azonos xmltv-csatorna különböző
+            # minőség-variánsai (FHD/HD/SD, eltérő stream_id) így külön sort kapnak.
+            prog_id = f"xmltv_{channel_stream_id}_{xml_channel}_{p.get('start_timestamp', 0)}"
             stmt = pg_insert(EpgProgramModel).values(
                 id=prog_id,
                 channel_id=str(channel_stream_id),

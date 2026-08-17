@@ -9,7 +9,10 @@ Match-elés prioritási sorrendje:
   1. Kézi xtream_sid (a mapping fájlból, ha az admin panelen ki lett töltve)
   2. Pontos normalizált név egyezés (port.hu név == Xtream tiszta név)
   3. Fuzzy match_best (bigram overlap, threshold 0.6)
-  4. AI fallback (ai_match_channels — DeepSeek, ha van kulcs)
+  4. epg_channel_id pontos egyezés (kiegészítés — az eltérő nevű variantokat is elkapja)
+  5. AI fallback (ai_match_channels — DeepSeek, ha van kulcs)
+
+Minden minőség-variánst importál (nem csak az első stream_id-t).
 
 Használat:
   docker compose exec fastapi python /app/scripts/import_epg_hu_direct.py
@@ -83,19 +86,23 @@ async def main(args: argparse.Namespace) -> None:
     streams, _cat_by_id = await fetch_live_streams(username, password)
     logger.info("  Xtream live csatornák: %d", len(streams))
 
-    # cleaned Xtream név → [stream_id-k]
+    # cleaned Xtream név → [stream_id-k] + epg_channel_id → [stream_id-k]
     xtream_by_name: dict[str, list[int]] = {}
-    xtream_cleaned_names: list[str] = []
+    xtream_by_epg_id: dict[str, list[int]] = {}
     for s in streams:
         sid = s.get("stream_id")
+        if not sid:
+            continue
         raw = str(s.get("name", "")).strip()
-        if not sid or not raw:
-            continue
-        cleaned = clean_xtream_name(raw)
-        if not cleaned:
-            continue
-        xtream_by_name.setdefault(cleaned, []).append(int(sid))
-        xtream_cleaned_names.append(cleaned)
+        if raw:
+            cleaned = clean_xtream_name(raw)
+            if cleaned:
+                xtream_by_name.setdefault(cleaned, []).append(int(sid))
+        epg_id = str(s.get("epg_channel_id", "")).strip().lower()
+        if epg_id:
+            xtream_by_epg_id.setdefault(epg_id, []).append(int(sid))
+
+    xtream_cleaned_names = list(xtream_by_name.keys())
 
     # normalizált index a gyors pontos egyezéshez
     norm_index: dict[str, str] = {}
@@ -104,12 +111,14 @@ async def main(args: argparse.Namespace) -> None:
         if n and n not in norm_index:
             norm_index[n] = cname
 
-    logger.info("  Xtream egyedi tiszta nevek: %d", len(xtream_by_name))
+    logger.info("  Xtream egyedi tiszta nevek: %d, egyedi epg_channel_id: %d",
+                len(xtream_by_name), len(xtream_by_epg_id))
 
     # ── Match + import ──────────────────────────────────
     total = 0
     matched_count = 0
     manual_count = 0
+    streams_count = 0
     unmatched: list[str] = []
 
     for entry in mapping:
@@ -121,43 +130,53 @@ async def main(args: argparse.Namespace) -> None:
         if not progs:
             continue
 
-        stream_id: int | None = None
-        match_source = ""
+        # (stream_id, forrás) párok — MINDEN variant
+        sid_sources: list[tuple[int, str]] = []
 
         # 1. Kézi override
         if manual_sid:
-            stream_id = int(manual_sid)
-            match_source = "manual"
+            sid_sources = [(int(manual_sid), "manual")]
             manual_count += 1
         else:
-            # 2. Pontos normalizált név egyezés
+            # 2. Pontos normalizált név
             n_name = normalize(name)
             if n_name and n_name in norm_index:
-                stream_id = xtream_by_name[norm_index[n_name]][0]
-                match_source = "exact"
-            # 3. Fuzzy match
-            else:
+                cname = norm_index[n_name]
+                sid_sources.extend((sid, "exact") for sid in xtream_by_name[cname])
+
+            # 3. Fuzzy
+            if not sid_sources:
                 m = match_best(xtream_cleaned_names, name, threshold=args.threshold)
                 if m:
-                    stream_id = xtream_by_name[m[0]][0]
-                    match_source = "fuzzy"
+                    sid_sources.extend((sid, "fuzzy") for sid in xtream_by_name[m[0]])
 
-        if stream_id is None:
+            # 4. epg_channel_id kiegészítés (a név által nem fogott variantok)
+            epg_sids = xtream_by_epg_id.get(xmltv_id.lower(), [])
+            if epg_sids:
+                have = {sid for sid, _ in sid_sources}
+                for sid in epg_sids:
+                    if sid not in have:
+                        sid_sources.append((sid, "epg_id"))
+
+        if not sid_sources:
             unmatched.append(name)
             continue
 
+        matched_count += 1
+        streams_count += len(sid_sources)
+
         if args.dry_run:
-            matched_count += 1
-            logger.info("  [DRY] %s → sid %d (%s)", name, stream_id, match_source)
+            for sid, source in sid_sources:
+                logger.info("  [DRY] %s → sid %d (%s)", name, sid, source)
             continue
 
-        inserted = await import_programs(stream_id, name, progs, xmltv_id)
-        total += inserted
-        matched_count += 1
-        logger.info("  [%d] %s → sid %d (%s): %d programmes",
-                    stream_id, name, stream_id, match_source, inserted)
+        for sid, source in sid_sources:
+            inserted = await import_programs(sid, name, progs, xmltv_id)
+            total += inserted
+            logger.info("  [%d] %s → sid %d (%s): %d programmes",
+                        sid, name, sid, source, inserted)
 
-    # 4. AI fallback a maradékra
+    # 5. AI fallback a maradékra
     if unmatched and not args.dry_run:
         from import_common import ai_match_channels
         ai_matches = await ai_match_channels(unmatched, xtream_cleaned_names)
@@ -175,18 +194,19 @@ async def main(args: argparse.Namespace) -> None:
             progs = prog_by_channel.get(xmltv_id, [])
             if not progs:
                 continue
-            stream_id = sids[0]
-            inserted = await import_programs(stream_id, port_name, progs, xmltv_id)
-            total += inserted
+            for sid in sids:
+                inserted = await import_programs(sid, port_name, progs, xmltv_id)
+                total += inserted
+                logger.info("  [AI] %s → %s (sid %d): %d programmes",
+                            port_name, xtream_name, sid, inserted)
             matched_count += 1
+            streams_count += len(sids)
             ai_matched_names.add(port_name)
-            logger.info("  [AI] %s → %s (sid %d): %d programmes",
-                        port_name, xtream_name, stream_id, inserted)
         unmatched = [n for n in unmatched if n not in ai_matched_names]
 
     elapsed = time.time() - start
-    logger.info("  matched: %d (%d kézi), imported: %d programmes in %.1fs",
-                matched_count, manual_count, total, elapsed)
+    logger.info("  matched: %d csatorna (%d kézi), %d stream_id, imported: %d programmes in %.1fs",
+                matched_count, manual_count, streams_count, total, elapsed)
     if unmatched:
         logger.warning("  Nem talált (%d): %s", len(unmatched), "; ".join(unmatched[:40]))
 
@@ -199,6 +219,7 @@ async def main(args: argparse.Namespace) -> None:
             "channels_manual": manual_count,
             "channels_unmatched": len(unmatched),
             "channels_total": len(mapping),
+            "streams_imported": streams_count,
         }
         with open("/tmp/epg_hu_port_import_meta.json", "w", encoding="utf-8") as f:
             json.dump(mapping_meta, f, ensure_ascii=False, indent=2)
