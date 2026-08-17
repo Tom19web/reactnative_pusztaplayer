@@ -110,7 +110,7 @@ def _ts_to_xmltv(iso_str: str | None) -> str:
         return ""
     try:
         dt = datetime.fromisoformat(iso_str)
-        return dt.strftime("%Y%m%d%H%M%S") + " " + dt.strftime("%z").replace("+0", "+").replace("-0", "-")
+        return dt.strftime("%Y%m%d%H%M%S") + " " + dt.strftime("%z")
     except Exception:
         return ""
 

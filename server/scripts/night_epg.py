@@ -5,6 +5,7 @@ Szekvenciálisan futtatja:
   1. Regular EPG import  →  /app/scripts/import_epg.py
   2. Hiányzó csatornák    →  /app/scripts/import_epg_filtered.py --missing
   3. Halott csatornák EPG-jének törlése (amik már NINCSENek az Xtream live listában)
+  4. Lejárt (múltbéli) EPG programok törlése (stop_timestamp < now - 24h)
 
 Minden kimenet a /var/log/pusztaplayer/night_epg_YYYYMMDD_HHMM.log fájlba kerül.
 
@@ -17,6 +18,7 @@ import logging
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -92,6 +94,22 @@ async def purge_dead_channels() -> int:
         return deleted.rowcount or 0
 
 
+async def purge_expired_programs() -> int:
+    """Törli a már lejárt EPG programokat (stop_timestamp < now - 24h).
+
+    Az on_conflict_do_nothing import nem törli a múltbéli műsorokat,
+    ezért idővel felhalmozódnak. Ez a lépés tisztán tartja a táblát.
+    """
+    cutoff = int(time.time()) - 24 * 3600
+    async with async_session_factory() as sess:
+        result = await sess.execute(
+            text("DELETE FROM epg_programs WHERE stop_timestamp < :cutoff"),
+            {"cutoff": cutoff},
+        )
+        await sess.commit()
+        return result.rowcount or 0
+
+
 async def main():
     os.makedirs(LOG_DIR, exist_ok=True)
     log_path = os.path.join(LOG_DIR, f"night_epg_{datetime.now().strftime('%Y%m%d_%H%M')}.log")
@@ -113,6 +131,13 @@ async def main():
         logger.info("  Halott csatornák EPG törölve: %d", purged)
     except Exception as e:
         logger.error("  Purge hiba: %s", e)
+
+    # 4. Lejárt (múltbéli) programok törlése
+    try:
+        expired = await purge_expired_programs()
+        logger.info("  Lejárt EPG programok törölve: %d", expired)
+    except Exception as e:
+        logger.error("  Expired purge hiba: %s", e)
 
     logger.info("=== Kész. Log: %s ===", log_path)
 
