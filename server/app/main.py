@@ -35,6 +35,7 @@ from app.api.v1.playlist import router as playlist_router
 from app.api.v1.admin import router as admin_router
 from app.api.v1.ai import router as ai_router  # 🚀 AZ ÚJ UNIFIED AI PROXY!
 from app.api.v1.cast_search import router as cast_search_router
+from app.api.v1.age_rating import router as age_rating_router
 
 # --- Admin Auth (must be defined before router registration) ---
 security = HTTPBasic()
@@ -114,6 +115,7 @@ app.include_router(live_router, prefix="/api/v1")
 app.include_router(playlist_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1", dependencies=[Depends(verify_admin_access)])
 app.include_router(cast_search_router, prefix="/api/v1")
+app.include_router(age_rating_router, prefix="/api/v1")
 
 
 # --- Az IGAZI Health Check ---
