@@ -6,6 +6,7 @@ Aszinkron AI Proxy: hangulatok, keresés, intelligens ajánlások egy helyen.
 import logging
 import hashlib
 import json
+import re
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 import httpx
@@ -81,8 +82,11 @@ def _verify_api_key(x_api_key: str | None = Header(default=None)):
 
 
 async def _call_deepseek_json(system_prompt: str, user_prompt: str) -> dict | list:
+    """DeepSeek hívás JSON-válasszal — hiba esetén GRACEFUL üres válasz ({}/[]),
+    nem 500/502 (a kliens az üres listákat szépen kezeli)."""
     if not settings.DEEPSEEK_API_KEY:
-        raise HTTPException(status_code=500, detail="DEEPSEEK_API_KEY not configured")
+        logger.warning("DEEPSEEK_API_KEY not configured — empty AI response")
+        return {}
 
     client = get_http_client()
     try:
@@ -106,10 +110,20 @@ async def _call_deepseek_json(system_prompt: str, user_prompt: str) -> dict | li
         response.raise_for_status()
         data = response.json()
         content = data["choices"][0]["message"]["content"]
-        return json.loads(content)
+
+        # JSON-repair (a deepseek_client.py mintájára): ```json kerítések
+        # levágása + hiányzó zárójelek pótlása
+        raw = content.strip()
+        raw = re.sub(r'```json\s*|\s*```', '', raw).strip()
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            if not raw.endswith(('}', ']')):
+                raw += '}]' if raw.startswith('[') else '}'
+            return json.loads(raw)
     except Exception as e:
         logger.error("DeepSeek API call failed: %s", e)
-        raise HTTPException(status_code=502, detail="AI service error")
+        return {}
 
 
 # --- Végpontok ---
@@ -119,7 +133,7 @@ async def classify_moods(req: MoodsRequest, x_api_key: str | None = Header(defau
     _verify_api_key(x_api_key)
 
     itemList = [{"key": i.key, "title": i.title, "genre": i.genre, "plot": (i.plot or "")[:200]} for i in req.items]
-    cache_key = f"ai:moods:{_hash_items(itemList)}"
+    cache_key = f"ai:moods:v2:{_hash_items(itemList)}"
     
     cached = await cache_get(cache_key)
     if cached:
@@ -128,11 +142,10 @@ async def classify_moods(req: MoodsRequest, x_api_key: str | None = Header(defau
     system_prompt = (
         "You are a content mood classifier for an IPTV app. "
         "Assign 1-3 Hungarian-language moods to each item from this list ONLY: "
-        "Akciódús, Adrenalinos, Kalandvágyó, Vidám, Elgondolkodtató, Szívszorító, Félelmetes, "
-        "Hátborzongató, Lebilincselő, Nyomasztó, Szerelmes, Bájos, Fantasztikus, Baljós, Mesebeli, "
-        "Kíváncsivá tesz, Intenzív, Tanulságos, Inspiráló, Játékos, Megható, Otthonos, Megrázó, "
-        "Időutazós, Lendületes, Győzedelmes, Kietlen, Közvetlen, Felszabadult, Versenyszellemű, "
-        "Áhítatos, Harapható, Nosztalgikus, Provokatív, Hullámzó, Lazító. "
+        "Adrenalinos, Nevetős, Elgondolkodtató, Feszült, Szívmelengető, Hátborzongató, "
+        "Kalandvágyó, Fantasztikus, Mesés, Nyomozós, Megrázó, Vadnyugati, Tanulságos, "
+        "Játékos, Családi, Zenés, Győzelmi, Inspiráló, Időutazós, Felszabadult, Közvetlen, "
+        "Versengő, Ámulatos, Falatnyi, Nosztalgikus, Merész, Lazító, Sötét, Lenyűgöző. "
         "Return ONLY a JSON object with a key 'results' containing an array: "
         '[{"key": "...", "moods": ["Mood1", "Mood2"]}]'
     )
@@ -140,7 +153,10 @@ async def classify_moods(req: MoodsRequest, x_api_key: str | None = Header(defau
     parsed = await _call_deepseek_json(system_prompt, json.dumps(itemList))
     moods_result = parsed if isinstance(parsed, list) else (parsed.get("results") or parsed.get("moods") or [])
 
-    await cache_set(cache_key, json.dumps(moods_result), ttl_seconds=CACHE_TTL_AI)  # 24h TTL Redisben
+    # Csak NEM ÜRES eredményt cache-elünk — egy átmeneti AI-hiba ne
+    # konzerválja az üres választ 24 órára
+    if moods_result:
+        await cache_set(cache_key, json.dumps(moods_result), ttl_seconds=CACHE_TTL_AI)
     return {"moods": moods_result, "cached": False}
 
 
@@ -165,11 +181,12 @@ async def ai_search(req: AISearchRequest, x_api_key: str | None = Header(default
     parsed = await _call_deepseek_json(system_prompt, user_prompt)
     keys_result = parsed if isinstance(parsed, list) else (parsed.get("keys") or parsed.get("results") or [])
 
-    await cache_set(cache_key, json.dumps(keys_result), ttl_seconds=CACHE_TTL_AI)
+    if keys_result:
+        await cache_set(cache_key, json.dumps(keys_result), ttl_seconds=CACHE_TTL_AI)
     return {"keys": keys_result, "cached": False}
 
 
-@router.post("/ai/recommend")
+@router.post("/recommend")
 async def ai_recommend(req: AIRecommendRequest, x_api_key: str | None = Header(default=None)):
     _verify_api_key(x_api_key)
 
@@ -193,5 +210,6 @@ async def ai_recommend(req: AIRecommendRequest, x_api_key: str | None = Header(d
     parsed = await _call_deepseek_json(system_prompt, user_prompt)
     recs_result = parsed if isinstance(parsed, list) else (parsed.get("recommendations") or parsed.get("results") or [])
 
-    await cache_set(cache_key, json.dumps(recs_result), ttl_seconds=CACHE_TTL_AI)
+    if recs_result:
+        await cache_set(cache_key, json.dumps(recs_result), ttl_seconds=CACHE_TTL_AI)
     return {"recommendations": recs_result, "cached": False}
