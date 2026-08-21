@@ -1,5 +1,24 @@
 # PusztaPlayer
 
+> ## ⚠️ END OF LIFE — ARCHIVED (2026-08)
+>
+> Ez a **React Native** projekt elérte az életciklusa végét. A kliens
+> **Kotlin**-ra migrálva, a backend pedig a Kotlin csapat saját repo-jában
+> folytatódik (`D:\kotlin\pusztaplayer-server` / `pusztaplayer-server`).
+>
+> - **`src/`, `android/`, `ios/`, `windows/`** — React Native app, lezárva.
+> - **`server/`** — FastAPI backend, forrása a Kotlin csapat repo-ja (a lenti kód elavult).
+> - **`wp-plugin/`** — a régi WP admin plugin, a **PusztaPlay CRM Manager** váltotta ki (külön repo).
+> - **`refaktor/`** — Kotlin migrációs előkészítés volt, a Kotlin csapat saját migrációja felülírta (nem commit-olva).
+>
+> A részletes átadási dokumentáció: [`ARCHIVED.md`](ARCHIVED.md)
+>
+> A **CRM Manager** és a **Theme** tovább él külön repo-kban:
+> - `github.com/Tom19web/pusztaplay-crm-manager`
+> - `github.com/Tom19web/pusztaplay-theme`
+
+---
+
 IPTV lejátszó alkalmazás Android TV / Fire TV platformra, React Native alapokon.  
 Xtream Codes API kompatibilis — élő TV, filmek, sorozatok, EPG műsorújság, többprofil támogatás.
 
